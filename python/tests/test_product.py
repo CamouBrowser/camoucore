@@ -58,3 +58,18 @@ def test_a_warning_skips_a_registered_launchers_frames(tmp_path):
         namespace['go']()
     assert [Path(w.filename) for w in caught] == [Path(__file__)]
     assert _warn_from_caller  # the import above is the one the launcher uses
+
+
+def test_fit_resizes_only_a_display_nobody_sized(monkeypatch):
+    drawn = VirtualDisplay(WOLF)
+    drawn.fit(2880, 1800)
+    assert drawn.screen == '2880x1800x24'
+
+    chosen = VirtualDisplay(WOLF, screen='1920x1080x24')
+    chosen.fit(2880, 1800)
+    assert chosen.screen == '1920x1080x24'
+
+    monkeypatch.setenv('CAMOUWOLF_VIRTUAL_DISPLAY_SIZE', '1600x900')
+    fixed = VirtualDisplay(WOLF)
+    fixed.fit(2880, 1800)
+    assert fixed.screen == '1600x900x24'

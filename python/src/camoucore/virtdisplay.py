@@ -22,8 +22,9 @@ DISPLAYFD_READ_TIMEOUT_S = 30.0
 # The Composite extension stays disabled (Xvfb's `-extension COMPOSITE`); the
 # launcher's <NAME>_VIRTUAL_DISPLAY_COMPOSITE=1 enables it.
 COMPOSITE_KEY = "VIRTUAL_DISPLAY_COMPOSITE"
-# <NAME>_VIRTUAL_DISPLAY_SIZE="<width>x<height>[x<depth>]" overrides the
-# engine's screen geometry (Engine.virtual_screen).
+# <NAME>_VIRTUAL_DISPLAY_SIZE="<width>x<height>[x<depth>]" fixes the screen
+# geometry; otherwise it is the engine's (Engine.virtual_screen) until the
+# launcher fit()s it to the identity.
 SCREEN_KEY = "VIRTUAL_DISPLAY_SIZE"
 
 
@@ -55,6 +56,8 @@ class VirtualDisplay:
     ) -> None:
         self.product = product
         self.debug = debug
+        #: A size the caller chose; fit() leaves it alone.
+        self.fixed = bool(screen or (product.getenv(SCREEN_KEY) or "").strip())
         self.screen = screen or _resolve_screen(product)
         if composite is None:
             composite = (product.getenv(COMPOSITE_KEY) or "0").strip() in ("1", "true")
@@ -67,6 +70,14 @@ class VirtualDisplay:
         """The display's width and height in pixels."""
         width, height = self.screen.lower().split('x')[:2]
         return int(width), int(height)
+
+    def fit(self, width: int, height: int) -> None:
+        """Size a display that is not yet started to `width` x `height` pixels,
+        unless its size was fixed."""
+        if self.fixed or self.proc is not None:
+            return
+        depth = self.screen.lower().split('x')[2]
+        self.screen = f"{width}x{height}x{depth}"
 
     @property
     def xvfb_args(self) -> tuple:
