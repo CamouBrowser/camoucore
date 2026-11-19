@@ -17,7 +17,8 @@
     "prepare": "pnpm build"
   },
   "files": [
-    "dist"
+    "dist",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "author": "JWriter20",
   "license": "MIT",
