@@ -1,3 +1,6 @@
+packages:
+  - typescript
+
 # 24h quarantine on anything freshly published, as supply-chain cover.
 minimumReleaseAge: 1440
 
