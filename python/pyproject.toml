@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "The browser-independent core of the Camoufox and Camouwolf launchers"
 authors = ["JWriter20", "daijro <daijro.dev@gmail.com>"]
 license = "MIT"
+repository = "https://github.com/CamoufoxCloud/camoucore"
 readme = "README.md"
 packages = [{ include = "camoucore", from = "src" }]
 include = ["src/camoucore/*.json", "src/camoucore/*.yml", "src/camoucore/*.xml"]
