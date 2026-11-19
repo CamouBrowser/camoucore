@@ -1,0 +1,94 @@
+name: release
+
+# A v<version> tag publishes that version to PyPI and npm. Both packages carry
+# the tag's version, so a launcher pinning one gets the same code in either
+# language.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  build:
+    name: Build the packages
+    needs: tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: The tag, pyproject.toml and package.json agree
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          py=$(python3 -c "import tomllib;print(tomllib.load(open('python/pyproject.toml','rb'))['tool']['poetry']['version'])")
+          js=$(node -p "require('./typescript/package.json').version")
+          test "v$py" = "$TAG" && test "v$js" = "$TAG"
+      - name: Build the Python package
+        run: |
+          python3 -m pip install -q build twine
+          python3 -m build python --outdir python/dist
+          python3 -m twine check --strict python/dist/*
+      - name: Build the npm package
+        run: |
+          pnpm install --frozen-lockfile
+          mkdir npm-dist
+          cd typescript && npm pack --ignore-scripts --pack-destination ../npm-dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: python/dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-dist
+          path: npm-dist/
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: pypi
+    permissions:
+      id-token: write # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+
+  publish-npm:
+    name: Publish to npm
+    # After PyPI, so npm never has a version PyPI does not.
+    needs: publish-pypi
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      id-token: write # trusted publishing and provenance
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          # Trusted publishing needs npm >= 11.5.1, which Node 24 ships.
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-dist
+          path: npm-dist
+      # `./` keeps npm from reading `npm-dist/<file>.tgz` as a GitHub owner/repo.
+      - run: npm publish ./npm-dist/*.tgz --access public
