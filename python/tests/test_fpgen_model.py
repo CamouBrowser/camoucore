@@ -401,3 +401,24 @@ def test_the_real_pin_is_complete():
     assert pin["url"].startswith("https://github.com/")
     assert f"/download/{pin['tag']}/" in pin["url"]
     assert sorted(pin["file_sha256"]) == sorted(pin["files"])
+
+
+def test_constants_match_the_installed_fpgen():
+    """fpgen's file names, data directory and five-week window are its own; if
+    a release changes them, this module would install a model fpgen cannot see.
+    FPGEN_NO_INIT keeps fpgen from loading (or fetching) while it is read."""
+    probe = (
+        "import json, fpgen.pkgman as p;"
+        "print(json.dumps({"
+        "'dir': str(p.DATA_DIR),"
+        "'compressed': sorted(v.name for v in p.FILE_PAIRS.values()),"
+        "'decompressed': sorted(k.name for k in p.FILE_PAIRS.keys())}))"
+    )
+    env = {**os.environ, "FPGEN_NO_INIT": "1"}
+    out = subprocess.run([sys.executable, "-c", probe], env=env, capture_output=True, text=True, check=True)
+    seen = json.loads(out.stdout.strip().splitlines()[-1])
+
+    assert seen["dir"] == str(fpgen_model.fpgen_data_dir())
+    assert seen["compressed"] == sorted(fpgen_model.PIN["files"])
+    assert seen["decompressed"] == sorted(fpgen_model.DECOMPRESSED_FILES)
+    assert "timedelta(weeks=5)" in (fpgen_model.fpgen_data_dir().parent / "pkgman.py").read_text()
