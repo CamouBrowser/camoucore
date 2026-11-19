@@ -1,0 +1,14 @@
+no_region: >-
+    Because you did not pass in a locale region, one will be generated for you.
+    This can cause suspicion if your IP does not match your locale region.
+
+geoip_deprecated: >-
+    The GeoIP source "{name}" is deprecated and will be removed in a future release.
+    "{default}" is the default and resolves locations more accurately.
+    Run `camoufox set --geoip` or `camouwolf set --geoip` to switch (both share one
+    GeoIP cache), or stop passing `geoip_db`.
+
+geoip_frozen: >-
+    The newest "{name}" GeoIP database was built {days} days ago, so its source may have
+    stopped publishing and locations may be out of date. The sources are listed in
+    camoucore's geoip.yml.
