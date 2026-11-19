@@ -24,10 +24,26 @@ from camoucore import CHROMIUM, Product
 PRODUCT = Product('camouwolf', 'Camouwolf', CHROMIUM, package=Path(__file__).parent)
 ```
 
+The TypeScript package (`typescript/`, npm `camoucore`) is the twin of the
+Python one, for launchers written in Node:
+
+```ts
+import { CHROMIUM, Product } from "camoucore";
+
+export const PRODUCT = new Product("camouwolf", "Camouwolf", CHROMIUM);
+```
+
+Its data files are the Python package's; `pnpm build` copies them into
+`dist/data-files/`, so each exists once in the repository.
+
 ## Development
 
 ```bash
 cd python
 pip install -e '.[geoip]' pytest
 pytest tests -q
+
+cd ../typescript     # Node 22.15 or newer
+pnpm install
+pnpm exec tsc --noEmit && pnpm test && pnpm check
 ```

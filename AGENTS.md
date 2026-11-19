@@ -6,6 +6,8 @@ line here runs in both, so:
 - **Never name a launcher in core code.** Read it from the `Product` the caller
   passes: `product.name`, `product.env_var(...)`, `product.engine`. Messages are
   worded so they read correctly from either launcher.
+- **Python and TypeScript are twins.** A change to one module lands in its
+  twin in the same commit. Data files live once, in `python/src/camoucore/`.
 - **Engine differences live on `Engine`**, as data, not as branches on its name.
 - **Move, don't copy.** Code comes here when both launchers carry it, and the
   launcher copies are deleted in the same change. A launcher-only test of core
