@@ -69,3 +69,11 @@ def test_lookups_through_a_proxy_get_longer_than_direct_ones(monkeypatch):
         (ip.PROXIED_IP_TIMEOUT, True),
     ]
     assert ip.PROXIED_IP_TIMEOUT > ip.DIRECT_IP_TIMEOUT
+
+
+def test_a_socks5_proxy_is_reachable():
+    """requests needs PySocks for a socks5 proxy; without it every socks5 exit
+    lookup failed with "Missing dependencies for SOCKS support"."""
+    adapter = ip.requests.adapters.HTTPAdapter()
+    manager = adapter.proxy_manager_for("socks5://u:p@127.0.0.1:1080")
+    assert type(manager).__name__ == "SOCKSProxyManager"
