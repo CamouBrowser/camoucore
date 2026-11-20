@@ -104,6 +104,23 @@ function once<T>(
 	});
 }
 
+/** Where an HTTP(S) proxy listens. */
+function proxyEndpoint(proxy: URL): { host: string; port: string | number } {
+	return {
+		host: proxy.hostname.replace(/^\[(.*)\]$/, "$1"),
+		port: proxy.port || (proxy.protocol === "https:" ? 443 : 80),
+	};
+}
+
+/** Basic auth for an HTTP(S) proxy, when its URL carries credentials. */
+function proxyAuthorization(proxy: URL): Record<string, string> {
+	if (!proxy.username) return {};
+	const auth = `${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`;
+	return {
+		"Proxy-Authorization": `Basic ${Buffer.from(auth).toString("base64")}`,
+	};
+}
+
 /** A TCP stream to host:port through an HTTP(S) proxy's CONNECT. */
 function connectTunnel(
 	proxy: URL,
@@ -112,18 +129,11 @@ function connectTunnel(
 	timeoutMs: number,
 ): Promise<net.Socket> {
 	return once(timeoutMs, "proxy CONNECT", (resolve, reject) => {
-		const headers: Record<string, string> = { Host: `${host}:${port}` };
-		if (proxy.username) {
-			const auth = `${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`;
-			headers["Proxy-Authorization"] =
-				`Basic ${Buffer.from(auth).toString("base64")}`;
-		}
 		const request = (proxy.protocol === "https:" ? https : http).request({
-			host: proxy.hostname.replace(/^\[(.*)\]$/, "$1"),
-			port: proxy.port || (proxy.protocol === "https:" ? 443 : 80),
+			...proxyEndpoint(proxy),
 			method: "CONNECT",
 			path: `${host}:${port}`,
-			headers,
+			headers: { Host: `${host}:${port}`, ...proxyAuthorization(proxy) },
 		});
 		request.on("connect", (response, socket) => {
 			if (response.statusCode === 200) resolve(socket);
@@ -226,18 +236,20 @@ function connectSocks5(
 	});
 }
 
+function parseProxy(proxy: string): URL {
+	try {
+		return new URL(proxy);
+	} catch (error) {
+		throw new InvalidProxy(`Invalid proxy server: ${proxy}`, { cause: error });
+	}
+}
+
 function proxySocket(
-	proxy: string,
+	url: URL,
 	host: string,
 	port: number,
 	timeoutMs: number,
 ): Promise<net.Socket> {
-	let url: URL;
-	try {
-		url = new URL(proxy);
-	} catch (error) {
-		throw new InvalidProxy(`Invalid proxy server: ${proxy}`, { cause: error });
-	}
 	switch (url.protocol) {
 		case "http:":
 		case "https:":
@@ -253,43 +265,126 @@ function proxySocket(
 	}
 }
 
-/** GET an https URL's body, directly or through `proxy`; certificates are verified. */
-async function httpsGetText(url: string, proxy?: string): Promise<string> {
+/**
+ * GET a URL's body, directly or through `proxy`, as requests.get() sends it:
+ * https is tunnelled and its certificate verified; plain http goes to an
+ * HTTP(S) proxy in absolute form, and through a SOCKS5 tunnel otherwise.
+ */
+async function getText(url: string, proxy?: string): Promise<string> {
 	const timeoutMs = proxy ? PROXIED_IP_TIMEOUT_MS : DIRECT_IP_TIMEOUT_MS;
 	const target = new URL(url);
-	const port = Number(target.port || 443);
-	let socket: tls.TLSSocket | undefined;
-	if (proxy) {
-		const raw = await proxySocket(proxy, target.hostname, port, timeoutMs);
-		socket = tls.connect({ socket: raw, servername: target.hostname });
+	const secure = target.protocol === "https:";
+	const options: https.RequestOptions = {
+		agent: false,
+		headers: { Connection: "close" },
+	};
+	let client: typeof http | typeof https = secure ? https : http;
+	let socket: net.Socket | undefined;
+	const proxyUrl = proxy ? parseProxy(proxy) : undefined;
+	if (proxyUrl && !secure && proxyUrl.protocol.startsWith("http")) {
+		client = proxyUrl.protocol === "https:" ? https : http;
+		Object.assign(options, proxyEndpoint(proxyUrl), {
+			path: url,
+			headers: {
+				...options.headers,
+				Host: target.host,
+				...proxyAuthorization(proxyUrl),
+			},
+		});
+	} else if (proxyUrl) {
+		const port = Number(target.port || (secure ? 443 : 80));
+		const raw = await proxySocket(proxyUrl, target.hostname, port, timeoutMs);
+		const stream = secure
+			? tls.connect({ socket: raw, servername: target.hostname })
+			: raw;
+		socket = stream;
+		// Node ignores createConnection when an agent is given, `false`
+		// included, and would connect to the target itself, around the proxy.
+		options.agent = undefined;
+		options.createConnection = () => stream;
 	}
 	return once<string>(timeoutMs, `GET ${url}`, (resolve, reject) => {
-		const request = https.get(
-			url,
-			{
-				agent: false,
-				headers: { Connection: "close" },
-				...(socket ? { createConnection: () => socket } : {}),
-			},
-			(response) => {
-				const chunks: Buffer[] = [];
-				response.on("data", (chunk: Buffer) => chunks.push(chunk));
-				response.on("error", reject);
-				response.on("end", () => {
-					const status = response.statusCode ?? 0;
-					if (status >= 400) {
-						// requests' raise_for_status()
-						reject(
-							new Error(
-								`${status} Error: ${response.statusMessage} for url: ${url}`,
-							),
-						);
-					} else resolve(Buffer.concat(chunks).toString("utf8"));
-				});
-			},
-		);
+		const onResponse = (response: http.IncomingMessage) => {
+			const chunks: Buffer[] = [];
+			response.on("data", (chunk: Buffer) => chunks.push(chunk));
+			response.on("error", reject);
+			response.on("end", () => {
+				const status = response.statusCode ?? 0;
+				if (status >= 400) {
+					// requests' raise_for_status()
+					reject(
+						new Error(
+							`${status} Error: ${response.statusMessage} for url: ${url}`,
+						),
+					);
+				} else resolve(Buffer.concat(chunks).toString("utf8"));
+			});
+		};
+		const request = options.path
+			? client.get(options, onResponse)
+			: client.get(url, options, onResponse);
 		request.on("error", reject);
 	}).finally(() => socket?.destroy());
+}
+
+const PROXY_LOOKUP_FAILED =
+	"Could not look up where the proxy exits. Pass webrtc_ip, timezoneId, " +
+	"locale and geolocation explicitly to skip the lookup";
+
+/** Where a proxy exits: its IP and that IP's timezone, country and position. */
+export interface ExitGeo {
+	ip: string;
+	timezone: string;
+	country: string;
+	latitude: number;
+	longitude: number;
+}
+
+/**
+ * Where `proxy` exits, looked up through the proxy. Throws InvalidIP when the
+ * lookup fails: a context that silently kept the host's WebRTC IP and timezone
+ * behind a proxy would be a leak.
+ */
+export async function proxyExitGeo(proxy: string): Promise<ExitGeo> {
+	let data: {
+		status?: string;
+		message?: string;
+		query?: string;
+		timezone?: string;
+		countryCode?: string;
+		lat?: number;
+		lon?: number;
+	};
+	try {
+		data = JSON.parse(
+			await getText(
+				"http://ip-api.com/json?fields=status,message,query,timezone,countryCode,lat,lon",
+				proxy,
+			),
+		);
+	} catch (error) {
+		throw new InvalidIP(`${PROXY_LOOKUP_FAILED}: ${error}`, { cause: error });
+	}
+	if (
+		data.status !== "success" ||
+		!data.query ||
+		!data.timezone ||
+		!data.countryCode ||
+		data.lat == null ||
+		data.lon == null
+	) {
+		throw new InvalidIP(
+			`${PROXY_LOOKUP_FAILED}: ${data.message ?? JSON.stringify(data)}`,
+		);
+	}
+	validateIP(data.query);
+	return {
+		ip: data.query,
+		timezone: data.timezone,
+		country: data.countryCode,
+		latitude: data.lat,
+		longitude: data.lon,
+	};
 }
 
 const PUBLIC_IP_URLS = [
@@ -331,7 +426,7 @@ export function publicIPv6(): Promise<string | null> {
 	publicIPv6Cache ??= (async () => {
 		for (const url of ["https://api6.ipify.org", "https://v6.ident.me"]) {
 			try {
-				const ip = (await httpsGetText(url)).trim();
+				const ip = (await getText(url)).trim();
 				if (validIPv6(ip)) return ip;
 			} catch {}
 		}
@@ -344,7 +439,7 @@ async function resolvePublicIP(proxy?: string): Promise<string> {
 	let endException: unknown;
 	for (const url of PUBLIC_IP_URLS) {
 		try {
-			const ip = (await httpsGetText(url, proxy)).trim();
+			const ip = (await getText(url, proxy)).trim();
 			validateIP(ip);
 			return ip;
 		} catch (error) {
