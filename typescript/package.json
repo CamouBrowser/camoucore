@@ -1,6 +1,6 @@
 {
   "name": "camoucore",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "The browser-independent core of the Camoufox and Camouwolf launchers",
   "type": "module",
   "main": "dist/index.js",

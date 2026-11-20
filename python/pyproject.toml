@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "camoucore"
-version = "0.1.2"
+version = "0.2.0"
 description = "The browser-independent core of the Camoufox and Camouwolf launchers"
 authors = ["JWriter20", "daijro <daijro.dev@gmail.com>"]
 license = "MIT"
