@@ -23,8 +23,9 @@ from rich.progress import (
     TransferSpeedColumn,
 )
 from typing_extensions import TypeAlias
-from yaml import CLoader, load
+from yaml import load
 
+from ._yaml import Loader
 from .exceptions import CorruptedDownload
 
 DownloadBuffer: TypeAlias = Union[BytesIO, tempfile._TemporaryFileWrapper, BufferedWriter]
@@ -204,4 +205,4 @@ def load_yaml(path: Path) -> Dict[str, Any]:
     Load a YAML file as a dictionary
     """
     with open(path, 'r') as f:
-        return load(f, Loader=CLoader)
+        return load(f, Loader=Loader)

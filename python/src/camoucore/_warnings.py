@@ -3,10 +3,12 @@ import warnings
 from pathlib import Path
 from typing import Optional, Set, Type
 
-from yaml import CLoader, load
+from yaml import load
+
+from ._yaml import Loader
 
 with open(Path(__file__).parent / 'warnings.yml', 'r') as _f:
-    WARNINGS_DATA = load(_f, Loader=CLoader)
+    WARNINGS_DATA = load(_f, Loader=Loader)
 
 # Packages whose frames a warning skips: camoucore and every launcher built on it.
 _INTERNAL: Set[Path] = {Path(__file__).parent}

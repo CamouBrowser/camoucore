@@ -16,6 +16,8 @@ include = ["src/camoucore/*.json", "src/camoucore/*.yml", "src/camoucore/*.xml"]
 [tool.poetry.dependencies]
 python = "^3.11"
 requests = "*"
+# requests reaches a socks5 proxy only with PySocks installed.
+pysocks = "*"
 rich = "*"
 pyyaml = "*"
 platformdirs = "*"
