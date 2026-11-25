@@ -1,0 +1,146 @@
+{
+  "_about": [
+    "How proxy telemetry recognises an anti-bot provider's answer, read by camoucore/telemetry.py and telemetry.ts.",
+    "A rule looks only at a response from the provider itself: one of its endpoints (url), or a response carrying the provider's own edge header (edge).",
+    "Every condition in a rule must hold; a provider's first matching rule decides. url is a regex searched in host + path (never the query); query tests named query parameters of that provider URL.",
+    "status is a list of codes or classes ('4xx'); headers and edge values are case-insensitive regexes; body is a case-insensitive regex, and is read only from provider endpoints and from a provider's error page (status 4xx or 5xx).",
+    "verdict: presence (the provider is on the page, no outcome yet), success, challenge, block. transient: a challenge that clears by itself (an interstitial) and counts only if nothing succeeds after it. opens false: the verdict only adds to an encounter something else showed.",
+    "unresolved: what an encounter with only presence counts as. 'unknown' for a provider whose verdict the browser never sees."
+  ],
+  "version": 1,
+  "providers": {
+    "cloudflare": {
+      "edge": [{"name": "^cf-ray$"}],
+      "unresolved": "success",
+      "rules": [
+        {"document": true, "edge": true, "headers": {"cf-mitigated": "^challenge$"}, "verdict": "challenge", "transient": true},
+        {"document": true, "edge": true, "status": ["4xx"], "body": "error code: 10(06|07|08|20)|sorry, you have been blocked|cf-error-details", "verdict": "block"},
+        {"url": "^(?!challenges\\.cloudflare\\.com/)[^/]+/cdn-cgi/challenge-platform/", "verdict": "presence"},
+        {"document": true, "edge": true, "status": ["2xx"], "verdict": "success", "opens": false}
+      ]
+    },
+    "turnstile": {
+      "unresolved": "unknown",
+      "rules": [
+        {"url": "^challenges\\.cloudflare\\.com/turnstile/", "verdict": "presence"}
+      ]
+    },
+    "datadome": {
+      "edge": [{"name": "^x-datadome$"}, {"name": "^x-dd-b$"}],
+      "unresolved": "success",
+      "rules": [
+        {"url": "captcha-delivery\\.com/captcha/", "query": {"t": "^bv$"}, "verdict": "block"},
+        {"url": "captcha-delivery\\.com/captcha/", "verdict": "challenge"},
+        {"url": "captcha-delivery\\.com/interstitial/", "verdict": "challenge", "transient": true},
+        {"url": "^api-js\\.datadome\\.co/js/", "body": "\"status\"\\s*:\\s*200", "verdict": "success"},
+        {"url": "^(js|api-js)\\.datadome\\.co/", "verdict": "presence"},
+        {"document": true, "edge": true, "status": ["2xx"], "verdict": "success"},
+        {"document": true, "edge": true, "verdict": "presence"}
+      ]
+    },
+    "akamai": {
+      "edge": [{"name": "^server$", "value": "^AkamaiGHost$"}, {"name": "^akamai-grn$"}],
+      "unresolved": "unknown",
+      "rules": [
+        {"document": true, "edge": true, "status": ["403"], "body": "access denied[\\s\\S]*reference\\s*#", "verdict": "block"},
+        {"url": "/_sec/cp_challenge/", "verdict": "challenge", "transient": true},
+        {"edge": true, "method": "POST", "headers": {"set-cookie": "(^|\\n|, ?)_abck=[^;]*~0~"}, "verdict": "success"},
+        {"document": true, "edge": true, "headers": {"set-cookie": "(^|\\n|, ?)_abck="}, "verdict": "presence"}
+      ]
+    },
+    "perimeterx": {
+      "unresolved": "unknown",
+      "rules": [
+        {"url": "^captcha\\.(px-cdn|px-cloud)\\.net/|/captcha/captcha\\.js$", "verdict": "challenge"},
+        {"url": "^collector-[a-z0-9]+\\.(px-cloud|perimeterx)\\.net/|/api/v2/collector$", "body": "bake\\|_px3\\|", "verdict": "success"},
+        {"url": "(px-cloud|px-cdn|perimeterx)\\.net/|/api/v2/collector$", "verdict": "presence"}
+      ]
+    },
+    "kasada": {
+      "edge": [{"name": "^x-kpsdk-"}],
+      "unresolved": "unknown",
+      "rules": [
+        {"document": true, "edge": true, "status": ["429"], "verdict": "challenge", "transient": true},
+        {"url": "/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/tl$", "status": ["2xx"], "verdict": "success"},
+        {"url": "/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/tl$", "status": ["4xx"], "verdict": "block"},
+        {"document": true, "edge": true, "status": ["4xx"], "verdict": "block"},
+        {"url": "/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(ips\\.js|p\\.js|fp)$", "verdict": "presence"}
+      ]
+    },
+    "imperva": {
+      "edge": [{"name": "^x-iinfo$"}, {"name": "^x-cdn$", "value": "imperva|incapsula"}],
+      "unresolved": "success",
+      "rules": [
+        {"document": true, "edge": true, "status": ["4xx", "5xx"], "body": "incapsula incident id|request unsuccessful", "verdict": "block"},
+        {"url": "/_Incapsula_Resource", "verdict": "challenge", "transient": true},
+        {"document": true, "edge": true, "status": ["2xx"], "verdict": "success"}
+      ]
+    },
+    "awswaf": {
+      "edge": [{"name": "^x-amzn-waf-action$"}],
+      "unresolved": "success",
+      "rules": [
+        {"edge": true, "headers": {"x-amzn-waf-action": "^captcha$"}, "verdict": "challenge"},
+        {"edge": true, "headers": {"x-amzn-waf-action": "^challenge$"}, "verdict": "challenge", "transient": true},
+        {"url": "\\.token\\.awswaf\\.com/.*/verify$", "status": ["2xx"], "verdict": "success"},
+        {"url": "\\.awswaf\\.com/", "verdict": "presence"}
+      ]
+    },
+    "hcaptcha": {
+      "unresolved": "unknown",
+      "rules": [
+        {"url": "^(api|api2|hcaptcha)\\.hcaptcha\\.com/getcaptcha/", "body": "\"generated_pass_UUID\"\\s*:\\s*\"[^\"]", "verdict": "success"},
+        {"url": "^(api|api2|hcaptcha)\\.hcaptcha\\.com/getcaptcha/", "body": "\"tasklist\"", "verdict": "challenge"},
+        {"url": "^(js|api|api2|hcaptcha|newassets)\\.hcaptcha\\.com/", "verdict": "presence"}
+      ]
+    },
+    "recaptcha": {
+      "unresolved": "unknown",
+      "rules": [
+        {"url": "^(www\\.google\\.com|www\\.recaptcha\\.net|recaptcha\\.google\\.com)/recaptcha/(api2|enterprise)/payload$", "verdict": "challenge"},
+        {"url": "^(www\\.google\\.com|www\\.recaptcha\\.net|recaptcha\\.google\\.com)/recaptcha/(api2|enterprise)/reload$", "body": "\"nocaptcha\"", "verdict": "success"},
+        {"url": "^(www\\.google\\.com|www\\.gstatic\\.com|www\\.recaptcha\\.net|recaptcha\\.google\\.com)/recaptcha/", "verdict": "presence"}
+      ]
+    },
+    "arkose": {
+      "unresolved": "unknown",
+      "rules": [
+        {"url": "(arkoselabs|funcaptcha)\\.com/fc/gt2/", "body": "\\|sup=1", "verdict": "success"},
+        {"url": "(arkoselabs|funcaptcha)\\.com/fc/gt2/", "body": "\"token\"", "verdict": "challenge"},
+        {"url": "(arkoselabs|funcaptcha)\\.com/", "verdict": "presence"}
+      ]
+    },
+    "queueit": {
+      "unresolved": "unknown",
+      "rules": [
+        {"url": "queue-it\\.net/softblock", "verdict": "challenge"},
+        {"document": true, "url": "queue-it\\.net/", "status": ["4xx"], "verdict": "block"},
+        {"document": true, "url": "queue-it\\.net/", "status": ["2xx"], "verdict": "success"},
+        {"url": "queue-it\\.net/", "verdict": "presence"}
+      ]
+    },
+    "shape": {
+      "unresolved": "unknown",
+      "rules": [
+        {"request_header_name": "^x-[a-z0-9]{8}-[abcdfz]$", "verdict": "presence"}
+      ]
+    },
+    "threatmetrix": {
+      "unresolved": "unknown",
+      "rules": [
+        {"url": "(^|\\.)online-metrix\\.net/|/fp/(tags|check|clear)\\.js$", "verdict": "presence"}
+      ]
+    },
+    "botguard": {
+      "unresolved": "unknown",
+      "rules": [
+        {"url": "^www\\.google\\.com/js/bg/", "verdict": "presence"}
+      ]
+    }
+  },
+  "multi_label_suffixes": [
+    "co.uk", "org.uk", "ac.uk", "gov.uk", "com.au", "net.au", "org.au", "co.nz", "co.jp", "ne.jp", "or.jp",
+    "co.kr", "co.in", "net.in", "com.br", "com.ar", "com.mx", "com.cn", "net.cn", "com.hk", "com.tw", "com.sg",
+    "com.tr", "com.ua", "co.za", "co.il", "com.pl", "com.ru", "com.vn", "com.my", "co.id", "com.ph"
+  ]
+}

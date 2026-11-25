@@ -7,6 +7,7 @@ import * as path from "node:path";
 import { parse as parseYaml } from "yaml";
 
 export const DATA_FILES: readonly string[] = [
+	"antibot-rules.json",
 	"fpgen-model.json",
 	"geoip.yml",
 	"territoryInfo.xml",
