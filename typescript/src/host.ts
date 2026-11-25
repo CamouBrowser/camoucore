@@ -53,3 +53,21 @@ export function userCacheDir(appName: string): string {
 	const base = xdg.trim() ? xdg : path.join(os.homedir(), ".cache");
 	return path.join(base, appName);
 }
+
+/** platformdirs' user_config_dir(appName), so both launchers read one defaults file. */
+export function userConfigDir(appName: string): string {
+	if (OS_NAME === "win") {
+		const localAppData = process.env.LOCALAPPDATA;
+		const base =
+			localAppData && path.isAbsolute(localAppData)
+				? localAppData
+				: path.join(os.homedir(), "AppData", "Local");
+		return path.join(base, appName, appName);
+	}
+	if (OS_NAME === "mac") {
+		return path.join(os.homedir(), "Library", "Application Support", appName);
+	}
+	const xdg = process.env.XDG_CONFIG_HOME ?? "";
+	const base = xdg.trim() ? xdg : path.join(os.homedir(), ".config");
+	return path.join(base, appName);
+}

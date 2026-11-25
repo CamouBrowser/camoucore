@@ -13,6 +13,8 @@ drift apart.
 | `ip` | Proxy parsing, public IP lookup, and where a proxy exits (`ExitGeo`). |
 | `fpgen_model`, `fpgen-model.json` | Installs the pinned fpgen model before fpgen loads. Every launcher pins the same model. |
 | `display`, `virtdisplay` | Monitor probing and the Xvfb display for `headless="virtual"`. |
+| `passthrough` | The options a passthrough launch (the host's own fingerprint, nothing injected) refuses, and its warning. |
+| `settings` | The launcher's documented defaults file (`<name>.defaults.json`) and the user's overrides of it. |
 | `cpu_affinity`, `download`, `host` | CPU pinning, verified downloads, host OS and architecture. |
 
 A launcher declares itself once:
