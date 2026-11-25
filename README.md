@@ -16,6 +16,7 @@ drift apart.
 | `passthrough` | The options a passthrough launch (the host's own fingerprint, nothing injected) refuses, and its warning. |
 | `settings` | The launcher's documented defaults file (`<name>.defaults.json`) and the user's overrides of it. |
 | `cpu_affinity`, `download`, `host` | CPU pinning, verified downloads, host OS and architecture. |
+| `telemetry`, `antibot-rules.json` | Opt-out proxy telemetry: success, challenge and block counts per anti-bot provider, reported with the proxy provider's domain. Only the providers' own responses are matched; no URL, site, page content or proxy credential is kept or sent. |
 
 A launcher declares itself once:
 
