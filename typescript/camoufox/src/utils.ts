@@ -9,21 +9,45 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { inspect } from "node:util";
+import {
+	type Captcha,
+	type CaptchaOption,
+	type PageSolver,
+	resolveCaptcha,
+} from "camoucore/captcha.js";
+import * as cpuAffinity from "camoucore/cpu_affinity.js";
+import { hasDisplay, largestDisplay } from "camoucore/display.js";
+import { CaptchaKeyMissing, ProNotLaunched } from "camoucore/exceptions.js";
+import {
+	allowGeoip,
+	geoipAllowed,
+	getGeolocation,
+} from "camoucore/geolocation.js";
+import {
+	type ProxyConfig,
+	ProxyHelper,
+	publicIP,
+	validIPv4,
+	validIPv6,
+} from "camoucore/ip.js";
+import { handleLocales } from "camoucore/locales.js";
+import { checkProOptions, proApiSet } from "camoucore/pro.js";
+import { VirtualDisplay } from "camoucore/virtdisplay.js";
 import { ensureModel } from "fpgen-js";
 import { UAParser } from "ua-parser-js";
 import { addDefaultAddons, confirmPaths, type DefaultAddon } from "./addons.js";
 import * as coherence from "./coherence.js";
-import * as cpuAffinity from "./cpu_affinity.js";
-import { hasDisplay, largestDisplay } from "./display.js";
 import {
 	applyDisplayProfile,
 	type DisplayProfileOption,
 } from "./display_profile.js";
 import {
+	CamoufoxNotInstalled,
 	InvalidOS,
 	InvalidPropertyType,
 	NonFirefoxFingerprint,
 	UnknownIPLocation,
+	UnsupportedVersion,
 } from "./exceptions.js";
 import {
 	BASELINE_TASKBAR_HEIGHT,
@@ -62,7 +86,6 @@ import {
 	targetOsFromPlatform,
 	WINDOWS_11_MARKER_FONTS,
 } from "./fingerprints.js";
-import { allowGeoip, geoipAllowed, getGeolocation } from "./geolocation.js";
 import { GPU_PREFS, GpuDisplay, proveGpu, selectGpu } from "./gpudisplay.js";
 import {
 	addCanvasPlaceholder,
@@ -73,18 +96,13 @@ import {
 } from "./host_rendering.js";
 import { type HumanizeSetting, normalize } from "./humanize.js";
 import {
-	type ProxyConfig,
-	ProxyHelper,
 	proxyAuthEnv,
 	proxyAuthInitScript,
-	publicIP,
 	publicIPv6,
 	socks5Auth,
-	validIPv4,
-	validIPv6,
 } from "./ip.js";
-import { handleLocales } from "./locales.js";
 import { type Managed, managedRequest } from "./managed.js";
+import { getActivePath } from "./multiversion.js";
 import {
 	INSTALL_DIR,
 	LAUNCHER_CONSTANTS,
@@ -107,6 +125,7 @@ import {
 } from "./pkgman.js";
 import * as pro from "./pro.js";
 import { openProfile } from "./pro-profile.js";
+import { PRODUCT } from "./product.js";
 import { ProxySession } from "./proxy_session.js";
 import {
 	comparePyStr,
@@ -121,12 +140,12 @@ import {
 	pyTypeName,
 	ValueError,
 } from "./pycompat.js";
-import { VirtualDisplay } from "./virtdisplay.js";
 import {
 	FallbackWarning,
 	LeakWarning,
 	loadWarnings,
 	warn,
+	warningText,
 } from "./warnings.js";
 import { firefoxGpus, sampleWebglForScreen, webglForGpu } from "./webgl.js";
 
@@ -710,7 +729,7 @@ export function validateConfig(
 		const entry = properties[key];
 		if (!entry) {
 			if (key === "voices:speechd") {
-				LeakWarning.warn("voices_unread");
+				LeakWarning.warn(loadWarnings().voices_unread);
 			}
 			utilsDeps.print(`Skipping unknown patch ${key} : ${pyStr(value)}`);
 			continue; // Property not supported by this browser version; skip silently
@@ -1036,7 +1055,7 @@ function checkCustomFingerprint(fingerprint: Record<string, any>): void {
 		);
 	}
 
-	LeakWarning.warn("custom_fingerprint", false);
+	LeakWarning.warn(loadWarnings().custom_fingerprint, false);
 }
 
 /** ua_parser.user_agent_parser.ParseUserAgent(ua)['family']. */
@@ -1327,7 +1346,7 @@ async function keepsIPv6(
 	) {
 		return true;
 	}
-	LeakWarning.warn("ipv6_elsewhere", iKnowWhatImDoing);
+	LeakWarning.warn(loadWarnings().ipv6_elsewhere, iKnowWhatImDoing);
 	return false;
 }
 
@@ -1364,32 +1383,32 @@ function warnManualConfig(config: Record<string, any>): void {
 			"locale:",
 		)
 	) {
-		LeakWarning.warn("locale", false);
+		LeakWarning.warn(loadWarnings().locale, false);
 	}
 	// Manual geolocation and timezone setting
 	if (isDomainSet(config, "geolocation:", "timezone")) {
-		LeakWarning.warn("geolocation", false);
+		LeakWarning.warn(loadWarnings().geolocation, false);
 	}
 	// Manual User-Agent setting
 	if (isDomainSet(config, "headers.User-Agent")) {
-		LeakWarning.warn("header-ua", false);
+		LeakWarning.warn(loadWarnings()["header-ua"], false);
 	}
 	// Manual navigator setting
 	if (isDomainSet(config, "navigator.")) {
-		LeakWarning.warn("navigator", false);
+		LeakWarning.warn(loadWarnings().navigator, false);
 	}
 	// Touchscreen digitizer spoofing. Called out separately from the blanket
 	// navigator warning because the knock-on effects reach past navigator into
 	// CSS pointer media queries and the TouchEvent interfaces.
 	if (isDomainSet(config, "navigator.maxTouchPoints")) {
-		LeakWarning.warn("max_touch_points", false);
+		LeakWarning.warn(loadWarnings().max_touch_points, false);
 	}
 	if (pyTruthy(config.instantAnimations)) {
-		LeakWarning.warn("instant_animations", false);
+		LeakWarning.warn(loadWarnings().instant_animations, false);
 	}
 	// Manual screen/window setting
 	if (isDomainSet(config, "screen.", "window.", "document.body.")) {
-		LeakWarning.warn("viewport", false);
+		LeakWarning.warn(loadWarnings().viewport, false);
 	}
 }
 
@@ -1631,14 +1650,16 @@ function warnViewportScreen(
 	claimed: readonly number[],
 	reason: string,
 ): void {
-	LeakWarning.warn("viewport_screen", undefined, {
-		viewport: fmtSize(viewport),
-		screen: fmtSize(claimed),
-		os: OS_NAMES[geometry.os],
-		chrome: fmtSize(RECORDED_WINDOW_CHROME[geometry.os]),
-		taskbar: BASELINE_TASKBAR_HEIGHT[geometry.os],
-		reason,
-	});
+	LeakWarning.warn(
+		warningText("viewport_screen", {
+			viewport: fmtSize(viewport),
+			screen: fmtSize(claimed),
+			os: OS_NAMES[geometry.os],
+			chrome: fmtSize(RECORDED_WINDOW_CHROME[geometry.os]),
+			taskbar: BASELINE_TASKBAR_HEIGHT[geometry.os],
+			reason,
+		}),
+	);
 }
 
 function warnViewportWindow(
@@ -1646,10 +1667,12 @@ function warnViewportWindow(
 	window: Box | null,
 ): void {
 	if (window && (viewport[0] > window.width || viewport[1] > window.height))
-		LeakWarning.warn("viewport_window", undefined, {
-			viewport: fmtSize(viewport),
-			window: fmtSize([window.width, window.height]),
-		});
+		LeakWarning.warn(
+			warningText("viewport_window", {
+				viewport: fmtSize(viewport),
+				window: fmtSize([window.width, window.height]),
+			}),
+		);
 }
 
 /**
@@ -1921,7 +1944,7 @@ export function attachDesktopOnlyWarning<T>(target: T): T {
 		if (typeof original !== "function") continue;
 		(target as any)[name] = (options?: Record<string, any>, ...rest: any[]) => {
 			if (options?.isMobile || options?.is_mobile)
-				LeakWarning.warn("is_mobile");
+				LeakWarning.warn(loadWarnings().is_mobile);
 			return original.call(target, options, ...rest);
 		};
 	}
@@ -2122,7 +2145,7 @@ export async function startVirtualDisplay(
 			"gpu and require_gpu apply to headless='virtual-gpu' only",
 		);
 	} else if (headless === "virtual") {
-		display = new VirtualDisplay(debug ?? false);
+		display = new VirtualDisplay(PRODUCT, debug ?? false);
 	} else {
 		return [null, headless];
 	}
@@ -2358,6 +2381,19 @@ export interface LaunchOptions {
 	 * for its OS and screen; an identity of the host's OS uses the host
 	 * display's, as stock does. */
 	display_profile?: DisplayProfileOption;
+	/** Solve captchas with CaptchaKraken (the optional `captchakraken` peer
+	 * dependency): a Camoufox account key (cfp_live_...), a CaptchaKraken key
+	 * (ck_live_...), or the URL of a CaptchaKraken server you host. `true`
+	 * reads `pro_key`, then CAMOUFOX_PRO_KEY, CAPTCHA_KRAKEN_API_KEY and
+	 * CAMOUFOX_CAPTCHA_URL, then the key `camoufox login` stored, and throws
+	 * CaptchaKeyMissing with none of them. The launched browser (or persistent
+	 * context) then has a `.captcha` solver.
+	 *
+	 * Camoufox Pro has not launched yet: pro_key, profile, warm_plan,
+	 * `managed: true` and `farm_gpu: true` throw ProNotLaunched, with the page
+	 * where an account is made, before anything is downloaded, unless the
+	 * launch runs a Pro build or CAMOUFOX_PRO_API is set. */
+	captcha?: CaptchaOption;
 	/** Additional Firefox launch options, passed straight through to Playwright. */
 	[key: string]: any;
 }
@@ -2368,6 +2404,91 @@ export interface LaunchOptions {
  * Accepts all Playwright Firefox launch options, along with the Camoufox ones
  * documented on {@link LaunchOptions}.
  */
+/**
+ * Where the `captcha` option's solves go, and with which key; undefined for no
+ * solver. Throws CaptchaKeyMissing or CaptchaKrakenMissing.
+ *
+ * One Camoufox key serves every service: captcha `true` solves with the
+ * launch's `pro_key` when it has one, then the environment camoucore reads
+ * (CAMOUFOX_PRO_KEY first), then the key `camoufox login` stored.
+ */
+export function captchaOf(
+	option: CaptchaOption,
+	proKey?: string | null,
+): Captcha | undefined {
+	if (option === true && proKey) return resolveCaptcha(PRODUCT, proKey);
+	try {
+		return resolveCaptcha(PRODUCT, option);
+	} catch (error) {
+		const stored =
+			option === true && error instanceof CaptchaKeyMissing
+				? pro.storedKey()
+				: null;
+		if (!stored) throw error;
+		return resolveCaptcha(PRODUCT, stored);
+	}
+}
+
+/** The CaptchaKraken solver the `captcha` option asks for, or undefined. Made
+ * before the launch, so an unusable option fails before a browser starts. */
+export async function captchaSolver(
+	option: CaptchaOption,
+	proKey?: string | null,
+): Promise<PageSolver | undefined> {
+	const captcha = captchaOf(option, proKey);
+	return captcha ? await captcha.solver(PRODUCT) : undefined;
+}
+
+/**
+ * Whether the build this launch would run is a Camoufox Pro build, read from
+ * what is installed: nothing is downloaded or written to find out.
+ */
+export function launchesProBuild(
+	executablePath?: string | null,
+	browser?: string | null,
+): boolean {
+	let executable: string;
+	try {
+		if (browser && !executablePath) {
+			executable = utilsDeps.selectedLaunchPath(browser);
+		} else {
+			executable =
+				executablePath ||
+				(process.env.CAMOUFOX_EXECUTABLE_PATH ?? "").trim() ||
+				utilsDeps.launchPath(getActivePath() ?? utilsDeps.installDir());
+		}
+	} catch (error) {
+		if (
+			error instanceof CamoufoxNotInstalled ||
+			error instanceof UnsupportedVersion
+		)
+			return false;
+		throw error;
+	}
+	return pro.readBuild(buildFile(executable, "pro-build.json")) !== null;
+}
+
+/**
+ * Throw ProNotLaunched for a Pro option before Camoufox Pro opens, unless the
+ * launch runs a Pro build or this process names a Pro API (CAMOUFOX_PRO_API),
+ * whose launches keep every Pro option.
+ */
+export function checkProLaunch(
+	options: Readonly<Record<string, unknown>>,
+	executablePath?: string | null,
+	browser?: string | null,
+): void {
+	try {
+		checkProOptions(PRODUCT, options);
+	} catch (error) {
+		if (
+			!(error instanceof ProNotLaunched) ||
+			!launchesProBuild(executablePath, browser)
+		)
+			throw error;
+	}
+}
+
 /** What a launch opened along the way: a Pro lease, a managed proxy session. */
 interface Held {
 	lease: pro.Lease | null;
@@ -2445,10 +2566,18 @@ async function buildLaunchOptions(
 		managed,
 		farm_gpu,
 		display_profile,
+		captcha,
 		...passthrough
 	}: LaunchOptions,
 	held: Held,
 ): Promise<Record<string, any>> {
+	// Before anything is downloaded, written or leased.
+	checkProLaunch(
+		{ pro_key, profile, warm_plan, managed, farm_gpu },
+		executable_path,
+		browser,
+	);
+	captchaOf(captcha, pro_key);
 	utilsDeps.ensureBrowserProfileDir(env);
 
 	// The launch fills these in, so it works on copies: a caller's object
@@ -2527,7 +2656,10 @@ async function buildLaunchOptions(
 	} else if (wire !== undefined && (leased || managed !== undefined)) {
 		proRequest.managed = wire;
 	}
-	if (farm_gpu === false) proRequest.gpu = false;
+	// Rendering on this machine is what a standard build does: only a Pro build,
+	// or a launch against a Pro API, tells its lease so.
+	if (farm_gpu === false && (proBuild || proApiSet(PRODUCT)))
+		proRequest.gpu = false;
 	if (Object.keys(proRequest).length && !leased) {
 		throw new ValueError(
 			proBuild
@@ -2675,7 +2807,7 @@ async function buildLaunchOptions(
 	let ffVersionStr: string;
 	if (ff_version) {
 		ffVersionStr = String(ff_version);
-		LeakWarning.warn("ff_version", i_know_what_im_doing);
+		LeakWarning.warn(loadWarnings().ff_version, i_know_what_im_doing);
 	} else {
 		ffVersionStr = resolveVerstr(executable_path).split(".")[0];
 	}
@@ -2930,7 +3062,7 @@ async function buildLaunchOptions(
 	if (custom_fonts_only) {
 		firefox_user_prefs["gfx.bundled-fonts.activate"] = 0;
 		if (fonts?.length) {
-			LeakWarning.warn("custom_fonts_only", i_know_what_im_doing);
+			LeakWarning.warn(loadWarnings().custom_fonts_only, i_know_what_im_doing);
 		} else {
 			throw new ValueError(
 				"No custom fonts were passed, but `custom_fonts_only` is enabled.",
@@ -3072,7 +3204,7 @@ async function buildLaunchOptions(
 		// encoder, Linux Firefox only the system FFmpeg's. Not faked; see
 		// launch_options in the Python launcher.
 		if (utilsDeps.hostOsKey() === "lin" && !hasSystemAvcodec()) {
-			LeakWarning.warn("no_h264_encoder", i_know_what_im_doing);
+			LeakWarning.warn(loadWarnings().no_h264_encoder, i_know_what_im_doing);
 		}
 
 		// The scrollbars pinned above are drawn by the host build's theme (GTK's
@@ -3233,14 +3365,14 @@ async function buildLaunchOptions(
 		!(proxy?.server ?? "").includes("localhost") &&
 		!isDomainSet(config, "geolocation")
 	) {
-		LeakWarning.warn("proxy_without_geoip");
+		LeakWarning.warn(loadWarnings().proxy_without_geoip);
 	}
 
 	// An HTTP proxy carries no UDP: WebRTC and HTTP/3 then act as on a machine
 	// whose firewall drops every datagram, which few people's does. A SOCKS5
 	// proxy with UDP ASSOCIATE sends them from the exit.
 	if (proxy && proxyCarriesNoUdp(String(proxy.server ?? ""))) {
-		LeakWarning.warn("proxy_http_no_udp", i_know_what_im_doing);
+		LeakWarning.warn(loadWarnings().proxy_http_no_udp, i_know_what_im_doing);
 	}
 
 	await applyProxyDns(
@@ -3339,10 +3471,10 @@ async function buildLaunchOptions(
 	// Fresh profiles get a toggle's pref only when on. A persistent profile
 	// may need the stock value written once to clear an earlier toggled value.
 	if (block_images) {
-		LeakWarning.warn("block_images", i_know_what_im_doing);
+		LeakWarning.warn(loadWarnings().block_images, i_know_what_im_doing);
 	}
 	if (disable_coop) {
-		LeakWarning.warn("disable_coop", i_know_what_im_doing);
+		LeakWarning.warn(loadWarnings().disable_coop, i_know_what_im_doing);
 	}
 	const profileDir = (passthrough.user_data_dir ?? passthrough.userDataDir) as
 		| string
@@ -3368,7 +3500,7 @@ async function buildLaunchOptions(
 	}
 	// A persistent context takes its context options here.
 	if (passthrough.is_mobile || passthrough.isMobile) {
-		LeakWarning.warn("is_mobile", i_know_what_im_doing);
+		LeakWarning.warn(loadWarnings().is_mobile, i_know_what_im_doing);
 	}
 
 	// Drop values the source supplied that this identity cannot keep, before the
@@ -3397,12 +3529,12 @@ async function buildLaunchOptions(
 	);
 	if (coverCanvas) {
 		addCanvasPlaceholder(firefox_user_prefs);
-		LeakWarning.warn("canvas_noise", i_know_what_im_doing);
+		LeakWarning.warn(loadWarnings().canvas_noise, i_know_what_im_doing);
 	}
 
 	if (block_webgl) {
 		firefox_user_prefs["webgl.disabled"] = true;
-		LeakWarning.warn("block_webgl", i_know_what_im_doing);
+		LeakWarning.warn(loadWarnings().block_webgl, i_know_what_im_doing);
 	} else {
 		let webglFp: Record<string, any>;
 		const seed = () =>

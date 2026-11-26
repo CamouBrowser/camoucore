@@ -215,7 +215,8 @@ export function credentialPath(): string {
 	return path.join(userConfigDir("camoufox"), "pro-credentials.json");
 }
 
-function storedKey(): string | null {
+/** The key `camoufox login` stored on this machine, or null. */
+export function storedKey(): string | null {
 	const file = credentialPath();
 	let mode: number;
 	try {

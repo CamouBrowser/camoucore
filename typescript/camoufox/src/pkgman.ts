@@ -5,14 +5,18 @@
  * TypeScript twin of python/src/camoufox/pkgman.py.
  */
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { once } from "node:events";
 import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Writable } from "node:stream";
-import AdmZip from "adm-zip";
+import {
+	githubHeaders,
+	type ProgressCallback,
+	raiseForStatus,
+	request,
+} from "camoucore/download.js";
 import cliProgress, { type Options as BarOptions } from "cli-progress";
 import prettyBytes from "pretty-bytes";
 import { CONSTRAINTS, LIBRARY_VERSION } from "./__version__.js";
@@ -24,7 +28,6 @@ import {
 } from "./browser-pin.js";
 import {
 	CamoufoxNotInstalled,
-	CorruptedDownload,
 	FileNotFoundError,
 	MissingRelease,
 	ProfileDirectoryError,
@@ -57,63 +60,12 @@ import {
 import { comparePyStr, ValueError } from "./pycompat.js";
 import { warn } from "./warnings.js";
 
-/** GITHUB_TOKEN, as the Python twin reads it: once, at import. */
-const GITHUB_TOKEN: string | undefined = process.env.GITHUB_TOKEN;
-
-/** Bearer auth for GitHub API calls only (never for asset downloads). */
-function githubHeaders(url: string): Record<string, string> {
-	return url.includes("api.github") && GITHUB_TOKEN
-		? { Authorization: `Bearer ${GITHUB_TOKEN}` }
-		: {};
-}
-
-/** Delays before each retry of a request that failed without a response. */
-const NETWORK_RETRY_DELAYS_MS = [1000, 2000];
-
-/**
- * fetch(), retried when the request fails without any response, and naming
- * the URL and cause when it gives up. Node's own error is only "fetch failed",
- * which says neither what was being downloaded nor why (DNS, refused, reset,
- * timeout).
- *
- * Unlike requests.get(), which opens a connection per call, fetch() reuses
- * pooled keep-alive connections, and a server may close one just as it is
- * reused ("other side closed"). On GitHub's runners that failed `camoufox
- * fetch` right after the browser download, before any byte of the GeoIP
- * request was answered. HTTP errors are responses, never retried.
- */
-async function request(url: string, init: RequestInit): Promise<Response> {
-	for (let attempt = 0; ; attempt++) {
-		try {
-			return await fetch(url, init);
-		} catch (error) {
-			if (attempt < NETWORK_RETRY_DELAYS_MS.length) {
-				await new Promise((resolve) =>
-					setTimeout(resolve, NETWORK_RETRY_DELAYS_MS[attempt]),
-				);
-				continue;
-			}
-			const cause = (error as { cause?: { code?: string; message?: string } })
-				.cause;
-			const detail = cause
-				? `${cause.code ?? ""} ${cause.message ?? ""}`.trim()
-				: "";
-			throw new Error(
-				`Could not download ${url}: ${(error as Error).message}${detail ? ` (${detail})` : ""}`,
-				{ cause: error },
-			);
-		}
-	}
-}
-
-/** requests' raise_for_status() message, so callers can match "404". */
-function raiseForStatus(response: Response, url: string): void {
-	if (response.ok) return;
-	const kind = response.status < 500 ? "Client Error" : "Server Error";
-	throw new Error(
-		`${response.status} ${kind}: ${response.statusText} for url: ${url}`,
-	);
-}
+export {
+	GITHUB_TOKEN,
+	type ProgressCallback,
+	unzip,
+	verifySha256,
+} from "camoucore/download.js";
 
 /**
  * Ensure Firefox's Linux application directory exists before startup.
@@ -1336,9 +1288,10 @@ export function selectedLaunchPath(specifier: string): string {
 const formatBytes = (v: number, _: BarOptions, type: string) =>
 	type === "total" || type === "value" ? prettyBytes(v) : String(v);
 
-export type ProgressCallback = (downloaded: number, total: number) => void;
-
 /**
+ * camoucore.download.webdl cannot resume (no `offset`, `restart`); this stays
+ * until it can.
+ *
  * Download a file from the given URL. Streams into `buffer` when one is given,
  * otherwise accumulates and returns the bytes.
  *
@@ -1427,85 +1380,6 @@ export async function webdl(
 
 	return Buffer.concat(chunks);
 }
-
-/**
- * Check a downloaded file against its expected sha256 digest.
- *
- * Takes the downloaded bytes or the path of the file they were written to.
- * Raises CorruptedDownload on mismatch. Skips (with a warning) when no digest
- * is known, so installs from sources that publish no digest still work.
- */
-export function verifySha256(
-	buffer: Buffer | Uint8Array | string,
-	expected: string | null | undefined,
-	desc: string = "asset",
-): void {
-	if (!expected) {
-		rprint(
-			`Warning: no sha256 published for ${desc}; skipping verification.`,
-			"yellow",
-		);
-		return;
-	}
-
-	const digest = createHash("sha256");
-	if (typeof buffer === "string") {
-		const fd = fs.openSync(buffer, "r");
-		try {
-			const block = Buffer.alloc(1024 * 1024);
-			let read = fs.readSync(fd, block, 0, block.length, null);
-			while (read > 0) {
-				digest.update(block.subarray(0, read));
-				read = fs.readSync(fd, block, 0, block.length, null);
-			}
-		} finally {
-			fs.closeSync(fd);
-		}
-	} else {
-		digest.update(buffer);
-	}
-
-	const actual = digest.digest("hex");
-	if (actual !== expected.toLowerCase()) {
-		throw new CorruptedDownload(
-			`Checksum mismatch for ${desc}.\n` +
-				`  expected sha256: ${expected.toLowerCase()}\n` +
-				`  actual   sha256: ${actual}\n` +
-				"The download was corrupted or tampered with. Installation aborted.",
-		);
-	}
-}
-
-/**
- * Extract a zip file to the given path.
- */
-export function unzip(
-	zipFile: Buffer | string,
-	extractPath: string,
-	desc?: string,
-	bar: boolean = true,
-): void {
-	const zip = new AdmZip(zipFile);
-	const entries = zip.getEntries();
-
-	if (bar) {
-		rprint(desc || "Extracting");
-		for (const entry of entries) {
-			zip.extractEntryTo(entry, extractPath, true, true);
-		}
-		return;
-	}
-
-	entries.forEach((entry, i) => {
-		zip.extractEntryTo(entry, extractPath, true, true);
-		if (desc) {
-			const pct = ((i + 1) / entries.length) * 100;
-			process.stdout.write(`\r${desc}: ${pct.toFixed(0)}%`);
-		}
-	});
-	if (desc) process.stdout.write(`\r${desc}: Complete\n`);
-}
-
 /**
  * chmod -R 755 on POSIX so the freshly-extracted binaries are executable.
  * (The zip does not carry usable permission bits on every platform.)

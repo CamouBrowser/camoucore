@@ -9,6 +9,11 @@
  * launch lock (async_api), and virtual-display teardown.
  */
 
+import type { PageSolver } from "camoucore/captcha.js";
+import * as cpuAffinity from "camoucore/cpu_affinity.js";
+import { type ProxyConfig, ProxyHelper, proxyExitGeo } from "camoucore/ip.js";
+import { SELECTOR } from "camoucore/locales.js";
+import type { VirtualDisplay } from "camoucore/virtdisplay.js";
 import { ensureModel } from "fpgen-js";
 import {
 	type Browser,
@@ -17,12 +22,9 @@ import {
 	firefox,
 } from "playwright-core";
 import { attach } from "./_humanize_playwright.js";
-import * as cpuAffinity from "./cpu_affinity.js";
 import { attachDriverDefaults } from "./driver_defaults.js";
 import { generateContextFingerprint } from "./fingerprints.js";
 import { normalize } from "./humanize.js";
-import { type ProxyConfig, ProxyHelper, proxyExitGeo } from "./ip.js";
-import { SELECTOR } from "./locales.js";
 import { attachLease, claim, launchFailed, type ProSession } from "./pro.js";
 import {
 	applyNoViewport,
@@ -33,6 +35,7 @@ import {
 	attachStockMediaDefaults,
 	attachViewportFit,
 	attachVirtualDisplay,
+	captchaSolver,
 	contextIdentity,
 	contextScreenBound,
 	driverPid,
@@ -50,9 +53,15 @@ import {
 	startVirtualDisplay,
 	takeBackContextGeometry,
 } from "./utils.js";
-import type { VirtualDisplay } from "./virtdisplay.js";
 
 export type { Headless } from "./utils.js";
+
+/** A launched browser or persistent context, with its captcha solver. */
+export type WithCaptcha<T> = T & {
+	/** The CaptchaKraken solver the `captcha` option asked for, or undefined
+	 * without one: `await browser.captcha.solve(page)`. */
+	captcha: PageSolver | undefined;
+};
 
 export interface NewBrowserOptions
 	extends Omit<LaunchOptions, "headless">,
@@ -77,13 +86,13 @@ export interface NewBrowserOptions
 export async function Camoufox(
 	options: NewBrowserOptions &
 		({ persistent_context: true } | { profile: string }),
-): Promise<BrowserContext & { pro?: ProSession }>;
+): Promise<WithCaptcha<BrowserContext & { pro?: ProSession }>>;
 export async function Camoufox(
 	options?: NewBrowserOptions,
-): Promise<Browser & { pro?: ProSession }>;
+): Promise<WithCaptcha<Browser & { pro?: ProSession }>>;
 export async function Camoufox(
 	options: NewBrowserOptions = {},
-): Promise<Browser | BrowserContext> {
+): Promise<WithCaptcha<Browser | BrowserContext>> {
 	return NewBrowser(firefox, options);
 }
 
@@ -98,11 +107,11 @@ export async function NewBrowser(
 	playwright: BrowserType,
 	options: NewBrowserOptions &
 		({ persistent_context: true } | { profile: string }),
-): Promise<BrowserContext & { pro?: ProSession }>;
+): Promise<WithCaptcha<BrowserContext & { pro?: ProSession }>>;
 export async function NewBrowser(
 	playwright: BrowserType,
 	options?: NewBrowserOptions,
-): Promise<Browser & { pro?: ProSession }>;
+): Promise<WithCaptcha<Browser & { pro?: ProSession }>>;
 export async function NewBrowser(
 	playwright: BrowserType,
 	{
@@ -112,10 +121,13 @@ export async function NewBrowser(
 		debug,
 		...kwargs
 	}: NewBrowserOptions = {},
-): Promise<Browser | BrowserContext> {
+): Promise<WithCaptcha<Browser | BrowserContext>> {
 	// humanize engines run in this process: checked before the launch,
 	// attached to the browser after it (also with from_options).
 	normalize(kwargs.humanize);
+	// The captcha solver is made before the launch, so an unusable option
+	// fails before a browser starts, and is the browser's `.captcha` after it.
+	const captcha = await captchaSolver(kwargs.captcha, kwargs.pro_key);
 	const [virtualDisplay, headlessBool] = await startVirtualDisplay(
 		headless,
 		debug,
@@ -157,19 +169,22 @@ export async function NewBrowser(
 	// navigator.hardwareConcurrency; the driver gets its cores back afterwards.
 	const pinTo = pinnedCoreCount(fromOptions);
 	const launch = async () =>
-		attach(
-			await launchWith(
-				playwright,
-				fromOptions as Record<string, any>,
-				Boolean(persistent_context),
-				noViewportDefault,
-				virtualDisplay,
-				canvasNoise,
-				lease,
+		Object.assign(
+			attach(
+				await launchWith(
+					playwright,
+					fromOptions as Record<string, any>,
+					Boolean(persistent_context),
+					noViewportDefault,
+					virtualDisplay,
+					canvasNoise,
+					lease,
+				),
+				kwargs.humanize,
+				launchOs(fromOptions as Record<string, any>),
+				kwargs.i_know_what_im_doing,
 			),
-			kwargs.humanize,
-			launchOs(fromOptions as Record<string, any>),
-			kwargs.i_know_what_im_doing,
+			{ captcha },
 		);
 	try {
 		if (!pinTo) {

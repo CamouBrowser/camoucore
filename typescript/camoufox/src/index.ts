@@ -6,6 +6,7 @@
 // First: fail with the Node.js floor before any module needs it.
 import "./node-floor.js";
 
+export { VirtualDisplay } from "camoucore/virtdisplay.js";
 export { attach } from "./_humanize_playwright.js";
 export type { DefaultAddon } from "./addons.js";
 export { DefaultAddons } from "./addons.js";
@@ -18,6 +19,8 @@ export {
 	AccountSuspended,
 	BuildNotAllowlisted,
 	CapabilityMismatch,
+	CaptchaKeyMissing,
+	CaptchaKrakenMissing,
 	EgressUnavailable,
 	GpuLimitReached,
 	GpuUnavailable,
@@ -29,6 +32,7 @@ export {
 	ProClockSkew,
 	ProError,
 	ProfileMismatch,
+	ProNotLaunched,
 	ProUnavailable,
 	RateLimited,
 	StatePoolSealed,
@@ -82,11 +86,11 @@ export {
 	type NewBrowserOptions,
 	NewContext,
 	type NewContextOptions,
+	type WithCaptcha,
 } from "./sync_api.js";
 export {
 	type LaunchOptions,
 	launchOptions,
 	launchOptions as launch_options,
 } from "./utils.js";
-export { VirtualDisplay } from "./virtdisplay.js";
 export { FallbackWarning, LeakWarning } from "./warnings.js";

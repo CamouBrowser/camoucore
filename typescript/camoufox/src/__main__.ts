@@ -12,16 +12,6 @@ import "./node-floor.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
-import { Argument, Command, Option } from "commander";
-import { ensureModel } from "fpgen-js";
-import { LIBRARY_VERSION } from "./__version__.js";
-import {
-	type BrowserPin,
-	effectivePin,
-	loadPin,
-	pinSpec,
-} from "./browser-pin.js";
-import { FileNotFoundError } from "./exceptions.js";
 import {
 	allowGeoip,
 	downloadMmdb,
@@ -32,7 +22,18 @@ import {
 	loadGeoipRepos,
 	saveGeoipConfig,
 	warnIfDeprecated,
-} from "./geolocation.js";
+} from "camoucore/geolocation.js";
+import { earlyAccessUrl, proApiSet } from "camoucore/pro.js";
+import { Argument, Command, Option } from "commander";
+import { ensureModel } from "fpgen-js";
+import { LIBRARY_VERSION } from "./__version__.js";
+import {
+	type BrowserPin,
+	effectivePin,
+	loadPin,
+	pinSpec,
+} from "./browser-pin.js";
+import { FileNotFoundError } from "./exceptions.js";
 import {
 	BROWSERS_DIR,
 	type CachedVersion,
@@ -74,6 +75,7 @@ import {
 	Version,
 } from "./pkgman.js";
 import type { ProBuild } from "./pro.js";
+import { PRODUCT } from "./product.js";
 
 // --------------------------------------------------------------------------
 // click-style output + prompts
@@ -1061,7 +1063,7 @@ function listInstalledVersions(showPaths: boolean): void {
 		try {
 			config = loadGeoipConfig();
 		} catch (e) {
-			// the saved source is gone from repos.yml
+			// the saved source is gone from the GeoIP list
 			rprint(`    └── ${(e as Error).message}`, "red");
 			return;
 		}
@@ -1262,11 +1264,21 @@ function activeExecutable(executablePath?: string): string {
 
 program
 	.command("login")
-	.description("Sign in to Camoufox Pro on this machine")
+	.description(
+		"Sign in to Camoufox Pro on this machine (not launched yet: prints where to make an account)",
+	)
 	.action(async () => {
-		const { login } = await import("./pro.js");
 		// The key is for the API the installed Pro build leases from.
 		const build = await activeProBuild();
+		if (build === null && !proApiSet(PRODUCT)) {
+			echo(
+				`Camoufox Pro has not launched yet. Make your account at ${earlyAccessUrl(PRODUCT)} ` +
+					"to be told the day it opens; Camoufox itself stays free.",
+			);
+			process.exitCode = 1;
+			return;
+		}
+		const { login } = await import("./pro.js");
 		const signedIn = await login(undefined, undefined, build);
 		rprint(
 			`Signed in to ${signedIn.account.name} as ${signedIn.user.github_login}. ` +
@@ -1451,7 +1463,7 @@ class VersionInfo {
 		try {
 			config = loadGeoipConfig();
 		} catch (e) {
-			// the saved source is gone from repos.yml
+			// the saved source is gone from the GeoIP list
 			this.row("Database", (e as Error).message, "red");
 			return;
 		}

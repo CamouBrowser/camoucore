@@ -134,8 +134,8 @@ beforeEach(() => {
 		output += String(chunk);
 		return true;
 	});
-	vi.doMock("../src/geolocation.js", async (load) => ({
-		...(await load<typeof import("../src/geolocation.js")>()),
+	vi.doMock("camoucore/geolocation.js", async (load) => ({
+		...(await load<typeof import("camoucore/geolocation.js")>()),
 		allowGeoip: () => false,
 	}));
 	vi.doMock("fpgen-js", async (load) => ({
