@@ -1,13 +1,28 @@
+"""The display headless="virtual" runs the browser on.
+
+Linux uses Xvfb. macOS and Windows have no X server to give each browser a
+private screen, so they use vfb (github.com/JWriter20/vfb), a small server
+with Xvfb's command line that adds a real monitor to the logged-in desktop: a
+CGVirtualDisplay on macOS, a Virtual Display Driver monitor on Windows. The
+system compositor draws it on the GPU like a physical panel. The browser has
+to put its window there itself, so on those systems `bounds` says where the
+monitor sits on the desktop.
+"""
+
 import os
+import queue
 import signal
 import select
 import subprocess  # nosec
+import threading
 import time
 from shutil import which
 from typing import Dict, List, Optional, Tuple
 
 from .exceptions import (
+    CannotExecuteVfb,
     CannotExecuteXvfb,
+    CannotFindVfb,
     CannotFindXvfb,
     VirtualDisplayNotSupported,
 )
@@ -26,6 +41,14 @@ COMPOSITE_KEY = "VIRTUAL_DISPLAY_COMPOSITE"
 # geometry; otherwise it is the engine's (Engine.virtual_screen) until the
 # launcher fit()s it to the identity.
 SCREEN_KEY = "VIRTUAL_DISPLAY_SIZE"
+# <NAME>_VFB_PATH names the vfb binary on macOS and Windows; otherwise it is
+# looked up on PATH.
+VFB_KEY = "VFB_PATH"
+# The monitor size on macOS and Windows until the launcher fit()s it. A real
+# monitor has to hold the browser's window, so Xvfb's tiny root won't do.
+VFB_DEFAULT_SCREEN = "1920x1080x24"
+# How long kill() lets vfb detach its monitor after stdin closes.
+VFB_STOP_TIMEOUT_S = 5.0
 
 
 def _resolve_screen(product: Product) -> str:
@@ -45,7 +68,7 @@ def _resolve_screen(product: Product) -> str:
 
 
 class VirtualDisplay:
-    """A minimal virtual display implementation for Linux."""
+    """A private screen for the browser: Xvfb on Linux, vfb on macOS and Windows."""
 
     def __init__(
         self,
@@ -53,17 +76,30 @@ class VirtualDisplay:
         debug: bool = False,
         screen: Optional[str] = None,
         composite: Optional[bool] = None,
+        scale: float = 1.0,
     ) -> None:
         self.product = product
         self.debug = debug
         #: A size the caller chose; fit() leaves it alone.
         self.fixed = bool(screen or (product.getenv(SCREEN_KEY) or "").strip())
-        self.screen = screen or _resolve_screen(product)
+        self.screen = screen or (
+            _resolve_screen(product) if self.fixed or OS_NAME == "lin" else VFB_DEFAULT_SCREEN
+        )
         if composite is None:
             composite = (product.getenv(COMPOSITE_KEY) or "0").strip() in ("1", "true")
         self.composite = composite
+        #: Device pixels per point. Only vfb on macOS acts on it (a HiDPI
+        #: monitor); Xvfb and vfb on Windows draw at 1.
+        self.scale = scale
         self.proc: Optional[subprocess.Popen] = None
         self._display: Optional[int] = None
+        #: Where vfb's monitor sits on the desktop, as (x, y, width, height) in
+        #: the desktop's units (points on macOS, pixels on Windows); None on
+        #: Linux, where the display is the browser's alone.
+        self.bounds: Optional[Tuple[int, int, int, int]] = None
+        if OS_NAME != "lin":
+            self._name = "vfb"
+            self._error = CannotExecuteVfb
 
     @property
     def size(self) -> Tuple[int, int]:
@@ -71,13 +107,14 @@ class VirtualDisplay:
         width, height = self.screen.lower().split('x')[:2]
         return int(width), int(height)
 
-    def fit(self, width: int, height: int) -> None:
-        """Size a display that is not yet started to `width` x `height` pixels,
-        unless its size was fixed."""
+    def fit(self, width: int, height: int, scale: float = 1.0) -> None:
+        """Size a display that is not yet started to `width` x `height` pixels
+        at `scale` device pixels per point, unless its size was fixed."""
         if self.fixed or self.proc is not None:
             return
         depth = self.screen.lower().split('x')[2]
         self.screen = f"{width}x{height}x{depth}"
+        self.scale = scale
 
     @property
     def xvfb_args(self) -> tuple:
@@ -114,6 +151,29 @@ class VirtualDisplay:
             raise CannotFindXvfb("Please install util-linux (for setpriv) to use headless mode.")
         return path
 
+    @property
+    def vfb_path(self) -> str:
+        path = (self.product.getenv(VFB_KEY) or "").strip() or which("vfb")
+        if not path or not os.path.isfile(path):
+            raise CannotFindVfb(
+                "headless='virtual' on this system needs vfb (https://github.com/JWriter20/vfb): "
+                f"put it on PATH or set {self.product.env_var(VFB_KEY)} to its path."
+            )
+        if not os.access(path, os.X_OK):
+            raise CannotExecuteVfb(f"I do not have permission to execute vfb: {path}")
+        return path
+
+    @property
+    def vfb_args(self) -> tuple:
+        width, height = self.size
+        args = ["-report", "geometry", "-eofexit"]
+        if OS_NAME == "mac" and self.scale >= 1.5:
+            # vfb takes the mode in points and backs it with 2x pixels.
+            args += ["-screen", "0", f"{round(width / 2)}x{round(height / 2)}", "-scale", "2"]
+        else:
+            args += ["-screen", "0", f"{width}x{height}"]
+        return tuple(args)
+
     # What get() calls the server in its errors, and what it raises.
     _name = "Xvfb"
     _error = CannotExecuteXvfb
@@ -121,14 +181,20 @@ class VirtualDisplay:
     def _wrapper(self) -> List[str]:
         """What execs the server. setpriv's parent-death signal stops Xvfb when
         this process dies without reaching kill(), even by SIGKILL; SIGTERM lets
-        Xvfb remove its own lock and socket."""
+        Xvfb remove its own lock and socket. vfb watches its parent itself."""
+        if OS_NAME != "lin":
+            return []
         return [self.setpriv_path, "--pdeathsig", "TERM"]
 
     def _command(self) -> List[str]:
         """The server's argv, less -displayfd, which get() adds."""
+        if OS_NAME != "lin":
+            return [self.vfb_path, *self.vfb_args]
         return [self.xvfb_path, *self.xvfb_args]
 
     def _server_env(self) -> Optional[Dict[str, str]]:
+        if OS_NAME != "lin":
+            return None
         # Force Mesa software GLX; we don't use the GPU anyway.
         return {**os.environ, "__GLX_VENDOR_LIBRARY_NAME": "mesa", "LIBGL_ALWAYS_SOFTWARE": "1"}
 
@@ -139,9 +205,9 @@ class VirtualDisplay:
         """Called once the server has reported its display."""
 
     def get(self) -> str:
-        self._assert_linux()
-
-        if self.proc is None:
+        if self.proc is None and OS_NAME == "win":
+            self._report(self._start_over_stdout())
+        elif self.proc is None:
             # Launch the server with -displayfd so it picks a free display
             # number atomically and reports it back. Avoids userspace races.
             # subprocess.Popen's pass_fds keeps an fd at its parent number in
@@ -154,7 +220,9 @@ class VirtualDisplay:
                 print("Starting virtual display:", " ".join(cmd))
             self.proc = subprocess.Popen(  # nosec
                 cmd,
-                stdin=subprocess.DEVNULL,
+                # vfb runs until its stdin closes (-eofexit), so it gets a
+                # pipe only this process holds.
+                stdin=subprocess.DEVNULL if OS_NAME == "lin" else subprocess.PIPE,
                 stdout=None if self.debug else subprocess.DEVNULL,
                 stderr=None if self.debug else subprocess.DEVNULL,
                 start_new_session=True,
@@ -188,16 +256,59 @@ class VirtualDisplay:
             finally:
                 os.close(read_fd)
 
-            try:
-                self._display = int(buf.strip())
-            except ValueError:
-                self.kill()
-                raise self._error(f"{self._name} wrote non-integer display: {buf!r}")
-            self._ready()
+            self._report(buf)
         elif self.debug:
             print(f"Using virtual display: {self._display}")
 
         return f":{self._display}"
+
+    def _start_over_stdout(self) -> bytes:
+        """Start vfb on Windows, where a child gets no inherited fd: it reports
+        on stdout, and a closed stdin is its signal to stop."""
+        cmd = [*self._command(), "-displayfd", "1"]
+        if self.debug:
+            print("Starting virtual display:", " ".join(cmd))
+        self.proc = subprocess.Popen(  # nosec
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=None if self.debug else subprocess.DEVNULL,
+            env=self._server_env(),
+            # CREATE_NO_WINDOW: no console window flashes up for vfb.
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        lines: "queue.Queue[bytes]" = queue.Queue()
+        stdout = self.proc.stdout
+        assert stdout is not None
+        threading.Thread(target=lambda: lines.put(stdout.readline()), daemon=True).start()
+        try:
+            line = lines.get(timeout=DISPLAYFD_READ_TIMEOUT_S)
+        except queue.Empty:
+            self.kill()
+            raise self._error(
+                f"{self._name} did not report a display within "
+                f"{int(DISPLAYFD_READ_TIMEOUT_S * 1000)}ms"
+            )
+        if not line.endswith(b"\n"):
+            proc = self.proc
+            self.kill()
+            raise self._error(
+                f"{self._name} did not report a display (got {line!r}, exit={proc.poll()})"
+            )
+        return line
+
+    def _report(self, buf: bytes) -> None:
+        """Take the server's report: "N", or vfb's "N X Y W H SCALE"."""
+        fields = buf.split()
+        try:
+            self._display = int(fields[0])
+            if len(fields) >= 5:
+                x, y, width, height = (int(v) for v in fields[1:5])
+                self.bounds = (x, y, width, height)
+        except (ValueError, IndexError):
+            self.kill()
+            raise self._error(f"{self._name} wrote non-integer display: {buf!r}")
+        self._ready()
 
     def kill(self) -> None:
         """Stop Xvfb if it is running, and remove its lock and socket either way.
@@ -214,6 +325,12 @@ class VirtualDisplay:
         long-running host stops being able to allocate one.
         """
         if not self.proc:
+            return
+
+        if OS_NAME != "lin":
+            # vfb leaves no files; its monitor goes with the process.
+            self._stop_vfb()
+            self.proc = None
             return
 
         if self.proc.poll() is None:
@@ -241,7 +358,23 @@ class VirtualDisplay:
 
         self.proc = None
 
-    @staticmethod
-    def _assert_linux() -> None:
-        if OS_NAME != "lin":
-            raise VirtualDisplayNotSupported("Virtual display is only supported on Linux.")
+    def _stop_vfb(self) -> None:
+        """Close vfb's stdin so it detaches its monitor and exits, and kill it
+        if it has not within VFB_STOP_TIMEOUT_S."""
+        assert self.proc is not None
+        if self.debug:
+            print("Terminating virtual display:", self._display)
+        for stream in (self.proc.stdin, self.proc.stdout):
+            try:
+                if stream:
+                    stream.close()
+            except OSError:
+                pass
+        try:
+            self.proc.wait(timeout=VFB_STOP_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            self.proc.kill()
+            try:
+                self.proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass

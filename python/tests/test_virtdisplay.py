@@ -29,7 +29,7 @@ DISPLAY_RE = re.compile(r"^:\d+$")
 N = int(os.environ.get("VIRTDISPLAY_TEST_N", "50"))
 
 pytestmark = pytest.mark.skipif(
-    sys.platform != "linux", reason="VirtualDisplay is Linux-only"
+    sys.platform != "linux", reason="Xvfb runs on Linux; tests/test_virtdisplay_vfb.py covers macOS and Windows"
 )
 
 
