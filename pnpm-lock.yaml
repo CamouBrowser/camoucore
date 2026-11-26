@@ -45,6 +45,9 @@ importers:
       '@types/xml2js':
         specifier: ^0.4.14
         version: 0.4.14
+      captchakraken:
+        specifier: 5.2.1
+        version: 5.2.1
       fpgen-js:
         specifier: 1.3.0
         version: 1.3.0
@@ -134,6 +137,14 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
+
+  '@jwriter20/myuri@5.1.0':
+    resolution: {integrity: sha512-yG5foyrdXwHkyQb4zlup4eCeynryR/ko44Nnsh5EloUBkJ6vjE1AKajTqwsZ+UE9KT7O+mGuFS4ikgUa0f/omQ==}
+    peerDependencies:
+      playwright-core: '>=1.40.0'
+    peerDependenciesMeta:
+      playwright-core:
+        optional: true
 
   '@napi-rs/wasm-runtime@1.2.6':
     resolution: {integrity: sha512-mRyDmEw9/fCDXCGfL1sbgIw/GUK0PVxRW4YwgPN61F3LQ+fSyoBFarJVzgGyhF6kRzEQZ0FejDqm4WLXSeqQmw==}
@@ -325,6 +336,11 @@ packages:
     resolution: {integrity: sha512-Vh3dmFbc4wZeox7M9I/0L9GfFd83Su4+yCck/OF9Gi/P/dAHn0RT7X4K9R7gMNMhDck3DvhR6QXsnQdjjgwNvQ==}
     engines: {node: 20 || >=22}
 
+  captchakraken@5.2.1:
+    resolution: {integrity: sha512-GqEuXu8Bnl9TrSA+2/ReFlly2kpXy63zfcepJsY/Opc1BX6SBg2gJTtbDLEfQyERIQAFLQk+u+TdCh85wUyFEg==}
+    engines: {node: '>=20.19'}
+    hasBin: true
+
   chai@6.3.0:
     resolution: {integrity: sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg==}
     engines: {node: '>=18'}
@@ -335,6 +351,10 @@ packages:
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
+
+  cursory-js@2.1.0:
+    resolution: {integrity: sha512-xpOT6eF3goyfu6X4SPcEfymzeNr16oelBiGx76s0AJO9+wJbBS9nY66Vxnc4aIvF5KBmuixE91Ie/R6Sk4hKNg==}
+    engines: {node: '>=18'}
 
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
@@ -741,6 +761,10 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.6.0': {}
 
+  '@jwriter20/myuri@5.1.0':
+    dependencies:
+      cursory-js: 2.1.0
+
   '@napi-rs/wasm-runtime@1.2.6(@emnapi/core@2.0.0-beta.2)(@emnapi/runtime@2.0.0-beta.2)':
     dependencies:
       '@emnapi/core': 2.0.0-beta.2
@@ -887,6 +911,12 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
+  captchakraken@5.2.1:
+    dependencies:
+      '@jwriter20/myuri': 5.1.0
+    transitivePeerDependencies:
+      - playwright-core
+
   chai@6.3.0: {}
 
   cli-progress@3.12.0:
@@ -894,6 +924,8 @@ snapshots:
       string-width: 4.2.3
 
   convert-source-map@2.0.0: {}
+
+  cursory-js@2.1.0: {}
 
   detect-libc@2.1.2: {}
 

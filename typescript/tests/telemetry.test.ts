@@ -14,7 +14,13 @@ import {
 	telemetryEnabled,
 } from "../src/telemetry.js";
 
-const PRODUCT = new Product("camoufox", "Camoufox", FIREFOX);
+const PRODUCT = new Product(
+	"camoufox",
+	"Camoufox",
+	FIREFOX,
+	"https://accounts.example",
+	"https://captcha.example/v1",
+);
 const RULES = new Rules();
 const UUID = "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b";
 

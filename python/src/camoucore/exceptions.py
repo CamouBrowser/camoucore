@@ -126,3 +126,39 @@ class FpgenModelError(RuntimeError):
     """Raised when fpgen's pinned model cannot be installed where fpgen reads it."""
 
     ...
+
+
+class ProNotLaunched(ValueError):
+    """
+    Raised for a Pro launch option before Pro opens. The message names the page
+    where an account is made and the waitlist joined.
+    """
+
+    def __init__(self, option: str, title: str, early_access_url: str) -> None:
+        self.option = option
+        self.url = early_access_url
+        super().__init__(
+            f'{option} is a {title} Pro option, and {title} Pro has not launched yet. '
+            f'Make your account at {early_access_url} to join the waitlist and be told the day '
+            f'it opens; {title} itself stays free.'
+        )
+
+
+class CaptchaKeyMissing(ValueError):
+    """
+    Raised when captcha solving is asked for and no key or server was given.
+    The message lists the ways to get one, a free account first.
+    """
+
+    def __init__(self, message: str, account_url: str) -> None:
+        self.url = account_url
+        super().__init__(message)
+
+
+class CaptchaKrakenMissing(ImportError):
+    """
+    Raised when captcha solving is asked for and the captchakraken client is
+    not installed.
+    """
+
+    ...
