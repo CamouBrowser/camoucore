@@ -1,8 +1,12 @@
 packages:
   - typescript
+  - mcp
 
 # 24h quarantine on anything freshly published, as supply-chain cover.
 minimumReleaseAge: 1440
+# Our own launchers, which the MCP tests drive, release on our schedule.
+minimumReleaseAgeExclude:
+  - camouwolf
 
 onlyBuiltDependencies:
   - esbuild

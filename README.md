@@ -39,6 +39,9 @@ export const PRODUCT = new Product("camouwolf", "Camouwolf", CHROMIUM);
 Its data files are the Python package's; `pnpm build` copies them into
 `dist/data-files/`, so each exists once in the repository.
 
+`mcp/` (npm `camoucore-mcp`) is an MCP server that lets an agent drive a
+launcher's browser; [its README](mcp/README.md) shows how to run it.
+
 ## Development
 
 ```bash
@@ -49,4 +52,7 @@ pytest tests -q
 cd ../typescript     # Node 22.15 or newer
 pnpm install
 pnpm exec tsc --noEmit && pnpm test && pnpm check
+
+cd ../mcp            # CAMOUCORE_MCP_LAUNCHER=camouwolf for the real-browser test
+pnpm typecheck && pnpm test && pnpm check
 ```

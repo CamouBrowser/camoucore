@@ -8,6 +8,8 @@ line here runs in both, so:
   worded so they read correctly from either launcher.
 - **Python and TypeScript are twins.** A change to one module lands in its
   twin in the same commit. Data files live once, in `python/src/camoucore/`.
+  `mcp/` has no twin: it is a process, not a library, and a Python launcher's
+  users run it the same way.
 - **Engine differences live on `Engine`**, as data, not as branches on its name.
 - **Move, don't copy.** Code comes here when both launchers carry it, and the
   launcher copies are deleted in the same change. A launcher-only test of core

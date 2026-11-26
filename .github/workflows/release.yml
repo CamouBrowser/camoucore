@@ -1,8 +1,8 @@
 name: release
 
-# A v<version> tag publishes that version to PyPI and npm. Both packages carry
-# the tag's version, so a launcher pinning one gets the same code in either
-# language.
+# A v<version> tag publishes that version to PyPI and npm. Every package
+# carries the tag's version, so a launcher pinning one gets the same code in
+# either language, and camoucore-mcp is released with the core it ships beside.
 on:
   push:
     tags: ["v*"]
@@ -38,7 +38,8 @@ jobs:
         run: |
           py=$(python3 -c "import tomllib;print(tomllib.load(open('python/pyproject.toml','rb'))['tool']['poetry']['version'])")
           js=$(node -p "require('./typescript/package.json').version")
-          test "v$py" = "$TAG" && test "v$js" = "$TAG"
+          mcp=$(node -p "require('./mcp/package.json').version")
+          test "v$py" = "$TAG" && test "v$js" = "$TAG" && test "v$mcp" = "$TAG"
       - name: Build the Python package
         run: |
           python3 -m pip install -q build twine
@@ -48,7 +49,8 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           mkdir npm-dist
-          cd typescript && npm pack --ignore-scripts --pack-destination ../npm-dist
+          (cd typescript && npm pack --ignore-scripts --pack-destination ../npm-dist)
+          (cd mcp && npm pack --ignore-scripts --pack-destination ../npm-dist)
       - uses: actions/upload-artifact@v4
         with:
           name: python-dist
@@ -91,4 +93,5 @@ jobs:
           name: npm-dist
           path: npm-dist
       # `./` keeps npm from reading `npm-dist/<file>.tgz` as a GitHub owner/repo.
-      - run: npm publish ./npm-dist/*.tgz --access public
+      # npm publish takes one package at a time.
+      - run: for package in npm-dist/*.tgz; do npm publish "./$package" --access public; done

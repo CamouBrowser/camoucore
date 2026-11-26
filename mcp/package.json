@@ -1,0 +1,61 @@
+{
+  "name": "camoucore-mcp",
+  "version": "0.3.0",
+  "description": "An MCP server that drives a Camoufox or Camouwolf browser: sessions, accessibility snapshots with refs, input by ref, and handing the window to a person",
+  "type": "module",
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
+  "bin": {
+    "camoucore-mcp": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc",
+    "test": "pnpm build && vitest run",
+    "check": "biome check",
+    "typecheck": "tsc --noEmit",
+    "prepare": "pnpm build"
+  },
+  "files": [
+    "dist"
+  ],
+  "author": "JWriter20",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CamouBrowser/camoucore.git",
+    "directory": "mcp"
+  },
+  "engines": {
+    "node": ">=22.15"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "3.25.76"
+  },
+  "peerDependencies": {
+    "captchakraken": "*",
+    "playwright-core": "<1.63"
+  },
+  "peerDependenciesMeta": {
+    "captchakraken": {
+      "optional": true
+    }
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "10.33.4",
+      "onFail": "warn"
+    }
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.10",
+    "@types/node": "^24.19.2",
+    "camouwolf": "0.1.0",
+    "playwright-core": "1.62.0",
+    "rimraf": "^6.1.4",
+    "typescript": "^5.9.3",
+    "vite": "8.3.8",
+    "vitest": "^4.1.12"
+  }
+}
