@@ -197,10 +197,11 @@ class _Setup:
             else:
                 parts.update({name: _callers_part(fn, page, self.is_async)
                               for name, fn in engine['options'].items() if name != 'wpm'})
+        wpm = self.engines['keyboard']['options'].get('wpm')
         return Actions(
             _Host(page, self.is_async), self.rng, os=self.os,
             # Camouwolf identities point with a mouse, whose wheel turns in notches.
-            device='mouse', wpm=self.engines['keyboard']['options'].get('wpm'),
+            device='mouse', settings=None if wpm is None else {'typing': {'wpm': wpm}},
             asynchronous=self.is_async, parts=parts,
         )
 

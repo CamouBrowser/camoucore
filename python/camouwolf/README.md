@@ -21,6 +21,9 @@ pip install -U "camouwolf[geoip]"
 camouwolf fetch
 ```
 
+Add the `captcha` extra (`"camouwolf[geoip,captcha]"`) to use the `captcha`
+option.
+
 `camouwolf fetch` installs the browser from the
 [CamouBrowser/camouwolf](https://github.com/CamouBrowser/camouwolf) releases, the
 fpgen model, the GeoIP database, and the default addon (uBlock Origin Lite,
@@ -145,6 +148,42 @@ alongside it, and a proxy warns, since the host's timezone and languages then
 disagree with the exit. Contexts keep the host's identity; `NewContext()`
 raises.
 
+### Captcha
+
+`captcha=` gives the launched browser, or persistent context, a solver at
+`.captcha`; without it `.captcha` is `None`. It needs the `captcha` extra
+(the [captchakraken](https://pypi.org/project/captchakraken/) client). A key or
+server comes from one of:
+
+1. A Camoufox account key (`cfp_live_...`), the one key every Camoufox service
+   takes: make a free account at <https://camoufox.com/early-access/>.
+2. A CaptchaKraken server you host: `pip install "captchakraken[serve]"`,
+   `captchakraken server start`, then `captcha="http://localhost:8000/v1"`.
+
+A CaptchaKraken key (`ck_live_...`) works too, solving at CaptchaKraken's API.
+
+`captcha=True` reads the key from `CAMOUWOLF_PRO_KEY`, `CAPTCHA_KRAKEN_API_KEY`
+or `CAMOUWOLF_CAPTCHA_URL`. When none is set it raises `CaptchaKeyMissing`,
+which lists the account first and hosting the solver yourself second. The option is checked before anything is downloaded and never
+reaches Playwright.
+
+```python
+with Camouwolf(captcha="cfp_live_...") as browser:
+    page = browser.new_page()
+    page.goto("https://example.com")
+    browser.captcha.solve(page)
+```
+
+The async API's `.captcha` is the async solver.
+
+### Pro options
+
+`pro_key`, `profile`, `warm_plan`, `managed` and `farm_gpu` are Camouwolf Pro's.
+Pro has not launched: any of them raises `ProNotLaunched`, before anything is
+downloaded, naming <https://camoufox.com/early-access/>, where an account is made
+and the waitlist joined. Values that ask for nothing (`managed=False`,
+`farm_gpu=False`) launch. Camouwolf itself stays free.
+
 ### Telemetry
 
 Camouwolf sends anonymous counts of how pages behind anti-bot systems treated
@@ -189,6 +228,7 @@ camouwolf fetch [version]     install the browser, fpgen model, GeoIP data, defa
 camouwolf sync                refresh the list of available releases
 camouwolf set [specifier]     choose a channel or pin a build (--geoip for the GeoIP source)
 camouwolf defaults            copy camouwolf.defaults.json to edit your own defaults; print its path
+camouwolf login               Pro sign-in: not launched yet, prints where to make an account
 camouwolf active | list | remove | version | path
 camouwolf test [url]          open a browser with the Playwright inspector
 camouwolf server              launch a Playwright server and print its endpoint

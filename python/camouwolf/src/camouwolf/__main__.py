@@ -1194,5 +1194,21 @@ def defaults_cmd():
     click.echo(write_user_defaults(PRODUCT, DEFAULTS_FILE))
 
 
+@cli.command(name="login")
+def login():
+    """
+    Sign in to Camouwolf Pro (not launched yet: prints where to make an account)
+    """
+    from camoucore.pro import early_access_url
+
+    from .product import PRODUCT
+
+    click.echo(
+        f"Camouwolf Pro has not launched yet. Make your account at {early_access_url(PRODUCT)} "
+        "to be told the day it opens; Camouwolf itself stays free."
+    )
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
     cli()

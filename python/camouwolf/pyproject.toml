@@ -31,8 +31,12 @@ classifiers = [
 # 3.11: myuri (humanize) and its cursory need it, and 3.10 reached end of life
 # in October 2026.
 python = "^3.11"
-# The launcher core shared with Camoufox, from PyPI.
-camoucore = "^0.3.0"
+# The launcher core shared with Camoufox, from PyPI. The captcha extra takes
+# camoucore's, which brings the CaptchaKraken client.
+camoucore = [
+    {version = "^0.3.0"},
+    {version = "^0.3.0", extras = ["captcha"], markers = "extra == 'captcha'"},
+]
 rich-click = "*"
 rich = "*"
 requests = "*"
@@ -50,12 +54,13 @@ pysocks = "*"
 inquirer = "*"
 # humanize's default engine. Pinned: a seed must plan the same input in Python and
 # TypeScript, and in every install of one camouwolf release.
-myuri = "4.0.0"
+myuri = "5.1.0"
 # camoucore reads the GeoIP database with it.
 maxminddb = {version = "*", optional = true}
 
 [tool.poetry.extras]
 geoip = ["maxminddb"]
+captcha = []
 
 [tool.poetry.scripts]
 camouwolf = "camouwolf.__main__:cli"

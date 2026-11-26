@@ -22,6 +22,7 @@ from typing_extensions import TypeAlias
 from . import clienthints, coherence, driver_defaults
 from ._warnings import WARNINGS_DATA, LeakWarning, _warn_from_caller
 from .addons import DefaultAddons, add_default_addons, confirm_paths
+from camoucore.captcha import CaptchaOption, resolve_captcha
 from camoucore.display import has_display, largest_display
 from .exceptions import (
     IncoherentIdentity,
@@ -58,6 +59,7 @@ from .humanize import normalize as normalize_humanize
 from camoucore.ip import Proxy, public_ip, public_ipv6, valid_ipv4
 from camoucore.locales import handle_locales
 from camoucore.passthrough import IDENTITY_OPTIONS, check_passthrough, warn_passthrough
+from camoucore.pro import check_pro_options
 from camoucore.settings import apply_defaults, load_defaults
 from camoucore.telemetry import Telemetry, telemetry_enabled
 from .product import PRODUCT
@@ -956,6 +958,13 @@ def attach_context_defaults(browser: Any, from_options: Dict[str, Any]) -> None:
     setattr(getattr(browser, '_impl_obj', browser), _LAUNCH_OPTIONS, from_options)
 
 
+def captcha_solver(option: CaptchaOption, asynchronous: bool) -> Any:
+    """The captchakraken page solver the `captcha` option asks for, or None.
+    Made before the launch, so an unusable option fails before a browser starts."""
+    captcha = resolve_captcha(PRODUCT, option)
+    return captcha.page_solver(PRODUCT, asynchronous=asynchronous) if captcha else None
+
+
 def launch_options_of(browser: Any) -> Dict[str, Any]:
     """The launch options a Camouwolf browser was launched with."""
     from_options = getattr(getattr(browser, '_impl_obj', browser), _LAUNCH_OPTIONS, None)
@@ -1626,6 +1635,12 @@ def launch_options(
     allow_os_mismatch: Optional[bool] = None,
     passthrough: Optional[bool] = None,
     telemetry: Optional[bool] = None,
+    captcha: CaptchaOption = None,
+    pro_key: Optional[str] = None,
+    profile: Optional[str] = None,
+    warm_plan: Optional[Literal['none', 'standard', 'continuous']] = None,
+    managed: Optional[bool] = None,
+    farm_gpu: Optional[bool] = None,
     **launch_options: Any,
 ) -> Dict[str, Any]:
     """
@@ -1785,9 +1800,28 @@ def launch_options(
             Report anonymous anti-bot outcome counts per proxy provider (see the
             README). Applied by Camouwolf()/NewBrowser(); CAMOUWOLF_TELEMETRY=0
             or DO_NOT_TRACK=1 turns it off too.
+        captcha (Optional[Union[bool, str, Dict[str, Optional[str]]]]):
+            Solve captchas with CaptchaKraken (the captcha extra). A Camoufox
+            account key ("cfp_live_..."), a CaptchaKraken key ("ck_live_..."), the
+            URL of a CaptchaKraken server you host, {"endpoint": ..., "key": ...},
+            or True to read CAMOUWOLF_PRO_KEY, CAPTCHA_KRAKEN_API_KEY or
+            CAMOUWOLF_CAPTCHA_URL. The browser (or persistent context) then has a
+            `.captcha` solver. True with none of them set raises CaptchaKeyMissing.
+            Applied by Camouwolf()/NewBrowser(); only validated here.
+        pro_key, profile, warm_plan, managed, farm_gpu:
+            Camouwolf Pro options: a Pro key, a stored profile, its warm plan, a
+            managed proxy, and remote GPU rendering. Pro has not launched yet, so
+            a value that asks for one raises ProNotLaunched with the page where
+            an account is made (camoucore.pro.early_access_url(PRODUCT)).
         **launch_options (Dict[str, Any]):
             Additional Playwright Chromium launch options.
     """
+    # Before anything is written or downloaded.
+    check_pro_options(PRODUCT, {
+        'pro_key': pro_key, 'profile': profile, 'warm_plan': warm_plan, 'managed': managed, 'farm_gpu': farm_gpu,
+    })
+    resolve_captcha(PRODUCT, captcha)
+
     if passthrough:
         options = locals()
         check_passthrough(PRODUCT, {name: options[name] for name in IDENTITY_OPTIONS})
