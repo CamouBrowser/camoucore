@@ -1,5 +1,5 @@
 packages:
-  - typescript
+  - typescript/*
   - mcp
 
 # 24h quarantine on anything freshly published, as supply-chain cover.

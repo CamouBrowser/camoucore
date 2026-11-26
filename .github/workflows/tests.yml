@@ -21,8 +21,8 @@ jobs:
         with:
           python-version: "3.11"
       - run: command -v xvfb-run >/dev/null || sudo apt-get install -y --no-install-recommends xvfb
-      - run: python -m pip install -e 'python[geoip,captcha]' pytest
-      - working-directory: python
+      - run: python -m pip install -e 'python/camoucore[geoip,captcha]' pytest
+      - working-directory: python/camoucore
         run: python -m pytest tests -q
 
   typescript:
@@ -41,7 +41,7 @@ jobs:
           cache: pnpm
       - run: command -v xvfb-run >/dev/null || sudo apt-get install -y --no-install-recommends xvfb
       - run: pnpm install --frozen-lockfile
-      - working-directory: typescript
+      - working-directory: typescript/camoucore
         run: pnpm typecheck && pnpm test && pnpm check
 
   mcp:

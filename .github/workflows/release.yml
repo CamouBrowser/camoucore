@@ -36,21 +36,21 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          py=$(python3 -c "import tomllib;print(tomllib.load(open('python/pyproject.toml','rb'))['tool']['poetry']['version'])")
-          js=$(node -p "require('./typescript/package.json').version")
+          py=$(python3 -c "import tomllib;print(tomllib.load(open('python/camoucore/pyproject.toml','rb'))['tool']['poetry']['version'])")
+          js=$(node -p "require('./typescript/camoucore/package.json').version")
           mcp=$(node -p "require('./mcp/package.json').version")
           test "v$py" = "$TAG" && test "v$js" = "$TAG" && test "v$mcp" = "$TAG"
       - name: Build the Python package
         run: |
           python3 -m pip install -q build twine
-          python3 -m build python --outdir python/dist
+          python3 -m build python/camoucore --outdir python/dist
           python3 -m twine check --strict python/dist/*
       - name: Build the npm package
         run: |
           pnpm install --frozen-lockfile
           mkdir npm-dist
-          (cd typescript && npm pack --ignore-scripts --pack-destination ../npm-dist)
-          (cd mcp && npm pack --ignore-scripts --pack-destination ../npm-dist)
+          (cd typescript/camoucore && npm pack --ignore-scripts --pack-destination ../../npm-dist)
+          (cd mcp && npm pack --ignore-scripts --pack-destination ../../npm-dist)
       - uses: actions/upload-artifact@v4
         with:
           name: python-dist

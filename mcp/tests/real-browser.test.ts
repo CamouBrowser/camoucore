@@ -15,7 +15,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { prerequisite } from "../../typescript/tests/prereq.js";
+import { prerequisite } from "../../typescript/camoucore/tests/prereq.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const LAUNCHER = process.env.CAMOUCORE_MCP_LAUNCHER ?? "";
