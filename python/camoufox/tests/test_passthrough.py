@@ -6,11 +6,14 @@ from unittest import mock
 
 import pytest
 from camoucore.passthrough import IDENTITY_OPTIONS
+from camoucore.virtdisplay import SCREEN_KEY
 
 from camoufox import pro, pro_update, sync_api, utils
-from camoufox.virtdisplay import SCREEN_ENV_VAR
+from camoufox.product import PRODUCT
 
 from test_identity_salt import config_of, host
+
+SCREEN_ENV_VAR = PRODUCT.env_var(SCREEN_KEY)
 
 
 def passthrough(**kwargs):
@@ -71,7 +74,7 @@ def test_a_pro_build_refuses_it(monkeypatch):
 def test_its_virtual_display_is_a_common_screen(monkeypatch):
     monkeypatch.delenv(SCREEN_ENV_VAR, raising=False)
     started = []
-    monkeypatch.setattr(utils, 'VirtualDisplay', lambda debug, screen: started.append(screen) or mock.Mock())
+    monkeypatch.setattr(utils, 'VirtualDisplay', lambda product, debug, screen: started.append(screen) or mock.Mock())
     utils.start_virtual_display('virtual', False, {'passthrough': True})
     utils.start_virtual_display('virtual', False, {})
     assert started == [utils.PASSTHROUGH_SCREEN, None]

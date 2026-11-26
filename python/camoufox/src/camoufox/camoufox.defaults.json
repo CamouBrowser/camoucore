@@ -72,8 +72,13 @@
   },
   "managed": {
     "default": null,
-    "about": "A managed proxy paid from your Camoufox account: true for the defaults, false for none. null gives a Pro profile the default and any other launch no managed proxy. Cannot be combined with proxy.",
+    "about": "Camoufox Pro (not launched yet: true raises ProNotLaunched on a standard build). A managed proxy paid from your Camoufox account: true for the defaults, false for none. null gives a Pro profile the default and any other launch no managed proxy. Cannot be combined with proxy.",
     "examples": [true, false]
+  },
+  "captcha": {
+    "default": null,
+    "about": "Solve captchas with CaptchaKraken (pip install \"camoufox[captcha]\"): the browser, or persistent context, gets a .captcha solver. A Camoufox account key (cfp_live_...), the URL of a CaptchaKraken server you host, or a CaptchaKraken key (ck_live_...). true reads CAMOUFOX_PRO_KEY, CAPTCHA_KRAKEN_API_KEY or CAMOUFOX_CAPTCHA_URL; with none of them it raises CaptchaKeyMissing. null solves nothing.",
+    "examples": [true, "http://localhost:8000/v1"]
   },
   "block_images": {
     "default": false,
@@ -212,17 +217,17 @@
   },
   "profile": {
     "default": null,
-    "about": "Camoufox Pro: a stored profile's key. The browser presents its identity and restores its state. Needs os.",
+    "about": "Camoufox Pro (not launched yet: a standard build raises ProNotLaunched): a stored profile's key. The browser presents its identity and restores its state. Needs os.",
     "examples": ["shop-account-1"]
   },
   "warm_plan": {
     "default": null,
-    "about": "Camoufox Pro: the warm plan a new profile is created with, \"none\", \"standard\" or \"continuous\". null leaves it to the API.",
+    "about": "Camoufox Pro (not launched yet: a standard build raises ProNotLaunched): the warm plan a new profile is created with, \"none\", \"standard\" or \"continuous\". null leaves it to the API.",
     "examples": ["none", "standard"]
   },
   "farm_gpu": {
     "default": null,
-    "about": "Camoufox Pro: false renders a Windows identity's WebGL, WebGPU and canvas on this machine's GPU instead of a remote one.",
+    "about": "Camoufox Pro (not launched yet: a standard build raises ProNotLaunched): false renders a Windows identity's WebGL, WebGPU and canvas on this machine's GPU instead of a remote one.",
     "examples": [false]
   },
   "i_know_what_im_doing": {

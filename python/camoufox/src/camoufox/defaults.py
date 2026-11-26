@@ -7,10 +7,10 @@ writes it). Every launch starts from them; an option the caller passes wins.
 from pathlib import Path
 from typing import Any, Dict, Iterable, Mapping, Optional
 
-from camoucore import FIREFOX, Product
 from camoucore.settings import apply_defaults, load_defaults, write_user_defaults
 
-PRODUCT = Product('camoufox', 'Camoufox', FIREFOX, package=Path(__file__).parent)
+from .product import PRODUCT
+
 DEFAULTS_FILE = Path(__file__).with_name('camoufox.defaults.json')
 
 

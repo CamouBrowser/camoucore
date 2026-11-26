@@ -198,6 +198,11 @@ def _stored_key() -> Optional[str]:
     return json.loads(path.read_text())["api_key"]
 
 
+def stored_key() -> Optional[str]:
+    """The key `camoufox login` stored, or None."""
+    return _stored_key()
+
+
 def resolve_key(explicit: Optional[str] = None) -> str:
     """The key to use: the `pro_key` argument, else CAMOUFOX_PRO_KEY, else `camoufox login`'s."""
     key = explicit or os.environ.get(KEY_ENV, "").strip() or _stored_key()

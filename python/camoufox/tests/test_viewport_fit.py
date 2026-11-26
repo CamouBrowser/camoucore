@@ -36,7 +36,7 @@ VIEWPORT = {'width': 1000, 'height': 700}
 def _recorded_firefox_windows():
     """(os, screen, window) for every Firefox (screen, window) pair fpgen's
     network records: the window node's conditional table under its parents."""
-    from camoufox.fpgen_model import load_fpgen
+    from camoucore.fpgen_model import load_fpgen
 
     load_fpgen()
     from fpgen.unpacker import lookup_value_list

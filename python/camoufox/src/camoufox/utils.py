@@ -16,15 +16,22 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import orjson
+from camoucore.captcha import Captcha, CaptchaOption, resolve_captcha
+from camoucore.display import has_display, largest_display
+from camoucore.geolocation import ALLOW_GEOIP, geoip_allowed, get_geolocation
+from camoucore.ip import ExitGeo, Proxy, public_ip, valid_ipv4, valid_ipv6
+from camoucore.locales import SELECTOR, handle_locales
+from camoucore.virtdisplay import SCREEN_KEY, VirtualDisplay
 from typing_extensions import TypeAlias
 from ua_parser import user_agent_parser
 
+from camoucore.exceptions import CaptchaKeyMissing, ProNotLaunched
 from camoucore.passthrough import check_passthrough, warn_passthrough
+from camoucore.pro import check_pro_options, pro_api_set
 
 from . import driver_defaults
-from .defaults import PRODUCT, with_defaults
+from .defaults import with_defaults
 from .addons import DefaultAddons, add_default_addons, confirm_paths
-from .display import has_display, largest_display
 from .display_profile import DisplayProfileOption, apply_display_profile
 from .exceptions import (
     InvalidOS,
@@ -34,14 +41,13 @@ from .exceptions import (
 )
 from .fingerprints import BASELINE_TASKBAR_HEIGHT, RECORDED_WINDOW_CHROME, Screen, draw_screen, place_window, screen_floor, platform_to_os, from_fpgen, from_preset, generate_fingerprint, get_random_preset, _generate_random_font_subset, font_unit_families, draw_voice_config, fix_navigator_arch, fix_hardware_concurrency, set_cpu_default, identity_salt, drop_audio_seed, identity_seed, follow_baseline_protection, clamp_screen_to_display, clamp_window_dimensions, clamp_window_position, fit_window_to_caller_screen, raise_screen_to_modern_floor, set_media_devices_defaults, set_host_ipv6_default, set_output_latency_default, set_windows_alias_load_default, set_location_setting_default, WINDOWS_11_MARKER_FONTS, OS_KEYS, OS_NAMES
 from . import coherence, pro
-from .geolocation import ALLOW_GEOIP, geoip_allowed, get_geolocation
 from .humanize import HumanizeSetting, normalize as normalize_humanize
-from .ip import ExitGeo, Proxy, proxy_auth_env, proxy_auth_init_script, public_ip, public_ipv6, socks5_auth, valid_ipv4, valid_ipv6
+from .ip import proxy_auth_env, proxy_auth_init_script, public_ipv6, socks5_auth
 from .managed import Managed, managed_request
 from .proxy_session import ProxySession
-from .locales import SELECTOR, handle_locales
 import warnings
 
+from .product import PRODUCT
 from .pkgman import (
     INSTALL_DIR,
     LAUNCHER_CONSTANTS,
@@ -57,7 +63,6 @@ from .pkgman import (
     warn_if_package_outdated,
 )
 from .gpudisplay import GPU_PREFS, GpuDisplay, async_prove_gpu, prove_gpu, select_gpu
-from .virtdisplay import SCREEN_ENV_VAR, VirtualDisplay
 from platformdirs import user_cache_dir
 from ._warnings import WARNINGS_DATA, FallbackWarning, LeakWarning, _warn_from_caller
 from .host_rendering import Gpu, add_canvas_placeholder, has_canvas_placeholder, host_gpu, set_webgpu
@@ -418,7 +423,7 @@ def validate_config(config_map: Dict[str, Any], path: Optional[Path] = None) -> 
         entry = properties.get(key)
         if not entry:
             if key == 'voices:speechd':
-                LeakWarning.warn('voices_unread')
+                LeakWarning.warn(WARNINGS_DATA['voices_unread'])
             print(f'Skipping unknown patch {key} : {value}')
             continue  # Not supported by this browser version: reported, then skipped
         if 'removed' in entry:
@@ -643,7 +648,7 @@ def get_screen_cons(headless: Optional[bool] = None) -> Optional[Screen]:
     Determines a sane viewport size for Camoufox if being ran in headful mode.
 
     Bounds are CSS pixels, the unit Firefox lays its windows out in -- see
-    camoufox.display for why that differs from the monitor's physical size.
+    camoucore.display for why that differs from the monitor's physical size.
     """
     if headless is True:
         return None  # Skip if headless
@@ -682,7 +687,7 @@ def check_custom_fingerprint(fingerprint: Dict[str, Any]) -> None:
             'If this is intentional, pass `i_know_what_im_doing=True`.'
         )
 
-    LeakWarning.warn('custom_fingerprint', False)
+    LeakWarning.warn(WARNINGS_DATA['custom_fingerprint'], False)
 
 
 def cpu_identity_pref(config: Dict[str, Any]) -> int:
@@ -871,7 +876,7 @@ def _keeps_ipv6(
         ipv6_config = {}
     if all(ipv6_config.get(key) == geo_config.get(key) for key in ('timezone', 'locale:region')):
         return True
-    LeakWarning.warn('ipv6_elsewhere', i_know_what_im_doing)
+    LeakWarning.warn(WARNINGS_DATA['ipv6_elsewhere'], i_know_what_im_doing)
     return False
 
 
@@ -898,26 +903,26 @@ def warn_manual_config(config: Dict[str, Any]) -> None:
     if is_domain_set(
         config, 'navigator.language', 'headers.Accept-Language', 'locale:'
     ):
-        LeakWarning.warn('locale', False)
+        LeakWarning.warn(WARNINGS_DATA['locale'], False)
     # Manual geolocation and timezone setting
     if is_domain_set(config, 'geolocation:', 'timezone'):
-        LeakWarning.warn('geolocation', False)
+        LeakWarning.warn(WARNINGS_DATA['geolocation'], False)
     # Manual User-Agent setting
     if is_domain_set(config, 'headers.User-Agent'):
-        LeakWarning.warn('header-ua', False)
+        LeakWarning.warn(WARNINGS_DATA['header-ua'], False)
     # Manual navigator setting
     if is_domain_set(config, 'navigator.'):
-        LeakWarning.warn('navigator', False)
+        LeakWarning.warn(WARNINGS_DATA['navigator'], False)
     # Touchscreen digitizer spoofing. Called out separately from the blanket
     # navigator warning because the knock-on effects reach past navigator into
     # CSS pointer media queries and the TouchEvent interfaces.
     if is_domain_set(config, 'navigator.maxTouchPoints'):
-        LeakWarning.warn('max_touch_points', False)
+        LeakWarning.warn(WARNINGS_DATA['max_touch_points'], False)
     if config.get('instantAnimations'):
-        LeakWarning.warn('instant_animations', False)
+        LeakWarning.warn(WARNINGS_DATA['instant_animations'], False)
     # Manual screen/window setting
     if is_domain_set(config, 'screen.', 'window.', 'document.body.'):
-        LeakWarning.warn('viewport', False)
+        LeakWarning.warn(WARNINGS_DATA['viewport'], False)
 
 
 def saved_pref(profile_dir: Optional[str], pref: str) -> Any:
@@ -975,7 +980,7 @@ def pinned_core_count(from_options: Dict[str, Any]) -> Optional[int]:
     or None: the identity's navigator.hardwareConcurrency when this host can
     honour it (see cpu_affinity), so a page measuring parallelism sees the
     reported number."""
-    from .cpu_affinity import host_cores, supported
+    from camoucore.cpu_affinity import host_cores, supported
 
     blob = _camou_config_blob(from_options)
     if not blob or not supported():
@@ -1068,7 +1073,7 @@ def attach_desktop_only_warning(target: Any) -> Any:
 
     def adjust(kwargs: Dict[str, Any]) -> None:
         if kwargs.get('is_mobile'):
-            LeakWarning.warn('is_mobile')
+            LeakWarning.warn(WARNINGS_DATA['is_mobile'])
 
     return _wrap_context_factories(target, adjust)
 
@@ -1240,13 +1245,12 @@ def fit_context_screen(geometry: Dict[str, Any], options: Dict[str, Any]) -> Opt
         return size[0] >= floor[0] and size[1] >= floor[1]
 
     def warn_screen(claimed: Tuple[int, int], reason: str) -> None:
-        LeakWarning.warn(
-            'viewport_screen',
+        LeakWarning.warn(WARNINGS_DATA['viewport_screen'].format(
             viewport=_fmt(viewport or (window['width'], window['height'])),
             screen=_fmt(claimed), os=OS_NAMES[os_key],
             chrome=_fmt(RECORDED_WINDOW_CHROME[os_key]),
             taskbar=BASELINE_TASKBAR_HEIGHT[os_key], reason=reason,
-        )
+        ))
 
     claimed: Optional[Tuple[int, int]] = None
     requested = _size(options.get('screen'))
@@ -1259,7 +1263,7 @@ def fit_context_screen(geometry: Dict[str, Any], options: Dict[str, Any]) -> Opt
         if claimed is None:
             warn_screen(screen, f'no recorded {OS_NAMES[os_key]} screen is {_fmt(floor)} or larger')
     if viewport and window and (viewport[0] > window['width'] or viewport[1] > window['height']):
-        LeakWarning.warn('viewport_window', viewport=_fmt(viewport), window=_fmt((window['width'], window['height'])))
+        LeakWarning.warn(WARNINGS_DATA['viewport_window'].format(viewport=_fmt(viewport), window=_fmt((window['width'], window['height']))))
     return claimed
 
 
@@ -1317,13 +1321,13 @@ def check_viewport_size(geometry: Optional[Dict[str, Any]], size: Any, reason: s
     os_key, screen, window = geometry['os'], geometry['screen'], geometry.get('window')
     floor = screen_floor(os_key, {'width': viewport[0], 'height': viewport[1]})
     if screen[0] < floor[0] or screen[1] < floor[1]:
-        LeakWarning.warn(
-            'viewport_screen', viewport=_fmt(viewport), screen=_fmt(screen), os=OS_NAMES[os_key],
+        LeakWarning.warn(WARNINGS_DATA['viewport_screen'].format(
+            viewport=_fmt(viewport), screen=_fmt(screen), os=OS_NAMES[os_key],
             chrome=_fmt(RECORDED_WINDOW_CHROME[os_key]), taskbar=BASELINE_TASKBAR_HEIGHT[os_key],
             reason=reason,
-        )
+        ))
     if window and (viewport[0] > window['width'] or viewport[1] > window['height']):
-        LeakWarning.warn('viewport_window', viewport=_fmt(viewport), window=_fmt((window['width'], window['height'])))
+        LeakWarning.warn(WARNINGS_DATA['viewport_window'].format(viewport=_fmt(viewport), window=_fmt((window['width'], window['height']))))
 
 
 def _install_viewport_size_check() -> None:
@@ -1358,6 +1362,72 @@ def attach_persistent_geometry(context: Any, from_options: Dict[str, Any]) -> An
             )
     _install_viewport_size_check()
     return context
+
+
+def captcha_of(option: CaptchaOption, pro_key: Optional[str] = None) -> Optional[Captcha]:
+    """
+    Where the `captcha` option's solves go, and with which key; None for no
+    solver. Raises CaptchaKeyMissing or CaptchaKrakenMissing.
+
+    One Camoufox key serves every service: captcha=True solves with the
+    launch's `pro_key` when it has one, then the environment camoucore reads
+    (CAMOUFOX_PRO_KEY first), then the key `camoufox login` stored.
+    """
+    if option is True and pro_key:
+        return resolve_captcha(PRODUCT, pro_key)
+    try:
+        return resolve_captcha(PRODUCT, option)
+    except CaptchaKeyMissing:
+        stored = pro.stored_key() if option is True else None
+        if not stored:
+            raise
+        return resolve_captcha(PRODUCT, stored)
+
+
+def captcha_solver(option: CaptchaOption, asynchronous: bool, pro_key: Optional[str] = None) -> Any:
+    """The captchakraken page solver the `captcha` option asks for, or None.
+    Made before the launch, so an unusable option fails before a browser starts."""
+    captcha = captcha_of(option, pro_key)
+    return captcha.page_solver(PRODUCT, asynchronous=asynchronous) if captcha else None
+
+
+def _launches_pro_build(executable_path: Optional[Union[str, Path]], browser: Optional[str]) -> bool:
+    """
+    Whether the build this launch would run is a Camoufox Pro build, read from
+    what is installed: nothing is downloaded or written to find out.
+    """
+    from .exceptions import CamoufoxNotInstalled, UnsupportedVersion
+    from .multiversion import get_active_path
+
+    try:
+        if browser and not executable_path:
+            executable = selected_launch_path(browser)
+        else:
+            executable = str(
+                executable_path
+                or environ.get('CAMOUFOX_EXECUTABLE_PATH', '').strip()
+                or launch_path(get_active_path() or INSTALL_DIR)
+            )
+    except (CamoufoxNotInstalled, UnsupportedVersion):
+        return False
+    return pro.read_build(build_file(executable, "pro-build.json")) is not None
+
+
+def check_pro_launch(
+    options: Dict[str, Any],
+    executable_path: Optional[Union[str, Path]] = None,
+    browser: Optional[str] = None,
+) -> None:
+    """
+    Raise ProNotLaunched for a Pro option before Camoufox Pro opens, unless the
+    launch runs a Pro build or this process names a Pro API (CAMOUFOX_PRO_API),
+    whose launches keep every Pro option.
+    """
+    try:
+        check_pro_options(PRODUCT, options)
+    except ProNotLaunched:
+        if not _launches_pro_build(executable_path, browser):
+            raise
 
 
 def attach_context_defaults(browser: Any, no_viewport_default: bool, geometry: Optional[Dict[str, Any]] = None) -> None:
@@ -1586,8 +1656,8 @@ def start_virtual_display(
     elif headless == 'virtual':
         # A passthrough browser reports the display's own size, so its display is a
         # common monitor rather than the 1x1 root an injected screen hides.
-        screen = PASSTHROUGH_SCREEN if kwargs.get('passthrough') and not environ.get(SCREEN_ENV_VAR) else None
-        display = VirtualDisplay(debug=debug, screen=screen)
+        screen = PASSTHROUGH_SCREEN if kwargs.get('passthrough') and not PRODUCT.getenv(SCREEN_KEY) else None
+        display = VirtualDisplay(PRODUCT, debug=debug, screen=screen)
     else:
         return None, headless
     kwargs['virtual_display'] = display.get()
@@ -1745,7 +1815,7 @@ def _passthrough_options(
         proxy = _HELD.proxy.proxy()
     warn_passthrough(PRODUCT, proxy, i_know_what_im_doing)
     if proxy and proxy_carries_no_udp(str(proxy.get('server', ''))):
-        LeakWarning.warn('proxy_http_no_udp', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['proxy_http_no_udp'], i_know_what_im_doing)
     apply_proxy_dns(proxy_dns, proxy, config, firefox_user_prefs, exit_looked_up=False)
     apply_proxy_optimistic_data(proxy_optimistic_data, proxy, firefox_user_prefs)
 
@@ -1760,9 +1830,9 @@ def _passthrough_options(
         config['allowAddonNewtab'] = True
 
     if block_images:
-        LeakWarning.warn('block_images', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['block_images'], i_know_what_im_doing)
     if disable_coop:
-        LeakWarning.warn('disable_coop', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['disable_coop'], i_know_what_im_doing)
     for on, pref, stock, toggled in (
         (block_images, 'permissions.default.image', 1, 2),
         (block_webrtc, 'media.peerconnection.enabled', True, False),
@@ -1771,7 +1841,7 @@ def _passthrough_options(
         set_toggle_pref(firefox_user_prefs, pref, bool(on), stock, toggled, launch_options.get('user_data_dir'))
     if block_webgl:
         firefox_user_prefs['webgl.disabled'] = True
-        LeakWarning.warn('block_webgl', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['block_webgl'], i_know_what_im_doing)
     if enable_cache:
         merge_into(firefox_user_prefs, CACHE_PREFS)
     if debug:
@@ -1856,6 +1926,7 @@ def launch_options(
     pool_profile: Optional[str] = None,
     display_profile: DisplayProfileOption = None,
     passthrough: Optional[bool] = None,
+    captcha: CaptchaOption = None,
     **launch_options: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
@@ -2040,9 +2111,29 @@ def launch_options(
             renders with, uncovered; it is on whenever the identity claims
             another OS or another GPU (webgl_config, a preset's, or a host GPU
             fpgen never recorded), whose canvas would otherwise show the host.
+        captcha (Optional[Union[bool, str, Dict[str, Optional[str]]]]):
+            Solve captchas with CaptchaKraken (pip install "camoufox[captcha]"): a
+            Camoufox account key ("cfp_live_..."), the URL of a CaptchaKraken server
+            you host, a CaptchaKraken key ("ck_live_..."), {"endpoint": ..., "key": ...},
+            or True to read pro_key, CAMOUFOX_PRO_KEY, CAPTCHA_KRAKEN_API_KEY,
+            CAMOUFOX_CAPTCHA_URL, then the key `camoufox login` stored. The browser (or
+            persistent context) then has a `.captcha` solver. True with none of them
+            raises CaptchaKeyMissing. Applied by Camoufox()/NewBrowser(); only
+            validated here.
         **launch_options (Dict[str, Any]):
             Additional Firefox launch options.
+
+    Camoufox Pro has not launched yet: on a standard build, pro_key, profile,
+    warm_plan, a managed proxy and farm_gpu=True raise ProNotLaunched, which names
+    the page where an account is made, before anything is downloaded. A Pro build,
+    or CAMOUFOX_PRO_API set, launches them as docs/pro.md says.
     """
+    # Before anything is downloaded, written or leased.
+    check_pro_launch(
+        {'pro_key': pro_key, 'profile': profile, 'warm_plan': warm_plan, 'managed': managed, 'farm_gpu': farm_gpu},
+        executable_path, browser,
+    )
+    captcha_of(captcha, pro_key)
     if passthrough:
         # Before anything is downloaded or leased: the caller asked for two launches at once.
         check_passthrough(PRODUCT, {
@@ -2124,7 +2215,9 @@ def launch_options(
             proxy_wire = wire
     elif wire is not None and (leased or managed is not None):
         pro_request["managed"] = wire
-    if farm_gpu is False:
+    # Rendering on this machine is what a standard build does: only a Pro build,
+    # or a launch against a Pro API, tells its lease so.
+    if farm_gpu is False and (pro_build is not None or pro_api_set(PRODUCT)):
         pro_request["gpu"] = False
     if pool_profile is not None:
         if profile is not None:
@@ -2268,7 +2361,7 @@ def launch_options(
     # Get the Firefox version
     if ff_version:
         ff_version_str = str(ff_version)
-        LeakWarning.warn('ff_version', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['ff_version'], i_know_what_im_doing)
     else:
         ff_version_str = resolve_verstr(executable_path).split('.', 1)[0]
 
@@ -2483,7 +2576,7 @@ def launch_options(
     if custom_fonts_only:
         firefox_user_prefs['gfx.bundled-fonts.activate'] = 0
         if fonts:
-            LeakWarning.warn('custom_fonts_only', i_know_what_im_doing)
+            LeakWarning.warn(WARNINGS_DATA['custom_fonts_only'], i_know_what_im_doing)
         else:
             raise ValueError('No custom fonts were passed, but `custom_fonts_only` is enabled.')
     elif not _user_set_fonts or not config.get('fonts'):
@@ -2610,7 +2703,7 @@ def launch_options(
         # Windows machine answers. It is not faked: an encoder that says yes
         # and cannot encode is worse.
         if _host_os_key() == 'lin' and not ctypes.util.find_library('avcodec'):
-            LeakWarning.warn('no_h264_encoder', i_know_what_im_doing)
+            LeakWarning.warn(WARNINGS_DATA['no_h264_encoder'], i_know_what_im_doing)
 
         # The scrollbars pinned above are drawn by the host build's theme: on
         # a Linux host a Windows 10 identity's classic scrollbars measured
@@ -2795,12 +2888,12 @@ def launch_options(
         and 'localhost' not in proxy.get('server', '')
         and not is_domain_set(config, 'geolocation')
     ):
-        LeakWarning.warn('proxy_without_geoip')
+        LeakWarning.warn(WARNINGS_DATA['proxy_without_geoip'])
 
     # An HTTP proxy carries no UDP: WebRTC and HTTP/3 then act as on a machine whose firewall drops every
     # datagram, which few people's does. A SOCKS5 proxy with UDP ASSOCIATE sends them from the exit.
     if proxy and proxy_carries_no_udp(str(proxy.get('server', ''))):
-        LeakWarning.warn('proxy_http_no_udp', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['proxy_http_no_udp'], i_know_what_im_doing)
 
     apply_proxy_dns(proxy_dns, proxy, config, firefox_user_prefs, exit_looked_up=bool(geoip))
     apply_proxy_optimistic_data(proxy_optimistic_data, proxy, firefox_user_prefs)
@@ -2892,9 +2985,9 @@ def launch_options(
     # Fresh profiles get a toggle's pref only when on. A persistent profile
     # may need the stock value written once to clear an earlier toggled value.
     if block_images:
-        LeakWarning.warn('block_images', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['block_images'], i_know_what_im_doing)
     if disable_coop:
-        LeakWarning.warn('disable_coop', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['disable_coop'], i_know_what_im_doing)
     for on, pref, stock, toggled in (
         (block_images, 'permissions.default.image', 1, 2),
         (block_webrtc, 'media.peerconnection.enabled', True, False),
@@ -2903,7 +2996,7 @@ def launch_options(
         set_toggle_pref(firefox_user_prefs, pref, bool(on), stock, toggled, launch_options.get('user_data_dir'))
     # A persistent context takes its context options here.
     if launch_options.get('is_mobile'):
-        LeakWarning.warn('is_mobile', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['is_mobile'], i_know_what_im_doing)
 
     # Drop values the source supplied that this identity cannot keep, before the
     # WebGL pool below defers to them (a preset's own GPU pair wins over
@@ -2926,11 +3019,11 @@ def launch_options(
     )
     if cover_canvas:
         add_canvas_placeholder(firefox_user_prefs)
-        LeakWarning.warn('canvas_noise', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['canvas_noise'], i_know_what_im_doing)
 
     if block_webgl:
         firefox_user_prefs['webgl.disabled'] = True
-        LeakWarning.warn('block_webgl', i_know_what_im_doing)
+        LeakWarning.warn(WARNINGS_DATA['block_webgl'], i_know_what_im_doing)
     else:
         # A pair the caller named, or the preset's own GPU, keeps its name and
         # gets that device's recorded parameters. webgl_for_gpu raises for a GPU

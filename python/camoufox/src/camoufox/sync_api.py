@@ -8,13 +8,14 @@ from playwright.sync_api import (
 )
 from typing_extensions import Literal
 
-from camoufox.virtdisplay import VirtualDisplay
+from camoucore.ip import ExitGeo, Proxy, proxy_exit_geo
+from camoucore.virtdisplay import VirtualDisplay
 
 from . import _humanize_playwright, driver_defaults, pro, telemetry
 from .defaults import with_defaults
 from .fingerprints import generate_context_fingerprint
-from .ip import ExitGeo, Proxy, proxy_exit_geo
 from .utils import (
+    captcha_solver,
     attach_context_defaults,
     attach_persistent_geometry,
     attach_socks5_auth,
@@ -129,6 +130,9 @@ def NewBrowser(
     # humanize runs in this process: checked before the launch,
     # attached to the browser after it (also with from_options).
     _humanize_playwright.check(kwargs.get('humanize'), is_async=False)
+    # The captcha solver is made before the launch, so an unusable option
+    # fails before a browser starts, and is the browser's `.captcha` after it.
+    captcha = captcha_solver(kwargs.get('captcha'), asynchronous=False, pro_key=kwargs.get('pro_key'))
     virtual_display, headless = start_virtual_display(headless, debug, kwargs)
     # Everything after the display exists can fail (bad proxy, missing binary,
     # unsatisfiable constraints) before sync/async_attach_vd wires kill() into
@@ -138,9 +142,11 @@ def NewBrowser(
         browser, os = _launch(
             playwright, virtual_display, headless, from_options, persistent_context, debug, kwargs, telemetry_setting
         )
-        return _humanize_playwright.attach(
+        browser = _humanize_playwright.attach(
             browser, kwargs.get('humanize'), os, i_know_what_im_doing=kwargs.get('i_know_what_im_doing')
         )
+        browser.captcha = captcha
+        return browser
     except BaseException:
         if virtual_display:
             virtual_display.kill()
@@ -180,7 +186,7 @@ def _launch(
     # Pin the driver (and so the browser it is about to spawn) to as many
     # cores as the identity reports, so measurable parallelism matches
     # navigator.hardwareConcurrency; the driver gets its cores back afterwards.
-    from . import cpu_affinity
+    from camoucore import cpu_affinity
     from .utils import driver_pid, pinned_core_count
 
     lease = pro.claim(from_options, virtual_display)

@@ -12,8 +12,8 @@ import requests
 import rich_click as click
 
 from .defaults import write_user_file
-from .fpgen_model import ensure_fpgen_model
-from .geolocation import (
+from camoucore.fpgen_model import ensure_fpgen_model
+from camoucore.geolocation import (
     ALLOW_GEOIP,
     GEOIP_DIR,
     _load_geoip_repos,
@@ -835,7 +835,7 @@ def _list_installed(show_paths: bool):
         try:
             config = load_geoip_config()
         except ValueError as exc:
-            # the saved source is gone from repos.yml
+            # the saved source is gone from the GeoIP list
             rprint(f"    └── {exc}", fg="red")
             return
         mmdb = get_mmdb_path(config=config)
@@ -994,13 +994,22 @@ def _active_executable(executable_path=None) -> str:
 @cli.command(name="login")
 def login():
     """
-    Sign in to Camoufox Pro on this machine
+    Sign in to Camoufox Pro on this machine (not launched yet: prints where to make an account)
     """
+    from camoucore.pro import early_access_url, pro_api_set
+
     from .exceptions import ProError
     from .pro import login as device_login
+    from .product import PRODUCT
 
     # The key is for the API the installed Pro build leases from.
     build = _active_pro_build()
+    if build is None and not pro_api_set(PRODUCT):
+        click.echo(
+            f"Camoufox Pro has not launched yet. Make your account at {early_access_url(PRODUCT)} "
+            "to be told the day it opens; Camoufox itself stays free."
+        )
+        raise SystemExit(1)
     try:
         signed_in = device_login(echo=click.echo, build=build)
     except ProError as error:
@@ -1229,7 +1238,7 @@ class VersionInfo:
             try:
                 config = load_geoip_config()
             except ValueError as exc:
-                # the saved source is gone from repos.yml
+                # the saved source is gone from the GeoIP list
                 self._row("Database", str(exc), style="red")
                 return
             mmdb_path = get_mmdb_path(config=config)

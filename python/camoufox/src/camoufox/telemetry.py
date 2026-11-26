@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 from camoucore.telemetry import Telemetry, telemetry_enabled
 
 from . import pro
-from .defaults import PRODUCT
+from .product import PRODUCT
 from .pkgman import build_file
 
 
