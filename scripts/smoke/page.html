@@ -1,0 +1,7 @@
+<!doctype html><title>smoke</title>
+<button id="button">button</button><input id="input"><pre id="events"></pre>
+<script>
+const log = (e) => { document.getElementById("events").textContent += JSON.stringify({type: e.type, trusted: e.isTrusted, key: e.key ?? null}) + "\n"; };
+document.getElementById("button").addEventListener("click", log);
+document.getElementById("input").addEventListener("keydown", log);
+</script>
