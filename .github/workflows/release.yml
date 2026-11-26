@@ -1,8 +1,14 @@
 name: release
 
-# A v<version> tag publishes that version to PyPI and npm. Every package
-# carries the tag's version, so a launcher pinning one gets the same code in
-# either language, and camoucore-mcp is released with the core it ships beside.
+# A v<version> tag publishes every package at that version: camoucore and each
+# launcher to PyPI and npm, and camoucore-mcp to npm. They are released
+# together so a launcher's exact camoucore pin is always on the registry
+# beside it. Each launcher is stamped with the browser release the tests below
+# ran it against (browser-pin.json), so it fetches that build by default.
+#
+# Publishing is OIDC trusted publishing with provenance; RELEASING.md lists the
+# trusted publishers this needs. Re-running a release skips what is already
+# published, so a run that failed half way can be re-run.
 on:
   push:
     tags: ["v*"]
@@ -17,45 +23,73 @@ jobs:
   build:
     name: Build the packages
     needs: tests
-    runs-on: ubuntu-24.04
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-24.04"') }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # build provenance attestations
+      attestations: write
+    outputs:
+      npm-tag: ${{ steps.version.outputs.npm-tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
-          python-version: "3.11"
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: pnpm
-      - name: The tag, pyproject.toml and package.json agree
+          python-version: "3.12"
+      - uses: ./.github/actions/node
+      - id: version
+        name: The tag is the version every package carries
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          py=$(python3 -c "import tomllib;print(tomllib.load(open('python/camoucore/pyproject.toml','rb'))['tool']['poetry']['version'])")
-          js=$(node -p "require('./typescript/camoucore/package.json').version")
-          mcp=$(node -p "require('./mcp/package.json').version")
-          test "v$py" = "$TAG" && test "v$js" = "$TAG" && test "v$mcp" = "$TAG"
-      - name: Build the Python package
+          python3 scripts/set-version.py --check
+          version=$(jq -r .version typescript/camoucore/package.json)
+          [ "v$version" = "$TAG" ] || { echo "::error::$TAG does not match the packages' version $version"; exit 1; }
+          case "$version" in *-*) echo "npm-tag=next" ;; *) echo "npm-tag=latest" ;; esac >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: tested-browser-*
+          path: .ci-work/tested
+          merge-multiple: true
+      - name: Stamp each launcher with the browser it was tested on
+        run: |
+          for launcher in $(cd python && ls -d */ | tr -d / | grep -vx camoucore); do
+            f=.ci-work/tested/$launcher.json
+            [ -f "$f" ] || { echo "::error::no tested browser recorded for $launcher"; exit 1; }
+            python3 scripts/browser-release.py stamp "$launcher" --repo "$(jq -r .repo "$f")" --tag "$(jq -r .tag "$f")"
+          done
+      - name: Build the Python packages
         run: |
           python3 -m pip install -q build twine
-          python3 -m build python/camoucore --outdir python/dist
-          python3 -m twine check --strict python/dist/*
-      - name: Build the npm package
+          for pkg in python/*/; do python3 -m build "$pkg" --outdir python-dist; done
+          python3 -m twine check --strict python-dist/*
+      - name: Build the npm packages
+        # pnpm pack writes each workspace:* dependency as the exact version.
         run: |
-          pnpm install --frozen-lockfile
           mkdir npm-dist
-          (cd typescript/camoucore && npm pack --ignore-scripts --pack-destination ../../npm-dist)
-          (cd mcp && npm pack --ignore-scripts --pack-destination ../../npm-dist)
-      - uses: actions/upload-artifact@v4
+          for pkg in typescript/*/ mcp/; do
+            (cd "$pkg" && pnpm run build && pnpm pack --pack-destination "$GITHUB_WORKSPACE/npm-dist")
+          done
+          ls npm-dist
+      - name: The packed npm packages pin each other exactly
+        run: |
+          for tgz in npm-dist/*.tgz; do
+            if tar -xOzf "$tgz" package/package.json | grep -q '"workspace:'; then
+              echo "::error::$tgz still has a workspace: dependency"; exit 1
+            fi
+          done
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            python-dist/*
+            npm-dist/*.tgz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: python-dist
-          path: python/dist/
-      - uses: actions/upload-artifact@v4
+          path: python-dist/
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: npm-dist
           path: npm-dist/
@@ -66,32 +100,43 @@ jobs:
     runs-on: ubuntu-24.04
     environment: pypi
     permissions:
-      id-token: write # trusted publishing
+      id-token: write # trusted publishing; the action also uploads PEP 740 attestations
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: python-dist
           path: dist
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          skip-existing: true
 
   publish-npm:
     name: Publish to npm
     # After PyPI, so npm never has a version PyPI does not.
-    needs: publish-pypi
+    needs: [build, publish-pypi]
     runs-on: ubuntu-24.04
     environment: npm
     permissions:
       id-token: write # trusted publishing and provenance
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           # Trusted publishing needs npm >= 11.5.1, which Node 24 ships.
           node-version: "24"
           registry-url: https://registry.npmjs.org
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: npm-dist
           path: npm-dist
-      # `./` keeps npm from reading `npm-dist/<file>.tgz` as a GitHub owner/repo.
-      # npm publish takes one package at a time.
-      - run: for package in npm-dist/*.tgz; do npm publish "./$package" --access public; done
+      # camoucore first: each launcher and the MCP server depend on it.
+      - env:
+          NPM_TAG: ${{ needs.build.outputs.npm-tag }}
+        run: |
+          for tgz in npm-dist/camoucore-[0-9]*.tgz $(ls npm-dist/*.tgz | grep -v '/camoucore-[0-9]'); do
+            spec=$(tar -xOzf "$tgz" package/package.json | jq -r '.name + "@" + .version')
+            if npm view "$spec" version >/dev/null 2>&1; then
+              echo "$spec is already published"; continue
+            fi
+            # `./` keeps npm from reading the path as a GitHub owner/repo.
+            npm publish "./$tgz" --access public --provenance --tag "$NPM_TAG"
+          done

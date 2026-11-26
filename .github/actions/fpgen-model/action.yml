@@ -1,0 +1,35 @@
+name: Install the fpgen model
+description: >-
+  Install the fpgen model camoucore pins (camoucore/fpgen-model.json), from an
+  archive cached across runs, so a job does not depend on GitHub serving the
+  release. The archive is checked against the pin whether it was cached or
+  downloaded. Every job that installs a Python driver runs this before
+  anything imports fpgen.
+
+inputs:
+  python:
+    description: The interpreter camoucore is installed in
+    required: false
+    default: python3
+
+outputs:
+  sha256:
+    description: The pinned archive's sha256
+    value: ${{ steps.pin.outputs.sha256 }}
+
+runs:
+  using: composite
+  steps:
+    - id: pin
+      shell: bash
+      run: >-
+        ${{ inputs.python }} -c "from camoucore.fpgen_model import PIN; print('sha256=' + PIN['sha256'])"
+        >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .ci-work/fpgen-model.zip
+        key: fpgen-archive-${{ steps.pin.outputs.sha256 }}
+    - shell: bash
+      run: >-
+        ${{ inputs.python }} "$GITHUB_WORKSPACE/python/camoucore/scripts/pin-fpgen-model.py"
+        --archive "$GITHUB_WORKSPACE/.ci-work/fpgen-model.zip"
