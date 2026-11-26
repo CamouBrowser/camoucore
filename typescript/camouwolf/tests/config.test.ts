@@ -1,6 +1,6 @@
 /**
  * The config contract: the schema, validation, and how it reaches the
- * browser. Twin of python/tests/test_config.py.
+ * browser. Twin of python/camouwolf/tests/test_config.py.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";

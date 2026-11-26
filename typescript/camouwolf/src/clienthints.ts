@@ -16,7 +16,7 @@
  * from one identity. The keys are read by
  * browser/patches/0003-user-agent-client-hints.patch.
  *
- * TypeScript twin of python/src/camouwolf/clienthints.py.
+ * TypeScript twin of python/camouwolf/src/camouwolf/clienthints.py.
  */
 import { pyStr, pyTruthy } from "./pycompat.js";
 

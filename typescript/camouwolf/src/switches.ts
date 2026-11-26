@@ -16,7 +16,7 @@
  * argv: argv is readable in /proc/<pid>/cmdline and `ps`, and Chromium copies
  * much of it to its renderers' command lines.
  *
- * TypeScript twin of python/src/camouwolf/switches.py.
+ * TypeScript twin of python/camouwolf/src/camouwolf/switches.py.
  */
 import { ValueError } from "./exceptions.js";
 

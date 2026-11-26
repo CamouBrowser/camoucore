@@ -1,6 +1,6 @@
 /**
  * The identity is checked against itself on every launch.
- * Twin of python/tests/test_coherence.py.
+ * Twin of python/camouwolf/tests/test_coherence.py.
  */
 import { describe, expect, it } from "vitest";
 import * as clienthints from "../src/clienthints.js";

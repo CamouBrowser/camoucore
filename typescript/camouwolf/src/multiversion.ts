@@ -1,7 +1,7 @@
 /**
  * Manager for handling multiple Camouwolf versions side by side.
  *
- * TypeScript twin of python/src/camouwolf/multiversion.py.
+ * TypeScript twin of python/camouwolf/src/camouwolf/multiversion.py.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";

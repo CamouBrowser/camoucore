@@ -4,13 +4,13 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "camouwolf"
-version = "0.1.0"
+version = "0.6.0"
 description = "Wrapper around Playwright to help launch Camouwolf"
 # Camouwolf's launcher is derived from the Camoufox Python launcher (MIT, daijro
 # and the Camoufox contributors); see LICENSE.
 authors = ["JWriter20", "daijro <daijro.dev@gmail.com>"]
 license = "MIT"
-repository = "https://github.com/CamouBrowser/camouwolf"
+repository = "https://github.com/CamouBrowser/camoucore"
 readme = "README.md"
 keywords = [
     "client",
@@ -31,11 +31,12 @@ classifiers = [
 # 3.11: myuri (humanize) and its cursory need it, and 3.10 reached end of life
 # in October 2026.
 python = "^3.11"
-# The launcher core shared with Camoufox, from PyPI. The captcha extra takes
-# camoucore's, which brings the CaptchaKraken client.
+# The launcher core, at exactly this release's version
+# (scripts/set-version.py). The captcha extra takes camoucore's, which brings
+# the CaptchaKraken client.
 camoucore = [
-    {version = "^0.3.0"},
-    {version = "^0.3.0", extras = ["captcha"], markers = "extra == 'captcha'"},
+    {version = "==0.6.0"},
+    {version = "==0.6.0", extras = ["captcha"], markers = "extra == 'captcha'"},
 ]
 rich-click = "*"
 rich = "*"

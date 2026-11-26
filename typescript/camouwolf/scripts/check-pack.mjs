@@ -7,7 +7,7 @@
  *      lockstep, and a user comparing `camouwolf version` across them should
  *      see one number);
  *   2. it carries every file src/ reads at runtime -- the DATA_FILES it takes
- *      from python/src/camouwolf and any non-TS file under src/ -- since a file
+ *      from python/camouwolf/src/camouwolf and any non-TS file under src/ -- since a file
  *      missing only shows up on a user's machine, as an ENOENT from inside dist/;
  *   3. installed into an empty project, it imports and exposes its entry
  *      points, and its CLI starts.
@@ -32,7 +32,7 @@ const problems = [];
 
 // 1. version lockstep with the Python package
 const pyproject = readFileSync(
-	join(root, "..", "python", "pyproject.toml"),
+	join(root, "..", "..", "python", "camouwolf", "pyproject.toml"),
 	"utf8",
 );
 const pyVersion = pyproject.match(/^version\s*=\s*"([^"]+)"/m)?.[1];

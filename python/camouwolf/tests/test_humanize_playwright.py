@@ -8,7 +8,7 @@ TypeScript launcher is held to as well. The browser run is
 browser/tests/playwright/patches/humanize.py.
 
 Regenerate the sequence after an intended change with
-    CAMOUWOLF_REGEN_GOLDEN=1 python3 -m pytest python/tests/test_humanize_playwright.py
+    CAMOUWOLF_REGEN_GOLDEN=1 python3 -m pytest python/camouwolf/tests/test_humanize_playwright.py
 """
 
 import asyncio

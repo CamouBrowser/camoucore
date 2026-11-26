@@ -3,7 +3,7 @@
 Left to itself, `import fpgen` downloads the first release the GitHub API
 lists -- model-4/2025, whose WebGL records carry no vendor or renderer -- so a
 pip-installed camouwolf failed every generated launch with KeyError: 'vendor' in
-webgl.py. python/scripts/pin-fpgen-model.py pinned the model for CI only.
+webgl.py. python/camoucore/scripts/pin-fpgen-model.py pinned the model for CI only.
 """
 
 import ast
@@ -120,7 +120,7 @@ def test_missing_model_is_installed_verified_and_stamped(tmp_path, pinned):
     for name, data in MEMBERS.items():
         assert (data_dir / name).read_bytes() == data
     assert _mtimes(data_dir) == {PINNED_MTIME}
-    # The same stamp python/scripts/pin-fpgen-model.py and the TypeScript launcher write.
+    # The same stamp python/camoucore/scripts/pin-fpgen-model.py and the TypeScript launcher write.
     assert (data_dir / STAMP).read_text().strip() == fpgen_model.PIN["sha256"]
     assert sorted(p.name for p in data_dir.iterdir()) == sorted([*MEMBERS, STAMP])
 

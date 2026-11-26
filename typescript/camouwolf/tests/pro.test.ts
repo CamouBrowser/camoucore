@@ -1,6 +1,6 @@
 /**
  * Pro's options, before Pro launches: taken, and refused with the page where
- * an account is made. Twin of python/tests/test_pro.py.
+ * an account is made. Twin of python/camouwolf/tests/test_pro.py.
  */
 import { earlyAccessUrl, PRO_OPTIONS } from "camoucore/pro.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";

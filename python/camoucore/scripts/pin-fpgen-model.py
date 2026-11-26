@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Install the pinned fpgen model before anything imports fpgen.
 
-The launcher does this itself on first use (camoucore.fpgen_model,
+The launcher does this itself on first use (camoucore's fpgen_model.py,
 which explains why fpgen's own download is not used). This entry point exists
 for jobs that need the model in place before they start: CI, image builds, and
 the TypeScript golden recorder.
 
 Usage:
-    python3 python/scripts/pin-fpgen-model.py           # install if not already pinned
-    python3 python/scripts/pin-fpgen-model.py --check    # verify only; non-zero if not pinned
-    python3 python/scripts/pin-fpgen-model.py --force    # re-download and reinstall
-    python3 python/scripts/pin-fpgen-model.py --archive F  # keep the archive in F, and install from F when it is there
+    python3 python/camoucore/scripts/pin-fpgen-model.py           # install if not already pinned
+    python3 python/camoucore/scripts/pin-fpgen-model.py --check    # verify only; non-zero if not pinned
+    python3 python/camoucore/scripts/pin-fpgen-model.py --force    # re-download and reinstall
+    python3 python/camoucore/scripts/pin-fpgen-model.py --archive F  # keep the archive in F, and install from F when it is there
 """
 
 import argparse
@@ -20,7 +20,7 @@ from pathlib import Path
 try:
     from camoucore.fpgen_model import PIN, ensure_fpgen_model, fpgen_data_dir, is_pinned
 except ImportError:
-    sys.exit('camouwolf is not installed; `pip install -e python` from the repo root first')
+    sys.exit('camoucore is not installed; `pip install -e python/camoucore` from the repo root first')
 
 
 def main():
@@ -37,7 +37,7 @@ def main():
         if is_pinned():
             print(f'OK: fpgen model pinned to {PIN["tag"]}')
             return 0
-        print(f'fpgen model is NOT pinned to {PIN["tag"]}; run python/scripts/pin-fpgen-model.py',
+        print(f'fpgen model is NOT pinned to {PIN["tag"]}; run python/camoucore/scripts/pin-fpgen-model.py',
               file=sys.stderr)
         return 1
 

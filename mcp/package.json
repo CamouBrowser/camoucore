@@ -1,6 +1,6 @@
 {
   "name": "camoucore-mcp",
-  "version": "0.3.0",
+  "version": "0.6.0",
   "description": "An MCP server that drives a Camoufox or Camouwolf browser: sessions, accessibility snapshots with refs, input by ref, and handing the window to a person",
   "type": "module",
   "main": "dist/server.js",
@@ -51,7 +51,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
     "@types/node": "^24.19.2",
-    "camouwolf": "0.1.0",
+    "camouwolf": "workspace:*",
     "playwright-core": "1.62.0",
     "rimraf": "^6.1.4",
     "typescript": "^5.9.3",

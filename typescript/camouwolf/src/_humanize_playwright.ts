@@ -1,6 +1,6 @@
 /**
  * myuri's smart actions on Playwright pages. The TypeScript twin of
- * python/src/camouwolf/_humanize_playwright.py; both are held to the sequence
+ * python/camouwolf/src/camouwolf/_humanize_playwright.py; both are held to the sequence
  * in browser/tests/humanize/sequence.json.
  *
  * Each page of the browser (or persistent context) a humanize setting is

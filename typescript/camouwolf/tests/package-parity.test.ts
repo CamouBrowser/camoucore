@@ -13,7 +13,7 @@ import { prerequisite } from "./prereq.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(HERE, "..");
-const PYLIB = path.resolve(PKG, "..", "python");
+const PYLIB = path.resolve(PKG, "..", "..", "python", "camouwolf");
 const pkg = JSON.parse(
 	fs.readFileSync(path.join(PKG, "package.json"), "utf-8"),
 );
@@ -46,7 +46,7 @@ describe("package.json tracks pyproject.toml", () => {
 
 	it("builds with the Python package's data files, byte for byte", () => {
 		// `pnpm build` copies them (scripts/copy-files.mjs); a copy that differs
-		// from python/src/camouwolf is a stale or edited one.
+		// from python/camouwolf/src/camouwolf is a stale or edited one.
 		const built = path.join(PKG, "dist", "data-files");
 		if (!prerequisite("build", fs.existsSync(built), "run pnpm build")) return;
 		for (const name of DATA_FILES) {
@@ -54,7 +54,7 @@ describe("package.json tracks pyproject.toml", () => {
 				fs
 					.readFileSync(path.join(built, name))
 					.equals(fs.readFileSync(path.join(PYLIB, "src", "camouwolf", name))),
-				`dist/data-files/${name} differs from python/src/camouwolf/${name}`,
+				`dist/data-files/${name} differs from python/camouwolf/src/camouwolf/${name}`,
 			).toBe(true);
 		}
 		const extra = fs

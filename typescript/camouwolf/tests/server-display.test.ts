@@ -1,5 +1,5 @@
 /**
- * Ports of python/tests/test_server.py (the parts that apply: TS calls
+ * Ports of python/camouwolf/tests/test_server.py (the parts that apply: TS calls
  * playwright-core's launchServer in-process, so there is no launchServer.js
  * child to reap) and test_display.py's has_display().
  */

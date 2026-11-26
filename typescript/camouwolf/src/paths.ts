@@ -15,7 +15,7 @@ export { ARCH_MAP, OS_MAP, OS_NAME } from "camoucore/host.js";
 export const INSTALL_DIR: string = PRODUCT.cacheDir;
 
 /**
- * The data files both launchers read. They live in python/src/camouwolf/, the one
+ * The data files both launchers read. They live in python/camouwolf/src/camouwolf/, the one
  * copy in the repo; `pnpm build` copies them into dist/data-files/ for the npm
  * tarball, so one seed draws one identity in either launcher.
  */
@@ -35,13 +35,22 @@ export const DATA_FILES: readonly string[] = [
 
 /**
  * Where DATA_FILES are read from: dist/data-files/ in a built package, else
- * python/src/camouwolf/ itself when running from src/ in the repo.
+ * python/camouwolf/src/camouwolf/ itself when running from src/ in the repo.
  */
 export const LOCAL_DATA: string = fs.existsSync(
 	path.join(import.meta.dirname, "data-files"),
 )
 	? path.join(import.meta.dirname, "data-files")
-	: path.resolve(import.meta.dirname, "..", "..", "python", "src", "camouwolf");
+	: path.resolve(
+			import.meta.dirname,
+			"..",
+			"..",
+			"..",
+			"python",
+			"camouwolf",
+			"src",
+			"camouwolf",
+		);
 
 /** camouwolf.defaults.json: the documented default of each launch option. */
 export const DEFAULTS_FILE: string = path.join(
@@ -55,7 +64,7 @@ export function loadDataFile<T = any>(file: string): T {
 	return (file.endsWith(".yml") ? parseYaml(text) : JSON.parse(text)) as T;
 }
 
-/** Values both launchers use, kept in one file (python/src/camouwolf/launcher-constants.json). */
+/** Values both launchers use, kept in one file (python/camouwolf/src/camouwolf/launcher-constants.json). */
 export interface LauncherConstants {
 	plausibleCoreCounts: number[];
 	appleSiliconCores: number[];

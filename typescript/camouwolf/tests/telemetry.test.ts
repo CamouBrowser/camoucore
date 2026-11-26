@@ -1,6 +1,6 @@
 /**
  * Telemetry: every context of a launch is watched, and it never breaks one.
- * Twin of python/tests/test_telemetry.py.
+ * Twin of python/camouwolf/tests/test_telemetry.py.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MODEL } from "./fpgen-setup.js";

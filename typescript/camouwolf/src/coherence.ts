@@ -14,7 +14,7 @@
  * checked again afterwards. `validate()` reports what is still broken;
  * `apply()` repairs what it can.
  *
- * TypeScript twin of python/src/camouwolf/coherence.py.
+ * TypeScript twin of python/camouwolf/src/camouwolf/coherence.py.
  */
 import * as clienthints from "./clienthints.js";
 import { ValueError } from "./exceptions.js";

@@ -7,7 +7,7 @@
  * milestone the binary really is, and the client hints that milestone and OS
  * imply (clienthints.ts).
  *
- * TypeScript twin of python/src/camouwolf/fingerprints.py.
+ * TypeScript twin of python/camouwolf/src/camouwolf/fingerprints.py.
  */
 
 import {

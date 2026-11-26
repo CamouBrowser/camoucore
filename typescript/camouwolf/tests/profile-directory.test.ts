@@ -1,5 +1,5 @@
 /**
- * Mirrors python/tests/test_profile_directory.py (the pkgman half; the
+ * Mirrors python/camouwolf/tests/test_profile_directory.py (the pkgman half; the
  * launch-preflight ordering is covered with the launcher tests): Chromium
  * probes ~/.config/camouwolf at startup even with a Playwright-supplied profile.
  */

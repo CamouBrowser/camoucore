@@ -1,5 +1,5 @@
 /**
- * Launch-option assembly, the twin of python/src/camouwolf/utils.py:
+ * Launch-option assembly, the twin of python/camouwolf/src/camouwolf/utils.py:
  * launchOptions() must return what launch_options() does
  * (tests/launch-golden.test.ts). `utilsDeps` holds what the Python tests
  * monkeypatch.

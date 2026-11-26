@@ -1,6 +1,6 @@
 /**
  * An fpgen Chrome fingerprint becomes the config the browser reads.
- * Twin of python/tests/test_fpgen_mapping.py.
+ * Twin of python/camouwolf/tests/test_fpgen_mapping.py.
  */
 import fs from "node:fs";
 import os from "node:os";

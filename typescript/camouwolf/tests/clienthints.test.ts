@@ -1,6 +1,6 @@
 /**
  * The user agent and the client hints come from one identity and must agree.
- * Twin of python/tests/test_clienthints.py.
+ * Twin of python/camouwolf/tests/test_clienthints.py.
  */
 import { describe, expect, it } from "vitest";
 import * as ch from "../src/clienthints.js";

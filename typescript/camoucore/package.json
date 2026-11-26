@@ -1,6 +1,6 @@
 {
   "name": "camoucore",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "description": "The browser-independent core of the Camoufox and Camouwolf launchers",
   "type": "module",
   "main": "dist/index.js",
@@ -25,7 +25,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CamouBrowser/camoucore.git",
-    "directory": "typescript"
+    "directory": "typescript/camoucore"
   },
   "engines": {
     "node": ">=22.15"

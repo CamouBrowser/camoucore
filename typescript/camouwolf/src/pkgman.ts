@@ -2,7 +2,7 @@
  * Browser package management: version resolution, GitHub release discovery,
  * download/extract, and path lookup.
  *
- * TypeScript twin of python/src/camouwolf/pkgman.py.
+ * TypeScript twin of python/camouwolf/src/camouwolf/pkgman.py.
  */
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";

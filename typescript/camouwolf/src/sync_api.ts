@@ -1,7 +1,7 @@
 /**
  * The launcher entry points: Camouwolf(), NewBrowser(), NewContext().
  *
- * TypeScript twin of python/src/camouwolf/sync_api.py (and async_api.py, whose
+ * TypeScript twin of python/camouwolf/src/camouwolf/sync_api.py (and async_api.py, whose
  * names async_api.ts re-exports). The Python library ships a sync and an
  * async variant because Playwright-Python has two APIs; playwright-core has
  * only one (promise-based), so the behaviours of both live here: the context

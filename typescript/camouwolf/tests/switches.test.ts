@@ -1,6 +1,6 @@
 /**
  * Command-line hygiene: what is dropped, what is refused, what is added.
- * Twin of python/tests/test_switches.py.
+ * Twin of python/camouwolf/tests/test_switches.py.
  */
 import * as fs from "node:fs";
 import { createRequire } from "node:module";

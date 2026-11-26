@@ -1,5 +1,5 @@
 /**
- * multiversion.ts against python/src/camouwolf/multiversion.py: ordering is
+ * multiversion.ts against python/camouwolf/src/camouwolf/multiversion.py: ordering is
  * Python's (code-point string comparison, not locale collation), the install
  * scan and specifier lookup, and removal bookkeeping.
  */

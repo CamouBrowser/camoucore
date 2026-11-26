@@ -22,7 +22,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve()
 TYPESCRIPT = HERE.parents[2]
-sys.path.insert(0, str(TYPESCRIPT.parent / 'python' / 'src'))
+sys.path.insert(0, str(TYPESCRIPT.parent.parent / 'python' / 'camouwolf' / 'src'))
 
 for name in ('DISPLAY', 'WAYLAND_DISPLAY', 'CAMOUWOLF_EXECUTABLE_PATH', 'CAMOUWOLF_GPU'):
     os.environ.pop(name, None)

@@ -6,7 +6,7 @@ VT guard, the GPU-use check, and teardown.
 
 The real display is browser/tests/native/test_gpu_display.py.
 
-Mirrors typescript/tests/gpudisplay.test.ts.
+Mirrors typescript/camouwolf/tests/gpudisplay.test.ts.
 """
 
 import os

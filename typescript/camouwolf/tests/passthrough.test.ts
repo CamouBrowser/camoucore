@@ -1,6 +1,6 @@
 /**
  * passthrough: true: the host's own fingerprint, with the behaviour options
- * kept. Twin of python/tests/test_passthrough.py.
+ * kept. Twin of python/camouwolf/tests/test_passthrough.py.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ValueError } from "../src/exceptions.js";

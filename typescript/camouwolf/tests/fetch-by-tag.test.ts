@@ -1,5 +1,5 @@
 /**
- * Mirrors python/tests/test_fetch_by_tag.py: `camouwolf fetch` installs a named
+ * Mirrors python/camouwolf/tests/test_fetch_by_tag.py: `camouwolf fetch` installs a named
  * build with one GitHub API call, and fails loudly (#919).
  *
  * The CLI runs on import, so each test points XDG_CACHE_HOME at a fresh

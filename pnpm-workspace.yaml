@@ -2,11 +2,10 @@ packages:
   - typescript/*
   - mcp
 
-# 24h quarantine on anything freshly published, as supply-chain cover.
+# 24h quarantine on anything freshly published, as supply-chain cover. Our own
+# packages come from this workspace, so the quarantine never holds them back.
 minimumReleaseAge: 1440
-# Our own launchers, which the MCP tests drive, release on our schedule.
-minimumReleaseAgeExclude:
-  - camouwolf
 
 onlyBuiltDependencies:
   - esbuild
+  - playwright-core

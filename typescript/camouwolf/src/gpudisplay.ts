@@ -1,7 +1,7 @@
 /**
  * headless="virtual-gpu": a headless Xorg server pinned to one GPU.
  *
- * TypeScript twin of python/src/camouwolf/gpudisplay.py.
+ * TypeScript twin of python/camouwolf/src/camouwolf/gpudisplay.py.
  *
  * Xvfb has no GPU path, so a browser on it renders WebGL and canvas with
  * Mesa's software rasterizer. This display is a real Xorg server bound to one

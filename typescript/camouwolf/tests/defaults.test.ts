@@ -1,6 +1,6 @@
 /**
  * camouwolf.defaults.json: the defaults every launch starts from, and the
- * user's own. Twin of python/tests/test_defaults.py.
+ * user's own. Twin of python/camouwolf/tests/test_defaults.py.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -54,7 +54,9 @@ it("is the Python launcher's file", () => {
 				import.meta.dirname,
 				"..",
 				"..",
+				"..",
 				"python",
+				"camouwolf",
 				"src",
 				"camouwolf",
 				"camouwolf.defaults.json",

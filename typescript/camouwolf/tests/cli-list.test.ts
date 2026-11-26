@@ -1,5 +1,5 @@
 /**
- * Port of python/tests/test_cli_list.py: `camouwolf list --path` shows
+ * Port of python/camouwolf/tests/test_cli_list.py: `camouwolf list --path` shows
  * install paths in both listing modes.
  */
 import * as fs from "node:fs";

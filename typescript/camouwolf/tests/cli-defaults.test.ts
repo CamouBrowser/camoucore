@@ -1,5 +1,5 @@
 /**
- * Port of the CLI test in python/tests/test_defaults.py: `camouwolf defaults`
+ * Port of the CLI test in python/camouwolf/tests/test_defaults.py: `camouwolf defaults`
  * writes the user's copy of the defaults file and prints its path.
  */
 import * as fs from "node:fs";

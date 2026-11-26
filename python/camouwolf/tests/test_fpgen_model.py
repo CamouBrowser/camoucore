@@ -3,7 +3,7 @@
 Left to itself, `import fpgen` downloads the first release the GitHub API
 lists -- model-4/2025, whose WebGL records carry no vendor or renderer -- so a
 pip-installed camouwolf failed every generated launch with KeyError: 'vendor' in
-webgl.py. python/scripts/pin-fpgen-model.py pinned the model for CI only.
+webgl.py. python/camoucore/scripts/pin-fpgen-model.py pinned the model for CI only.
 """
 
 import ast

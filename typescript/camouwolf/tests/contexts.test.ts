@@ -1,7 +1,7 @@
 /**
  * Camouwolf()/NewBrowser()/NewContext() against a fake Playwright browser
  * type: what is launched, and the defaults every context gets. Twin of
- * python/tests/test_contexts.py and the launch-path tests of
+ * python/camouwolf/tests/test_contexts.py and the launch-path tests of
  * test_launch_options.py that the goldens cannot hold.
  */
 import * as fs from "node:fs";

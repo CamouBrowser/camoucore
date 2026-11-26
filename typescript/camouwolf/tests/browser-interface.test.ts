@@ -1,5 +1,5 @@
 /**
- * Mirrors python/tests/test_browser_interface.py: a browser declares the
+ * Mirrors python/camouwolf/tests/test_browser_interface.py: a browser declares the
  * interface it speaks, and the library refuses one it cannot drive (#835).
  *
  * INSTALL_DIR is computed at import from XDG_CACHE_HOME, so every test points

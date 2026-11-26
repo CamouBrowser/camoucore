@@ -10,7 +10,7 @@
  *     import { hostGpu, rendersOnHardware } from "camouwolf";
  *     const gpu = await hostGpu(executablePath, true, process.env, []);
  *
- * TypeScript twin of python/src/camouwolf/host_rendering.py. Python runs the
+ * TypeScript twin of python/camouwolf/src/camouwolf/host_rendering.py. Python runs the
  * probe in a child interpreter (its sync API cannot start inside a running
  * loop); Node has no such limit, so the probe runs in-process under the same
  * deadline.

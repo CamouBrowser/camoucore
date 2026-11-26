@@ -1,7 +1,7 @@
 /**
  * Camouwolf version constants.
  *
- * TypeScript twin of python/src/camouwolf/__version__.py.
+ * TypeScript twin of python/camouwolf/src/camouwolf/__version__.py.
  */
 
 // biome-ignore lint/complexity/noStaticOnlyClass: mirrors the Python twin's CONSTRAINTS class so both launchers read the same
@@ -35,4 +35,4 @@ export class CONSTRAINTS {
 
 /** Version of this launcher library. Kept in step with package.json and
  *  pythonlib's pyproject.toml. */
-export const LIBRARY_VERSION = "0.1.0";
+export const LIBRARY_VERSION = "0.6.0";
