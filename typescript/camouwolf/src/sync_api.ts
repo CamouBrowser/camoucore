@@ -9,6 +9,7 @@
  * virtual-display teardown.
  */
 
+import { type PageSolver, resolveCaptcha } from "camoucore/captcha.js";
 import * as cpuAffinity from "camoucore/cpu_affinity.js";
 import type { ProxyConfig } from "camoucore/ip.js";
 import type { VirtualDisplay } from "camoucore/virtdisplay.js";
@@ -21,6 +22,7 @@ import {
 import { attach } from "./_humanize_playwright.js";
 import { attachDriverDefaults } from "./driver_defaults.js";
 import { normalize } from "./humanize.js";
+import { PRODUCT } from "./product.js";
 import {
 	attachContextDefaults,
 	attachVirtualDisplay,
@@ -48,6 +50,13 @@ import {
 
 export type { Headless } from "./utils.js";
 
+/** A launched browser or persistent context, with its captcha solver. */
+export type WithCaptcha<T> = T & {
+	/** The CaptchaKraken solver the `captcha` option asked for, or undefined
+	 * without one: `await browser.captcha.solve(page)`. */
+	captcha: PageSolver | undefined;
+};
+
 export interface NewBrowserOptions
 	extends Omit<LaunchOptions, "headless">,
 		GpuDisplayOptions {
@@ -71,11 +80,13 @@ export interface NewBrowserOptions
  */
 export async function Camouwolf(
 	options: NewBrowserOptions & { persistent_context: true },
-): Promise<BrowserContext>;
-export async function Camouwolf(options?: NewBrowserOptions): Promise<Browser>;
+): Promise<WithCaptcha<BrowserContext>>;
+export async function Camouwolf(
+	options?: NewBrowserOptions,
+): Promise<WithCaptcha<Browser>>;
 export async function Camouwolf(
 	options: NewBrowserOptions = {},
-): Promise<Browser | BrowserContext> {
+): Promise<WithCaptcha<Browser | BrowserContext>> {
 	return NewBrowser(chromium, options);
 }
 
@@ -91,15 +102,15 @@ export async function Camouwolf(
 export async function NewBrowser(
 	playwright: BrowserType | { chromium: BrowserType },
 	options: NewBrowserOptions & { persistent_context: true },
-): Promise<BrowserContext>;
+): Promise<WithCaptcha<BrowserContext>>;
 export async function NewBrowser(
 	playwright: BrowserType | { chromium: BrowserType },
 	options?: NewBrowserOptions,
-): Promise<Browser>;
+): Promise<WithCaptcha<Browser>>;
 export async function NewBrowser(
 	playwright: BrowserType | { chromium: BrowserType },
 	options: NewBrowserOptions = {},
-): Promise<Browser | BrowserContext> {
+): Promise<WithCaptcha<Browser | BrowserContext>> {
 	// The defaults file fills what the caller left unset; options read here
 	// (headless, humanize, telemetry) need it before launchOptions runs.
 	const { headless, from_options, persistent_context, debug, ...kwargs } =
@@ -109,6 +120,10 @@ export async function NewBrowser(
 	// humanize runs in this process: checked before the launch, attached to
 	// the browser after it (also with from_options).
 	normalize(kwargs.humanize);
+	// The captcha solver is made before the launch, so an unusable option
+	// fails before a browser starts, and is the browser's `.captcha` after it.
+	const captcha = resolveCaptcha(PRODUCT, kwargs.captcha);
+	const solver = captcha ? await captcha.solver(PRODUCT) : undefined;
 	const [virtualDisplay, headlessBool] = await startVirtualDisplay(
 		headless,
 		debug,
@@ -162,11 +177,14 @@ export async function NewBrowser(
 				}
 			});
 		}
-		return attach(
-			browser,
-			kwargs.humanize,
-			launchOs(options),
-			kwargs.i_know_what_im_doing,
+		return Object.assign(
+			attach(
+				browser,
+				kwargs.humanize,
+				launchOs(options),
+				kwargs.i_know_what_im_doing,
+			),
+			{ captcha: solver },
 		);
 	} catch (error) {
 		virtualDisplay?.kill();

@@ -211,11 +211,12 @@ class Setup {
 								(fn as (...a: unknown[]) => unknown)(page, ...args),
 							);
 		}
+		const wpm = this.engines.keyboard.options.wpm;
 		return new Actions(host(page), this.rng, {
 			os: this.os,
 			// Camouwolf identities point with a mouse, whose wheel turns in notches.
 			device: "mouse",
-			wpm: this.engines.keyboard.options.wpm,
+			settings: wpm === undefined ? undefined : { typing: { wpm } },
 			parts,
 		});
 	}

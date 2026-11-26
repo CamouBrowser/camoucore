@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@jwriter20/myuri':
-        specifier: 4.0.0
-        version: 4.0.0(playwright-core@1.62.0)
+        specifier: 5.1.0
+        version: 5.1.0(playwright-core@1.62.0)
       camoucore:
         specifier: ^0.3.0
         version: 0.3.0
@@ -33,6 +33,9 @@ importers:
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.3
+      captchakraken:
+        specifier: 5.2.1
+        version: 5.2.1(playwright-core@1.62.0)
       playwright-core:
         specifier: 1.62.0
         version: 1.62.0
@@ -117,8 +120,8 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@jwriter20/myuri@4.0.0':
-    resolution: {integrity: sha512-rsKojCkMeN5t5VlJtRFmLtC1RNWR71UDmNF1HUk41KhCqjxDNcMgLX4L18aSlMg6tt/aOCMNjGeL2PWU3PHFmw==}
+  '@jwriter20/myuri@5.1.0':
+    resolution: {integrity: sha512-yG5foyrdXwHkyQb4zlup4eCeynryR/ko44Nnsh5EloUBkJ6vjE1AKajTqwsZ+UE9KT7O+mGuFS4ikgUa0f/omQ==}
     peerDependencies:
       playwright-core: '>=1.40.0'
     peerDependenciesMeta:
@@ -302,6 +305,11 @@ packages:
   camoucore@0.3.0:
     resolution: {integrity: sha512-G4pzbQA6qkD4vGiyjbRtVIQerhcDiRCLtKCC+qFvpRnRSAkAwkmL6U6Skj62tod/4kwa4gmrk5s49KclUWe3EA==}
     engines: {node: '>=22.15'}
+
+  captchakraken@5.2.1:
+    resolution: {integrity: sha512-GqEuXu8Bnl9TrSA+2/ReFlly2kpXy63zfcepJsY/Opc1BX6SBg2gJTtbDLEfQyERIQAFLQk+u+TdCh85wUyFEg==}
+    engines: {node: '>=20.19'}
+    hasBin: true
 
   chai@6.2.2:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
@@ -734,7 +742,7 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@jwriter20/myuri@4.0.0(playwright-core@1.62.0)':
+  '@jwriter20/myuri@5.1.0(playwright-core@1.62.0)':
     dependencies:
       cursory-js: 2.1.0
     optionalDependencies:
@@ -882,6 +890,12 @@ snapshots:
       pretty-bytes: 7.1.1
       xml2js: 0.6.2
       yaml: 2.9.1
+
+  captchakraken@5.2.1(playwright-core@1.62.0):
+    dependencies:
+      '@jwriter20/myuri': 5.1.0(playwright-core@1.62.0)
+    transitivePeerDependencies:
+      - playwright-core
 
   chai@6.2.2: {}
 

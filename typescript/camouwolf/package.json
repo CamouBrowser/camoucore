@@ -47,7 +47,7 @@
   "//@jwriter20/myuri": "Pinned to the release python/pyproject.toml pins, so a humanize seed plans the same input in both launchers.",
   "packageManager": "pnpm@10.33.4",
   "dependencies": {
-    "@jwriter20/myuri": "4.0.0",
+    "@jwriter20/myuri": "5.1.0",
     "camoucore": "^0.3.0",
     "commander": "^14.0.0",
     "fpgen-js": "1.3.0",
@@ -57,14 +57,22 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
     "@types/node": "^24.0.0",
+    "captchakraken": "5.2.1",
     "playwright-core": "1.62.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.8.3",
     "vitest": "^4.0.0"
   },
   "peerDependencies": {
+    "captchakraken": ">=5.2.1 <6",
     "playwright-core": "<1.63"
   },
+  "peerDependenciesMeta": {
+    "captchakraken": {
+      "optional": true
+    }
+  },
+  "//captchakraken": "The captcha option's solver, optional: a launch with captcha set and none installed throws CaptchaKrakenMissing. The dev pin lets the tests build a solver.",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
