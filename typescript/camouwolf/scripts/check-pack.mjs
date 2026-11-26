@@ -9,8 +9,10 @@
  *   2. it carries every file src/ reads at runtime -- the DATA_FILES it takes
  *      from python/camouwolf/src/camouwolf and any non-TS file under src/ -- since a file
  *      missing only shows up on a user's machine, as an ENOENT from inside dist/;
- *   3. installed into an empty project, it imports and exposes its entry
- *      points, and its CLI starts.
+ *   3. packed as the release packs it (pnpm, which writes `workspace:*` as the
+ *      exact version) and installed into an empty project beside the
+ *      camoucore it pins, it imports and exposes its entry points, and its CLI
+ *      starts.
  *
  * Run after `pnpm build`: node scripts/check-pack.mjs
  */
@@ -23,7 +25,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -90,17 +92,34 @@ console.log(
 if (problems.length === 0) {
 	const tmp = mkdtempSync(join(tmpdir(), "camouwolf-pack-"));
 	try {
-		const tgz = execFileSync(
-			"npm",
-			["pack", "--ignore-scripts", "--pack-destination", tmp],
+		// The pnpm running this script, or the one on PATH.
+		const pnpm = /\.[cm]?js$/.test(process.env.npm_execpath ?? "")
+			? [process.execPath, process.env.npm_execpath]
+			: ["pnpm"];
+		const pack = (dir) =>
+			execFileSync(
+				pnpm[0],
+				[...pnpm.slice(1), "pack", "--pack-destination", tmp],
+				{
+					cwd: dir,
+					encoding: "utf8",
+				},
+			)
+				.trim()
+				.split("\n")
+				.pop();
+		// pnpm prints the tarball last, as a path or a bare name.
+		const tgz = join(tmp, basename(pack(root)));
+		const core = join(tmp, basename(pack(join(root, "..", "camoucore"))));
+		const manifest = execFileSync(
+			"tar",
+			["-xOzf", tgz, "package/package.json"],
 			{
-				cwd: root,
 				encoding: "utf8",
 			},
-		)
-			.trim()
-			.split("\n")
-			.pop();
+		);
+		if (manifest.includes('"workspace:'))
+			throw new Error(`${tgz} still has a workspace: dependency`);
 		writeFileSync(
 			join(tmp, "package.json"),
 			'{"name":"pack-check","private":true,"type":"module"}',
@@ -111,13 +130,11 @@ if (problems.length === 0) {
 				"install",
 				"--no-audit",
 				"--no-fund",
-				join(tmp, tgz),
+				core,
+				tgz,
 				`playwright-core@${pkg.peerDependencies["playwright-core"]}`,
 			],
-			{
-				cwd: tmp,
-				stdio: "inherit",
-			},
+			{ cwd: tmp, stdio: "inherit" },
 		);
 		const probe = `
 			const m = await import(${JSON.stringify(pkg.name)});
