@@ -1,90 +1,49 @@
 # CamouCore
 
-The browser-independent core shared by the [Camoufox](https://github.com/daijro/camoufox)
-(Firefox) and Camouwolf (Chromium) launchers. A launcher keeps only what its
-engine needs and takes everything else from here, so the two launchers cannot
-drift apart.
+The browser drivers of the Camou browsers: **camoucore**, the
+browser-independent core, and the launchers built on it, in Python (PyPI) and
+TypeScript (npm), plus an MCP server.
 
-| Module | What it does |
-|---|---|
-| `product` | `Product` and `Engine`: the launcher's name, cache directory, environment prefix and engine defaults. Every engine-specific choice in the core reads them. |
-| `locales`, `territoryInfo.xml` | Locale parsing and region-weighted language choice. |
-| `geolocation`, `geoip.yml` | GeoIP lookup of a proxy's exit. The database cache is shared by every launcher. |
-| `ip` | Proxy parsing, public IP lookup, and where a proxy exits (`ExitGeo`). |
-| `fpgen_model`, `fpgen-model.json` | Installs the pinned fpgen model before fpgen loads. Every launcher pins the same model. |
-| `display`, `virtdisplay` | Monitor probing and the Xvfb display for `headless="virtual"`. |
-| `passthrough` | The options a passthrough launch (the host's own fingerprint, nothing injected) refuses, and its warning. |
-| `settings` | The launcher's documented defaults file (`<name>.defaults.json`) and the user's overrides of it. |
-| `cpu_affinity`, `download`, `host` | CPU pinning, verified downloads, host OS and architecture. |
-| `captcha` | The `captcha` launch option: an account key, a CaptchaKraken key, or a CaptchaKraken server you host, resolved to a solver for the optional `captchakraken` client (the `captcha` extra; an optional peer dependency in npm). With no key it raises `CaptchaKeyMissing`, which lists a free account first and hosting the solver yourself second. |
-| `pro` | Pro's launch options before Pro opens: a value that asks for a Pro feature raises `ProNotLaunched`, naming the page where an account is made and the waitlist joined. |
-| `telemetry`, `antibot-rules.json` | Opt-out proxy telemetry: success, challenge and block counts per anti-bot provider, reported with the proxy provider's domain. Only the providers' own responses are matched; no URL, site, page content or proxy credential is kept or sent. |
-
-A launcher declares itself once:
-
-```python
-from pathlib import Path
-from camoucore import CHROMIUM, Product
-
-PRODUCT = Product(
-    'camouwolf', 'Camouwolf', CHROMIUM, package=Path(__file__).parent,
-    site='https://example.com', captcha_endpoint='https://captcha.example.com/v1',
-)
-```
-
-`site` is where accounts are made; the Pro and captcha errors link to its
-`/early-access/` page. `captcha_endpoint` is the solve endpoint that takes an
-account's key.
-
-The TypeScript package (`typescript/`, npm `camoucore`) is the twin of the
-Python one, for launchers written in Node:
-
-```ts
-import { CHROMIUM, Product } from "camoucore";
-
-export const PRODUCT = new Product(
-	"camouwolf",
-	"Camouwolf",
-	CHROMIUM,
-	"https://example.com",
-	"https://captcha.example.com/v1",
-);
-```
-
-## Captcha
-
-`resolve_captcha(product, option)` (`resolveCaptcha` in TypeScript) reads the
-launcher's `captcha` option:
-
-| Value | Solves at | Key |
+| Path | Package | What it is |
 |---|---|---|
-| `"cfp_live_..."` | the product's `captcha_endpoint` (`<NAME>_CAPTCHA_ENDPOINT` moves it) | the account's key, the same one every service takes |
-| `"ck_live_..."` | `https://api.captchakraken.com/v1` | the CaptchaKraken key |
-| `"http://host:port/v1"` | that server | none, or `{"endpoint": ..., "key": ...}` |
-| `True` | the first of `<NAME>_PRO_KEY`, `CAPTCHA_KRAKEN_API_KEY`, `<NAME>_CAPTCHA_URL` | as above |
+| [`python/camoucore`](python/camoucore), [`typescript/camoucore`](typescript/camoucore) | `camoucore` | The core: product and engine, locales, GeoIP, proxies, the fpgen model pin, virtual displays, passthrough, the defaults file, captcha, telemetry. [Its README](python/camoucore/README.md) lists the modules. |
+| [`python/camouwolf`](python/camouwolf), [`typescript/camouwolf`](typescript/camouwolf) | `camouwolf` | The launcher for Camouwolf, an anti-detect Chromium. [Its README](python/camouwolf/README.md) is the reference for every launch option. |
+| [`mcp`](mcp) | `camoucore-mcp` | An MCP server that lets an agent drive a launcher's browser. [Its README](mcp/README.md) shows how to run it. |
 
-It returns a `Captcha`, whose `page_solver(product)` (`solver(product)`) is a
-captchakraken solver for this endpoint and key alone: two in one process do
-not share either. Hosted solves are counted under the launcher's name
-(`CAPTCHA_KRAKEN_CLIENT`) unless the caller set its own.
+Every package is released together at one version ([RELEASING.md](RELEASING.md)),
+tested against its launcher's newest browser release and stamped with it.
+[AGENTS.md](AGENTS.md) has the rules for changing anything here.
 
-Its data files are the Python package's; `pnpm build` copies them into
-`dist/data-files/`, so each exists once in the repository.
+## Issues
 
-`mcp/` (npm `camoucore-mcp`) is an MCP server that lets an agent drive a
-launcher's browser; [its README](mcp/README.md) shows how to run it.
+A bug in a launch option, the identity a launcher draws, or the Python or npm
+API belongs here. A bug in what the browser itself reports, renders or leaks
+belongs in that browser's repository
+([camouwolf](https://github.com/CamouBrowser/camouwolf)).
 
 ## Development
 
+Python 3.11 or newer, Node 22.15 or newer, pnpm 10 (`corepack enable`).
+
 ```bash
-cd python
-pip install -e '.[geoip]' pytest
-pytest tests -q
+# Python: every package, editable, in one venv
+python3 -m venv .venv
+.venv/bin/pip install -r python/requirements-dev.txt \
+  -e 'python/camoucore[geoip,captcha]' -e 'python/camouwolf[geoip,captcha]'
+(cd python/camouwolf && xvfb-run -a ../../.venv/bin/python -m pytest tests -q)
 
-cd ../typescript     # Node 22.15 or newer
+# TypeScript: one pnpm workspace
 pnpm install
-pnpm exec tsc --noEmit && pnpm test && pnpm check
+cd typescript/camouwolf
+pnpm typecheck && pnpm check && pnpm build && pnpm check:pack
+CAMOUWOLF_PYTHON=../../.venv/bin/python pnpm golden    # re-record the goldens
+WAYLAND_DISPLAY= xvfb-run -a pnpm test
 
-cd ../mcp            # CAMOUCORE_MCP_LAUNCHER=camouwolf for the real-browser test
-pnpm typecheck && pnpm test && pnpm check
+# MCP server; CAMOUCORE_MCP_LAUNCHER=camouwolf and CAMOUWOLF_EXECUTABLE_PATH
+# run its real-browser test
+cd mcp && pnpm typecheck && pnpm check && pnpm test
 ```
+
+No test downloads a browser: point `<LAUNCHER>_EXECUTABLE_PATH` at one.
+`python3 scripts/set-version.py --check` and `scripts/check-test-inputs.sh` are
+CI's static checks.

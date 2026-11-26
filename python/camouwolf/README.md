@@ -91,7 +91,7 @@ instance you own, and `launch_options(...)` returns the options for
 The identity is JSON in the environment variables `CAMOU_CONFIG_1..N`, never on
 the command line: argv is readable in `/proc/<pid>/cmdline` and Chromium copies
 much of it to its renderers. The keys and their types are in
-[`src/camouwolf/data/properties.json`](src/camouwolf/data/properties.json).
+[`src/camouwolf/data/properties.json`](https://github.com/CamouBrowser/camoucore/blob/main/python/camouwolf/src/camouwolf/data/properties.json).
 Keys marked `"carriedBy": "launcher"` are not read by the browser: the launcher
 turns them into `--window-size` / `--window-position` and the context's
 geolocation.
@@ -129,7 +129,7 @@ place and languages.
 ### Defaults file
 
 Every option that is not passed to the launch call takes its value from
-[`camouwolf.defaults.json`](../camouwolf.defaults.json), which also says what
+[`camouwolf.defaults.json`](https://github.com/CamouBrowser/camoucore/blob/main/python/camouwolf/src/camouwolf/camouwolf.defaults.json), which also says what
 each option does. To change a default for yourself, run `camouwolf defaults`:
 it copies that file to your user config directory, prints the path, and your
 copy's `"default"` values then win over the packaged ones. It may also be just
@@ -247,4 +247,4 @@ python -m pytest python/tests -q
 ## License
 
 MIT. Derived from the Camoufox Python launcher by daijro and the Camoufox
-contributors; see [LICENSE](LICENSE).
+contributors; see [LICENSE](https://github.com/CamouBrowser/camoucore/blob/main/python/camouwolf/LICENSE).

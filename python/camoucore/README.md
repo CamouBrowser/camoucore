@@ -38,12 +38,6 @@ Its data files are the Python package's; `pnpm build` copies them into
 
 ## Development
 
-```bash
-cd python
-pip install -e '.[geoip]' pytest
-pytest tests -q
-
-cd ../typescript     # Node 22.15 or newer
-pnpm install
-pnpm exec tsc --noEmit && pnpm test && pnpm check
-```
+This package is developed in the
+[camoucore repository](https://github.com/CamouBrowser/camoucore), beside its
+TypeScript twin and the launchers built on it; its README has the commands.
