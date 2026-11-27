@@ -1,5 +1,5 @@
-"""camoufox.defaults.json: one file, at the repository root and in the package,
-that every launch starts from, and that the user's own copy overlays."""
+"""camoufox.defaults.json: the packaged file every launch starts from, and that
+the user's own copy overlays."""
 
 import inspect
 import json
@@ -13,7 +13,6 @@ from camoufox.__main__ import cli
 from camoufox.addons import DefaultAddons
 from camoufox.fingerprints import Screen
 
-ROOT_FILE = Path(__file__).resolve().parents[2] / 'camoufox.defaults.json'
 # Launch arguments that are not defaults: a secret, an internal value, and the
 # Pro pool warmer's own.
 NOT_DEFAULTS = {'pro_key', 'virtual_display', 'pool_profile'}
@@ -28,10 +27,6 @@ def user_file(tmp_path, monkeypatch):
     path = tmp_path / 'defaults.json'
     monkeypatch.setenv('CAMOUFOX_DEFAULTS', str(path))
     return path
-
-
-def test_the_packaged_file_is_the_repository_file():
-    assert defaults.DEFAULTS_FILE.read_bytes() == ROOT_FILE.read_bytes()
 
 
 def test_every_launch_option_has_a_default_and_says_what_it_does():

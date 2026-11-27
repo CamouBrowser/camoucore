@@ -19,11 +19,11 @@ What it covers:
       into a file whose entire purpose is being real.
 
 Usage:
-    python3 python/scripts/clean-fingerprint-data.py            # report only
-    python3 python/scripts/clean-fingerprint-data.py --write    # rewrite the files
+    python3 python/camoufox/scripts/clean-fingerprint-data.py            # report only
+    python3 python/camoufox/scripts/clean-fingerprint-data.py --write    # rewrite the files
 
 `--check` exits non-zero when anything would be dropped;
-python/tests/test_shipped_data.py asserts the same thing, so a data refresh that
+python/camoufox/tests/test_shipped_data.py asserts the same thing, so a data refresh that
 reintroduces a bad row fails CI rather than shipping.
 """
 

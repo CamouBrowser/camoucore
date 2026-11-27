@@ -1,5 +1,5 @@
 /**
- * Public API. Mirrors python/src/camoufox/__init__.py (Camoufox, NewBrowser,
+ * Public API. Mirrors python/camoufox/src/camoufox/__init__.py (Camoufox, NewBrowser,
  * NewContext, their Async* twins, DefaultAddons, launch_options), plus the
  * package-management and server helpers the TS port has always exported.
  */

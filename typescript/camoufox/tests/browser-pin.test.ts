@@ -1,5 +1,5 @@
 /**
- * Mirrors python/tests/test_browser_pin.py: a released library runs the
+ * Mirrors python/camoufox/tests/test_browser_pin.py: a released library runs the
  * browser it was released with, and nothing else by default.
  *
  * INSTALL_DIR is computed at import from XDG_CACHE_HOME, so every test points
@@ -85,7 +85,7 @@ describe("the pin file", () => {
 	it("the checked-in pin is empty: only the release workflow writes one", () => {
 		const file = path.resolve(
 			__dirname,
-			"../../python/src/camoufox/browser-pin.json",
+			"../../../python/camoufox/src/camoufox/browser-pin.json",
 		);
 		expect(JSON.parse(fs.readFileSync(file, "utf-8"))).toEqual({});
 	});

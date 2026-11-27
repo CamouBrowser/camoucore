@@ -3,7 +3,7 @@
  * variable prefix (CAMOUFOX_*), on the Firefox engine, with the site where
  * accounts are made and the captcha endpoint an account's key solves at.
  *
- * TypeScript twin of python/src/camoufox/product.py.
+ * TypeScript twin of python/camoufox/src/camoufox/product.py.
  */
 import { FIREFOX, Product } from "camoucore/product.js";
 

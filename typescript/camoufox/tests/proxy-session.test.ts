@@ -1,5 +1,5 @@
 /**
- * Port of python/tests/test_proxy_session.py and the name/CamouLink half of
+ * Port of python/camoufox/tests/test_proxy_session.py and the name/CamouLink half of
  * test_managed.py: a standard build's managed proxy is a proxy session, opened,
  * claimed once, renewed and released; the launcher checks what it can before
  * any call; the API's notices are said.

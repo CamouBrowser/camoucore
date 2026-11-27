@@ -1,5 +1,5 @@
 /**
- * Port of python/tests/test_pro_profile.py: what a Camoufox Pro lease
+ * Port of python/camoufox/tests/test_pro_profile.py: what a Camoufox Pro lease
  * grants beyond the lease itself -- a profile's identity and synced state,
  * managed proxies, remote rendering and the captcha solver -- and how the
  * launcher applies each.
@@ -50,7 +50,10 @@ const modelReady = (await import("./fpgen-setup.js")).MODEL.ok;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const VECTORS = JSON.parse(
 	fs.readFileSync(
-		path.resolve(HERE, "../../python/tests/data/pro-profile-state-v1.json"),
+		path.resolve(
+			HERE,
+			"../../../python/camoufox/tests/data/pro-profile-state-v1.json",
+		),
 		"utf-8",
 	),
 );

@@ -1,5 +1,5 @@
 /**
- * Port of the catalogue half of python/tests/test_managed.py: the public
+ * Port of the catalogue half of python/camoufox/tests/test_managed.py: the public
  * listing in one shape for every provider, followed page by page.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";

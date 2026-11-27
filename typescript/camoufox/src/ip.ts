@@ -3,7 +3,7 @@
  * refuses to pass, and the public IPv6 behind a proxy. The other proxy and
  * public-IP lookups are camoucore's (camoucore/ip.js).
  *
- * TypeScript twin of python/src/camoufox/ip.py.
+ * TypeScript twin of python/camoufox/src/camoufox/ip.py.
  */
 import {
 	publicIPv6 as corePublicIPv6,

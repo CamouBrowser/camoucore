@@ -40,7 +40,7 @@ import { PYTHON as GOLDEN_PYTHON } from "./golden-setup.js";
 import { prerequisite } from "./prereq.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
+const REPO = path.resolve(HERE, "..", "..", "..");
 const EXECUTABLE = process.env.CAMOUFOX_EXECUTABLE ?? "";
 const ENABLED = process.env.CAMOUFOX_E2E === "1" && Boolean(EXECUTABLE);
 const PYTHON = process.env.CAMOUFOX_E2E_PYTHON ?? GOLDEN_PYTHON;
@@ -198,7 +198,16 @@ function pythonProbe(
 	return new Promise((resolve, reject) => {
 		const child = spawn(
 			PYTHON,
-			[path.join(REPO, "typescript", "scripts", "e2e", "python_probe.py")],
+			[
+				path.join(
+					REPO,
+					"typescript",
+					"camoufox",
+					"scripts",
+					"e2e",
+					"python_probe.py",
+				),
+			],
 			{
 				stdio: ["pipe", "pipe", "pipe"],
 			},

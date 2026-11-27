@@ -4,7 +4,7 @@
 a page either way. This is the second filter, on the data itself: a row that
 survives here is one a future refresh could ship, a consumer reading the JSON
 directly would get, and a reviewer would take as real. Both filters run the same
-rules -- `python/scripts/clean-fingerprint-data.py --write` is what makes these pass.
+rules -- `python/camoufox/scripts/clean-fingerprint-data.py --write` is what makes these pass.
 
 Dropped on 2026-09-17: 38 of 435 presets (26 with a GPU their OS cannot report,
 7 pairing Apple Silicon with a core count Apple never shipped, 4 with a colour
@@ -38,7 +38,7 @@ def test_every_bundled_preset_is_coherent_as_stored(filename):
             assert violations == [], (
                 f"{filename} {os_name}[{index}]: "
                 + "; ".join(v.detail for v in violations)
-                + " -- run python/scripts/clean-fingerprint-data.py --write"
+                + " -- run python/camoufox/scripts/clean-fingerprint-data.py --write"
             )
 
 
@@ -56,5 +56,5 @@ def test_every_preset_gpu_has_webgl_data(filename):
             gpu = (preset["webgl"]["unmaskedVendor"], preset["webgl"]["unmaskedRenderer"])
             assert gpu in known, (
                 f"{filename} {os_name}[{index}]: {gpu[1]!r} has no WebGL data"
-                " -- run python/scripts/clean-fingerprint-data.py --write"
+                " -- run python/camoufox/scripts/clean-fingerprint-data.py --write"
             )

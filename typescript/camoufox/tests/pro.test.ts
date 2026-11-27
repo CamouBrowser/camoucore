@@ -1,5 +1,5 @@
 /**
- * Port of python/tests/test_pro.py: Camoufox Pro's client half, sign-in and
+ * Port of python/camoufox/tests/test_pro.py: Camoufox Pro's client half, sign-in and
  * the lease a Pro build starts with.
  *
  * Every test talks to a local fake of the Camoufox Pro API whose answers follow
@@ -38,7 +38,10 @@ const modelReady = (await import("./fpgen-setup.js")).MODEL.ok;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const GOLDEN = JSON.parse(
 	fs.readFileSync(
-		path.resolve(HERE, "../../python/tests/data/pro-lease-golden.json"),
+		path.resolve(
+			HERE,
+			"../../../python/camoufox/tests/data/pro-lease-golden.json",
+		),
 		"utf-8",
 	),
 );

@@ -2,7 +2,7 @@
  * Camoufox Pro's options before Pro launches: a standard build refuses them
  * with the page where an account is made, before anything is downloaded; a Pro
  * build, or a process pointed at a Pro API, launches them as before.
- * Twin of python/tests/test_pro_gate.py.
+ * Twin of python/camoufox/tests/test_pro_gate.py.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";

@@ -1,5 +1,5 @@
 /**
- * Mirrors python/tests/test_geoip_config.py: the CLI's handling of the GeoIP
+ * Mirrors python/camoufox/tests/test_geoip_config.py: the CLI's handling of the GeoIP
  * source. Which source is active, and when its database is refreshed, is
  * camoucore's (its tests/geoip-config.test.ts).
  */

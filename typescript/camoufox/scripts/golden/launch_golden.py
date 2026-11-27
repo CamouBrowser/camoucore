@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Record Python launch_options() outputs as goldens for the TypeScript port.
 
-    .venv/bin/python typescript/scripts/golden/launch_golden.py
+    .venv/bin/python typescript/camoufox/scripts/golden/launch_golden.py
 
-Writes typescript/tests/fixtures/launch/*.json, one file per scenario, and
-typescript/tests/fixtures/launch/inputs.json (the fixed fingerprints / presets
+Writes typescript/camoufox/tests/fixtures/launch/*.json, one file per scenario, and
+typescript/camoufox/tests/fixtures/launch/inputs.json (the fixed fingerprints / presets
 the scenarios are built from). tests/launch-golden.test.ts replays every
 scenario through the TypeScript launchOptions() and requires the same result.
 

@@ -1,5 +1,5 @@
 /**
- * WebGL: ports of python/tests/test_webgl.py and
+ * WebGL: ports of python/camoufox/tests/test_webgl.py and
  * test_webgl_screen_consistency.py. The seeded draws themselves are pinned
  * against Python in identity-golden.test.ts. (test_no_coherent_gpu_raises is
  * not ported: it needs fpgen's trace replaced, which an ES module cannot do.)
@@ -53,11 +53,11 @@ const SHARED_LIMITS = [
 ];
 const GTX_980_FIXTURE = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	"../../python/tests/data/webgl-gtx980-linux.json",
+	"../../../python/camoufox/tests/data/webgl-gtx980-linux.json",
 );
 const PROPERTIES = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	"../../browser/settings/properties.json",
+	"../../../python/camoufox/tests/data/properties.json",
 );
 
 describe.skipIf(!MODEL.ok)("webgl (test_webgl.py)", () => {

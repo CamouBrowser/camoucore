@@ -184,7 +184,10 @@ describe("the fpgen model directory", () => {
 describe("repos.yml", () => {
 	it("is the file the Python package ships", () => {
 		const shipped = fs.readFileSync(
-			path.join(import.meta.dirname, "../../python/src/camoufox/repos.yml"),
+			path.join(
+				import.meta.dirname,
+				"../../../python/camoufox/src/camoufox/repos.yml",
+			),
 			"utf-8",
 		);
 		const ours = fs.readFileSync(path.join(LOCAL_DATA, "repos.yml"), "utf-8");

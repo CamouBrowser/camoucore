@@ -460,7 +460,7 @@ a Python with `python/` installed: the repository's `.venv`, or
 ```bash
 python3.14 -m venv .venv                                           # repo root
 .venv/bin/pip install -r ci/requirements.txt -e python
-.venv/bin/python python/scripts/pin-fpgen-model.py
+.venv/bin/python python/camoucore/scripts/pin-fpgen-model.py
 cd typescript
 pnpm install
 pnpm build       # tsc -> dist/, then copy the Python package's data files into dist/data-files
@@ -470,7 +470,7 @@ pnpm typecheck   # tsc --noEmit
 ```
 
 The data files (presets, fonts, voices, ...) have one copy, in
-`python/src/camoufox/`. `DATA_FILES` in `src/paths.ts` lists them, and the
+`python/camoufox/src/camoufox/`. `DATA_FILES` in `src/paths.ts` lists them, and the
 build copies them into the package.
 
 **Parity.** Before the suite runs, `tests/golden-setup.ts` runs the scripts in

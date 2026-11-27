@@ -1,5 +1,5 @@
 /**
- * TypeScript twin of python/src/camoufox/exceptions.py. The errors the core
+ * TypeScript twin of python/camoufox/src/camoufox/exceptions.py. The errors the core
  * raises are camoucore's, re-exported so `catch` sites keep one import.
  *
  * The Python hierarchy leans on builtin bases (FileNotFoundError, ValueError,

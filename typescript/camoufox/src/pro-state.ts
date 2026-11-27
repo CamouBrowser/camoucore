@@ -3,7 +3,7 @@
  * of a Firefox profile travel, how they are cut into chunks, sealed with the
  * account's own key, and listed in a manifest, and how a manifest is written
  * back out as a profile directory. Nothing here talks to the API; see
- * pro-profile.ts. TypeScript twin of python/src/camoufox/pro_state.py; both
+ * pro-profile.ts. TypeScript twin of python/camoufox/src/camoufox/pro_state.py; both
  * pass the same vectors (docs/pro.md, "Profiles").
  */
 import { createHash, createHmac, hkdfSync, randomBytes } from "node:crypto";

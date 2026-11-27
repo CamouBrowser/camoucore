@@ -2,7 +2,7 @@
  * Camoufox Pro's managed proxy catalogue: what each provider sells and what it
  * can be targeted at, in the same shape whatever the provider (docs/pro.md,
  * "Managed proxies"). Public: no key is needed. TypeScript twin of
- * python/src/camoufox/proxies.py.
+ * python/camoufox/src/camoufox/proxies.py.
  *
  * A value from `proxyTargets` is what `managed` takes:
  * `{ provider: ProxyProvider.EVOMI, country: "US", city: cities[0].value }`.

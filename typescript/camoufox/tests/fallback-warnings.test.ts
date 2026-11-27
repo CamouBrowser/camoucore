@@ -1,5 +1,5 @@
 /**
- * Port of python/tests/test_fallback_warnings.py (identity half; the launch
+ * Port of python/camoufox/tests/test_fallback_warnings.py (identity half; the launch
  * half is in launch.test.ts): every place an identity falls back to a
  * substitute value says so, with a report block to paste into an issue.
  *

@@ -1,7 +1,7 @@
 /**
  * Camoufox Pro: signing in, and the session lease a Pro build starts with.
  *
- * TypeScript twin of python/src/camoufox/pro.py. A Pro build ships
+ * TypeScript twin of python/camoufox/src/camoufox/pro.py. A Pro build ships
  * pro-build.json beside its executable. The browser verifies a signed lease
  * from the file named by CAMOU_LEASE_FILE and will not start without one. This
  * module is the client half: it mints the lease from the Camoufox Pro API,

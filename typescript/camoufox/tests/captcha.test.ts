@@ -1,6 +1,6 @@
 /**
  * The captcha option: checked before the launch, and the launched browser's
- * `.captcha` solver after it. Twin of python/tests/test_captcha.py.
+ * `.captcha` solver after it. Twin of python/camoufox/tests/test_captcha.py.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";

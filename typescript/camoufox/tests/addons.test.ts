@@ -1,5 +1,5 @@
 /**
- * Mirrors python/tests/test_addons.py: the default addons are the ones the
+ * Mirrors python/camoufox/tests/test_addons.py: the default addons are the ones the
  * browser bundles, under addons/<name>/ beside its binary.
  */
 import * as fs from "node:fs";

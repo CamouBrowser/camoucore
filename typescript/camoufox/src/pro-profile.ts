@@ -5,7 +5,7 @@
  * key, which never leaves the account's machines. A warmed profile's state is
  * sealed with the warm pool's key, which never reaches this machine: the API
  * restores it and serves the directory, and takes it back the same way.
- * TypeScript twin of python/src/camoufox/pro_profile.py; see docs/pro.md,
+ * TypeScript twin of python/camoufox/src/camoufox/pro_profile.py; see docs/pro.md,
  * "Profiles".
  */
 import { createHash, randomBytes } from "node:crypto";

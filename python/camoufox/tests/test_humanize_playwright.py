@@ -3,12 +3,12 @@ the page wrappers.
 
 The page here is a fake that records what reaches Playwright and answers
 myuri's page functions from a layout with a vertical scroll. The sequence a
-scenario records is pinned in browser/tests/humanize/sequence.json, which the
+scenario records is pinned in tests/data/humanize-sequence.json, which the
 TypeScript launcher is held to as well. The browser run is
-browser/tests/playwright/patches/humanize.py.
+browser/tests/playwright/patches/humanize.py, in the browser repository.
 
 Regenerate the sequence after an intended change with
-    CAMOUFOX_REGEN_GOLDEN=1 python3 -m pytest python/tests/test_humanize_playwright.py
+    CAMOUFOX_REGEN_GOLDEN=1 python3 -m pytest python/camoufox/tests/test_humanize_playwright.py
 """
 
 import asyncio
@@ -25,7 +25,7 @@ from camoufox import _humanize_playwright as hp
 from camoufox.driver_defaults import FILL_NEEDS_CLICK
 from camoufox.humanize import CHANNELS, myuri, raw
 
-SEQUENCE = Path(__file__).resolve().parents[2] / "browser" / "tests" / "humanize" / "sequence.json"
+SEQUENCE = Path(__file__).resolve().parent / "data" / "humanize-sequence.json"
 VIEWPORT = (1000, 700)
 
 

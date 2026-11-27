@@ -1,7 +1,7 @@
 /**
  * The canvas renders on the host: an identity on the host's OS claims the
  * host's GPU, and one on another OS gets the canvas placeholder.
- * Twin of python/tests/test_host_rendering.py.
+ * Twin of python/camoufox/tests/test_host_rendering.py.
  */
 import * as fs from "node:fs";
 import { firefox } from "playwright-core";

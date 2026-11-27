@@ -1,7 +1,7 @@
 """
 Tests for camoufox.fingerprints speech-voice generation.
 
-Mirrored by the "voices" cases in typescript/tests/fingerprints.test.ts.
+Mirrored by the "voices" cases in typescript/camoufox/tests/fingerprints.test.ts.
 
 Run with:
     cd python && python -m pytest tests/test_voices.py -v

@@ -1,5 +1,5 @@
 /**
- * multiversion.ts against python/src/camoufox/multiversion.py: ordering is
+ * multiversion.ts against python/camoufox/src/camoufox/multiversion.py: ordering is
  * Python's (code-point string comparison, not locale collation), the install
  * scan and specifier lookup, and removal bookkeeping.
  */

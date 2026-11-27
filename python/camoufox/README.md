@@ -509,11 +509,11 @@ From the repository root:
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r ci/requirements.txt -e 'python[geoip]'
-.venv/bin/python python/scripts/pin-fpgen-model.py
+.venv/bin/python python/camoucore/scripts/pin-fpgen-model.py
 .venv/bin/python -m ci.run_pythonlib
 ```
 
-`ci.run_pythonlib` runs `python/tests/`, the same job CI runs. Which suite covers
+`ci.run_pythonlib` runs `python/camoufox/tests/`, the same job CI runs. Which suite covers
 which change is in [`AGENTS.md`](https://github.com/daijro/camoufox/blob/main/AGENTS.md#testing).
 
 ## Licence

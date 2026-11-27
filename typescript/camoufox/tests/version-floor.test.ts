@@ -1,5 +1,5 @@
 /**
- * Mirrors python/tests/test_version_floor_upgrade.py: raising the browser
+ * Mirrors python/camoufox/tests/test_version_floor_upgrade.py: raising the browser
  * floor must upgrade a below-floor install, in both install layouts, and the
  * floor is keyed on the resolved Playwright.
  *

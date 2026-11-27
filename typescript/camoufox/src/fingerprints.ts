@@ -3,7 +3,7 @@
  * Camoufox config, the per-identity draws (fonts, voices, media devices, GPU)
  * and the geometry / arch corrections applied on top of both.
  *
- * TypeScript twin of python/src/camoufox/fingerprints.py. Every seeded draw is
+ * TypeScript twin of python/camoufox/src/camoufox/fingerprints.py. Every seeded draw is
  * bit-for-bit the Python one -- `random.Random(seed)` is the python-random package, and
  * identitySalt() hashes the same orjson bytes -- so one config and salt
  * present one identity whichever launcher built it. Unseeded Python draws
@@ -988,7 +988,7 @@ export const BASELINE_MULTI_TOUCH_POINTS: number =
 // rounding gives one layout. Linux 85 -> 86 tall, macOS 84 -> 86, Windows 129
 // -> 130 and 16 -> 18 wide. No recorded window has a page taller than its
 // screen leaves room for: the 1366x768 records peak at innerHeight 683.
-// python/tests/test_viewport_fit.py derives these from the model again.
+// python/camoufox/tests/test_viewport_fit.py derives these from the model again.
 export const RECORDED_WINDOW_CHROME: Record<string, [number, number]> =
 	LAUNCHER_CONSTANTS.recordedWindowChrome;
 

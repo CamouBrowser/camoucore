@@ -1,7 +1,7 @@
 /**
  * launchServer with headless: "virtual-gpu" proves the GPU through its own
  * server. Whatever fails after the server is up must close it and kill the
- * display (python/src/camoufox/server.py shuts the process down on any error).
+ * display (python/camoufox/src/camoufox/server.py shuts the process down on any error).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

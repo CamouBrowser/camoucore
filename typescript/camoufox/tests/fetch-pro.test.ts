@@ -1,5 +1,5 @@
 /**
- * Mirrors python/tests/test_fetch_pro.py: `camoufox fetch pro` installs a
+ * Mirrors python/camoufox/tests/test_fetch_pro.py: `camoufox fetch pro` installs a
  * Camoufox Pro release beside the public builds.
  *
  * The API and the storage its signed URLs point at are a stubbed fetch,
@@ -449,7 +449,7 @@ it("ships the signing-keys listing both launchers read", async () => {
 		fs.realpathSync(
 			path.join(
 				import.meta.dirname,
-				"../../python/src/camoufox/pro-release-public-keys.json",
+				"../../../python/camoufox/src/camoufox/pro-release-public-keys.json",
 			),
 		),
 	);

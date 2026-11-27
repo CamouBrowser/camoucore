@@ -17,6 +17,7 @@ const REPO = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
 	"..",
 	"..",
+	"..",
 );
 
 /** The interpreter with pythonlib installed: $CAMOUFOX_PYTHON, else the repo's .venv. */
@@ -36,15 +37,18 @@ export default function setup(): void {
 			`The golden fixtures are recorded from pythonlib, and ${PYTHON} does not exist. ` +
 				"From the repo root:\n" +
 				"  python3.14 -m venv .venv\n" +
-				"  .venv/bin/pip install -r ci/requirements.txt -e python\n" +
-				"  .venv/bin/python python/scripts/pin-fpgen-model.py\n" +
+				"  .venv/bin/pip install -r python/requirements-dev.txt -e python/camoucore -e python/camoufox\n" +
+				"  .venv/bin/python python/camoucore/scripts/pin-fpgen-model.py\n" +
 				"or point CAMOUFOX_PYTHON at an interpreter that has them.",
 		);
 	}
 	for (const [script, ...args] of GENERATORS) {
 		const proc = spawnSync(
 			PYTHON,
-			[path.join(REPO, "typescript", "scripts", "golden", script), ...args],
+			[
+				path.join(REPO, "typescript", "camoufox", "scripts", "golden", script),
+				...args,
+			],
 			{
 				cwd: REPO,
 				encoding: "utf-8",
@@ -53,7 +57,10 @@ export default function setup(): void {
 				// camoufox installed would otherwise record that one's output.
 				env: {
 					...process.env,
-					PYTHONPATH: [path.join(REPO, "python", "src"), process.env.PYTHONPATH]
+					PYTHONPATH: [
+						path.join(REPO, "python", "camoufox", "src"),
+						process.env.PYTHONPATH,
+					]
 						.filter(Boolean)
 						.join(path.delimiter),
 				},

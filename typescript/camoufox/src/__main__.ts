@@ -2,7 +2,7 @@
 /**
  * The `camoufox` CLI.
  *
- * TypeScript twin of python/src/camoufox/__main__.py. Every command is present,
+ * TypeScript twin of python/camoufox/src/camoufox/__main__.py. Every command is present,
  * with the same arguments, output and config/cache files. The interactive
  * pickers (`set`, `set --geoip`, `remove --select`) use a numbered
  * prompt in place of inquirer's arrow-key list.

@@ -1,6 +1,6 @@
 /**
  * Camoufox Pro managed proxies: the `managed` launch option (docs/pro.md,
- * "Managed proxies"). TypeScript twin of python/src/camoufox/managed.py.
+ * "Managed proxies"). TypeScript twin of python/camoufox/src/camoufox/managed.py.
  *
  * The launcher checks the request before minting so a mistake fails here, with
  * a message naming the option, rather than as an API refusal. The API applies

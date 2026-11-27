@@ -1,5 +1,5 @@
 /**
- * The identity layer's behaviour: ports of python/tests/
+ * The identity layer's behaviour: ports of python/camoufox/tests/
  * test_fingerprint_fixes.py, test_preset_appversion.py, test_voices.py,
  * test_font_distribution.py and the unit half of test_identity_salt.py.
  * Exact parity with Python is pinned separately in identity-golden.test.ts.

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Record the Python identity layer's outputs as goldens for the TypeScript port.
 
-    .venv/bin/python typescript/scripts/golden/identity_golden.py
+    .venv/bin/python typescript/camoufox/scripts/golden/identity_golden.py
 
-Writes typescript/tests/fixtures/identity/*.json (and one .json.gz holding full
+Writes typescript/camoufox/tests/fixtures/identity/*.json (and one .json.gz holding full
 fpgen fingerprints). tests/identity-golden.test.ts replays every case through
 the TypeScript functions and requires the identical result.
 

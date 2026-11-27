@@ -1,6 +1,6 @@
 /**
  * The identity's display ICC profile (display_profile.ts).
- * Twin of python/tests/test_display_profile.py.
+ * Twin of python/camoufox/tests/test_display_profile.py.
  *
  * Stock Firefox converts ICC-tagged images to the display's profile, and a
  * page reads the result off a canvas: stock 158.0.1 on win-i9 decodes the

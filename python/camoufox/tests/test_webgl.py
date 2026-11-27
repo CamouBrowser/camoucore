@@ -12,7 +12,7 @@ from camoufox import webgl
 from camoufox.fingerprints import gpu_screen_is_plausible, is_software_renderer
 from camoufox.webgl import sample_webgl_for_screen, webgl_for_gpu
 
-PROPERTIES = Path(__file__).resolve().parents[2] / "browser" / "settings" / "properties.json"
+PROPERTIES = Path(__file__).resolve().parent / "data" / "properties.json"
 SEEDS = range(300)
 OSES = ("win", "mac", "lin")
 

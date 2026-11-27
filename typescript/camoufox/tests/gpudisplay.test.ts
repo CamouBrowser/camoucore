@@ -4,7 +4,7 @@
  * Xorg argv, the browser's environment and prefs, the identity's GPU probe,
  * the GPU-use check, and teardown.
  *
- * Twin of python/tests/test_gpudisplay.py. The real display is
+ * Twin of python/camoufox/tests/test_gpudisplay.py. The real display is
  * gpu-display.test.ts.
  */
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";

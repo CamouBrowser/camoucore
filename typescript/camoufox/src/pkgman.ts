@@ -2,7 +2,7 @@
  * Browser package management: version resolution, GitHub release discovery,
  * download/extract, and path lookup.
  *
- * TypeScript twin of python/src/camoufox/pkgman.py.
+ * TypeScript twin of python/camoufox/src/camoufox/pkgman.py.
  */
 import { execFileSync } from "node:child_process";
 import { once } from "node:events";

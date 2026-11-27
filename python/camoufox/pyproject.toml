@@ -4,11 +4,11 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "camoufox"
-version = "0.5.7"
+version = "0.6.0"
 description = "Wrapper around Playwright to help launch Camoufox"
 authors = ["daijro <daijro.dev@gmail.com>"]
 license = "MIT"
-repository = "https://github.com/daijro/camoufox"
+repository = "https://github.com/CamouBrowser/camoucore"
 homepage = "https://camoufox.com/python"
 readme = "README.md"
 keywords = [
@@ -34,10 +34,11 @@ python = "^3.11"
 # downloads, GeoIP, locales, proxy lookups, Xvfb, the fpgen model pin, the
 # defaults file, passthrough and telemetry. It brings fpgen, PyYAML,
 # platformdirs, screeninfo, language-tags and PySocks with it. The captcha
-# extra takes camoucore's, which brings the CaptchaKraken client.
+# extra takes camoucore's, which brings the CaptchaKraken client. Exactly this
+# release's version (scripts/set-version.py).
 camoucore = [
-    {version = "^0.4.0"},
-    {version = "^0.4.0", extras = ["captcha"], markers = "extra == 'captcha'"},
+    {version = "==0.6.0"},
+    {version = "==0.6.0", extras = ["captcha"], markers = "extra == 'captcha'"},
 ]
 rich-click = "*"
 # Imported directly by the Pro modules (camoucore brings it too).

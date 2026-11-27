@@ -1,6 +1,6 @@
 /**
  * The host GPU probe's browser.close shares the probe's one deadline:
- * python/src/camoufox/host_rendering.py bounds the whole probe with a single
+ * python/camoufox/src/camoufox/host_rendering.py bounds the whole probe with a single
  * communicate() timeout.
  */
 import { firefox } from "playwright-core";

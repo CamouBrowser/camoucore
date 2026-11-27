@@ -1,6 +1,6 @@
 /**
  * A SOCKS5 proxy with a username and password reaches Juggler, not
- * Playwright. Twin of python/tests/test_socks5_auth.py.
+ * Playwright. Twin of python/camoufox/tests/test_socks5_auth.py.
  */
 
 import * as fs from "node:fs";

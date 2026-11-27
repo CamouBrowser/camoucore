@@ -1,5 +1,5 @@
 /**
- * Port of python/tests/test_managed.py: the `managed` launch option
+ * Port of python/camoufox/tests/test_managed.py: the `managed` launch option
  * (docs/pro.md, "Managed proxies") -- what the launcher sends, and what it
  * refuses before minting. No network.
  */

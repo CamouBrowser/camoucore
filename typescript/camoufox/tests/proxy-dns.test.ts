@@ -1,5 +1,5 @@
 /**
- * Mirrors python/tests/test_proxy_dns.py: who resolves names behind a proxy
+ * Mirrors python/camoufox/tests/test_proxy_dns.py: who resolves names behind a proxy
  * (docs/proxy-dns.md).
  */
 import { afterEach, expect, it, vi } from "vitest";

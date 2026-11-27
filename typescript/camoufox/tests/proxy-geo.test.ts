@@ -1,6 +1,6 @@
 /**
  * NewContext places a context behind a proxy where the proxy exits.
- * Twin of python/tests/test_proxy_geo.py: the lookup must go through the
+ * Twin of python/camoufox/tests/test_proxy_geo.py: the lookup must go through the
  * proxy as Playwright would reach it (a scheme-less server is http), a failed
  * lookup must raise rather than leave the context on the host's values, and
  * the locale and position move with the clock. The lookup is camoucore's

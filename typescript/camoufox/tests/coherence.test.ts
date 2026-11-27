@@ -1,5 +1,5 @@
 /**
- * Port of python/tests/test_coherence.py (the rule-level half; the
+ * Port of python/camoufox/tests/test_coherence.py (the rule-level half; the
  * launch-level half lives with the launcher tests) and test_shipped_data.py.
  *
  * Every identity Camoufox can produce has to be a machine that could exist:

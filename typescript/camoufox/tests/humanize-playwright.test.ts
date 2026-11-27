@@ -1,8 +1,8 @@
 /**
  * myuri on Playwright pages: the parts passed to myuri(), raw() channels and
- * the page wrappers. The twin of python/tests/test_humanize_playwright.py,
+ * the page wrappers. The twin of python/camoufox/tests/test_humanize_playwright.py,
  * against the same fake page and the same recorded sequence,
- * browser/tests/humanize/sequence.json.
+ * python/camoufox/tests/data/humanize-sequence.json.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -40,10 +40,12 @@ const SEQUENCE = JSON.parse(
 			HERE,
 			"..",
 			"..",
-			"browser",
+			"..",
+			"python",
+			"camoufox",
 			"tests",
-			"humanize",
-			"sequence.json",
+			"data",
+			"humanize-sequence.json",
 		),
 		"utf-8",
 	),

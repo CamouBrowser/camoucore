@@ -1,7 +1,7 @@
 /**
  * Manager for handling multiple Camoufox versions side by side.
  *
- * TypeScript twin of python/src/camoufox/multiversion.py.
+ * TypeScript twin of python/camoufox/src/camoufox/multiversion.py.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";

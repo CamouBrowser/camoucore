@@ -1,7 +1,7 @@
 /**
  * `camoufox login` before Camoufox Pro launches: it says where to make an
  * account, unless a Pro build is installed or a Pro API is named.
- * Twin of the login tests in python/tests/test_pro_gate.py.
+ * Twin of the login tests in python/camoufox/tests/test_pro_gate.py.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";

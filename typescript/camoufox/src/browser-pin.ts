@@ -1,7 +1,7 @@
 /**
  * The browser build this copy of the library was released with.
  *
- * Twin of python/src/camoufox/browser_pin.py, reading the same
+ * Twin of python/camoufox/src/camoufox/browser_pin.py, reading the same
  * `browser-pin.json` (a DATA_FILES entry). Every published package is stamped
  * with the one browser release built from the same sources; by default the
  * library fetches and launches exactly that build. An explicit user choice

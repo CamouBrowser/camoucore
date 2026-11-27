@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
-SETTINGS = Path(__file__).resolve().parents[2] / 'browser' / 'settings'
+# A snapshot of the browser's properties.json (browser/settings/ in the browser
+# repository), taken when a launcher change needs a key the browser added.
+SETTINGS = Path(__file__).resolve().parent / 'data'
 
 
 @pytest.fixture(autouse=True)
@@ -18,9 +20,9 @@ def no_host_gpu_probe(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def properties_of_this_checkout(monkeypatch):
-    """launch_options reads properties.json from the installed build, and CI
-    installs the last published one. This suite tests the checkout, whose
-    launcher may draw a key that build predates, so it reads the checkout's."""
+    """launch_options reads properties.json from the installed build. This
+    suite runs without a browser, so it reads the snapshot in tests/data; the
+    integration tests read the released browser's own."""
     from camoufox import utils
 
     load = utils._load_properties

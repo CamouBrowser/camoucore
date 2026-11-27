@@ -1,5 +1,5 @@
 /**
- * Port of python/tests/test_cpu.py: cpu:arch and cpu:manufacturer, the CPU
+ * Port of python/camoufox/tests/test_cpu.py: cpu:arch and cpu:manufacturer, the CPU
  * whose arithmetic the page sees.
  *
  * Firefox never reports the CPU, but canvas pixels, Web Audio samples, encoded

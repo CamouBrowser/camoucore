@@ -21,7 +21,7 @@ export {
 export const INSTALL_DIR: string = PRODUCT.cacheDir;
 
 /**
- * The data files both launchers read. They live in python/src/camoufox/, the one
+ * The data files both launchers read. They live in python/camoufox/src/camoufox/, the one
  * copy in the repo; `pnpm build` copies them into dist/data-files/ for the npm
  * tarball, so one seed draws one identity in either launcher.
  */
@@ -48,13 +48,22 @@ export const DATA_FILES: readonly string[] = [
 
 /**
  * Where DATA_FILES are read from: dist/data-files/ in a built package, else
- * python/src/camoufox/ itself when running from src/ in the repo.
+ * python/camoufox/src/camoufox/ itself when running from src/ in the repo.
  */
 export const LOCAL_DATA: string = fs.existsSync(
 	path.join(import.meta.dirname, "data-files"),
 )
 	? path.join(import.meta.dirname, "data-files")
-	: path.resolve(import.meta.dirname, "..", "..", "python", "src", "camoufox");
+	: path.resolve(
+			import.meta.dirname,
+			"..",
+			"..",
+			"..",
+			"python",
+			"camoufox",
+			"src",
+			"camoufox",
+		);
 
 /** A data file (relative to LOCAL_DATA), parsed as YAML or JSON by its extension. */
 export function loadDataFile<T = any>(file: string): T {
@@ -62,7 +71,7 @@ export function loadDataFile<T = any>(file: string): T {
 	return (file.endsWith(".yml") ? parseYaml(text) : JSON.parse(text)) as T;
 }
 
-/** Values both launchers use, kept in one file (python/src/camoufox/launcher-constants.json). */
+/** Values both launchers use, kept in one file (python/camoufox/src/camoufox/launcher-constants.json). */
 export interface LauncherConstants {
 	markerFonts: Record<"win" | "mac" | "lin", string[]>;
 	windowsLegacyFontFamilies: Record<string, string[]>;

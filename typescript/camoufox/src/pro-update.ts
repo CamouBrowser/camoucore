@@ -5,7 +5,7 @@
  * this machine, checks its signature against the public keys this package
  * ships (pro-release-public-keys.json) before it downloads anything, and
  * installs it beside the public builds. Mirrors `fetch` in
- * python/src/camoufox/pro_update.py. See docs/pro.md.
+ * python/camoufox/src/camoufox/pro_update.py. See docs/pro.md.
  */
 import { createPublicKey, verify as verifySignature } from "node:crypto";
 import * as fs from "node:fs";

@@ -12,7 +12,7 @@ import { DATA_FILES, LOCAL_DATA } from "../src/paths.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PKG = path.resolve(HERE, "..");
-const PYLIB = path.resolve(PKG, "..", "python");
+const PYLIB = path.resolve(PKG, "..", "..", "python", "camoufox");
 const pkg = JSON.parse(
 	fs.readFileSync(path.join(PKG, "package.json"), "utf-8"),
 );
