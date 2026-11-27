@@ -110,6 +110,34 @@ def test_a_vfb_that_reports_a_bad_scale_fails(host, monkeypatch, tmp_path):
     assert vd.proc is None
 
 
+def _dying(tmp_path: Path, stderr: str) -> Path:
+    path = tmp_path / "vfb-dies"
+    path.write_text(f"#!{sys.executable}\nimport sys\nsys.stderr.write({stderr!r})\nsys.exit(1)\n")
+    path.chmod(path.stat().st_mode | stat.S_IXUSR)
+    return path
+
+
+def test_a_vfb_that_fails_to_start_says_why(host, monkeypatch, tmp_path):
+    # vfb explains a failure on stderr (no free monitor, a mode the driver
+    # lacks); the error has to carry that, not just "did not report".
+    why = "vfb: all 1 virtual monitors are in use; raise <monitors><count>"
+    monkeypatch.setenv(PRODUCT.env_var(VFB_KEY), str(_dying(tmp_path, why + "\n")))
+    vd = VirtualDisplay(PRODUCT)
+    with pytest.raises(CannotExecuteVfb, match="raise <monitors><count>"):
+        vd.get()
+    assert vd.proc is None
+
+
+def test_a_vfb_that_exits_silently_gives_its_exit_code(host, monkeypatch, tmp_path):
+    # This path read the exit code after kill() had cleared the process, and
+    # raised AttributeError instead of the error.
+    monkeypatch.setenv(PRODUCT.env_var(VFB_KEY), str(_dying(tmp_path, "")))
+    vd = VirtualDisplay(PRODUCT)
+    with pytest.raises(CannotExecuteVfb, match="exit=1"):
+        vd.get()
+    assert vd.proc is None
+
+
 def test_kill_lets_vfb_stop_itself_so_it_can_detach_its_monitor(host, tmp_path):
     # A killed vfb on Windows leaves its monitor attached to the desktop, so
     # kill() closes stdin and waits rather than sending a signal.

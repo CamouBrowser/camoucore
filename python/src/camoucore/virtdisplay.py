@@ -14,6 +14,7 @@ import queue
 import signal
 import select
 import subprocess  # nosec
+import tempfile
 import threading
 import time
 from shutil import which
@@ -93,6 +94,7 @@ class VirtualDisplay:
         #: reported, which on Windows is the user's display scaling.
         self.scale = scale
         self.proc: Optional[subprocess.Popen] = None
+        self._stderr = None  # vfb's stderr, while it runs
         self._display: Optional[int] = None
         #: Where vfb's monitor sits on the desktop, as (x, y, width, height) in
         #: the desktop's units (points on macOS, pixels on Windows); None on
@@ -239,7 +241,7 @@ class VirtualDisplay:
                 # pipe only this process holds.
                 stdin=subprocess.DEVNULL if OS_NAME == "lin" else subprocess.PIPE,
                 stdout=None if self.debug else subprocess.DEVNULL,
-                stderr=None if self.debug else subprocess.DEVNULL,
+                stderr=self._server_stderr(),
                 start_new_session=True,
                 pass_fds=(write_fd,),
                 env=self._server_env(),
@@ -262,11 +264,7 @@ class VirtualDisplay:
                         continue
                     chunk = os.read(read_fd, 64)
                     if not chunk:
-                        self.kill()
-                        raise self._error(
-                            f"{self._name} did not report a display "
-                            f"(got {buf!r}, exit={self.proc.poll()})"
-                        )
+                        raise self._error(self._no_report(buf))
                     buf += chunk
             finally:
                 os.close(read_fd)
@@ -287,7 +285,7 @@ class VirtualDisplay:
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=None if self.debug else subprocess.DEVNULL,
+            stderr=self._server_stderr(),
             env=self._server_env(),
             # CREATE_NO_WINDOW: no console window flashes up for vfb.
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
@@ -305,12 +303,34 @@ class VirtualDisplay:
                 f"{int(DISPLAYFD_READ_TIMEOUT_S * 1000)}ms"
             )
         if not line.endswith(b"\n"):
-            proc = self.proc
-            self.kill()
-            raise self._error(
-                f"{self._name} did not report a display (got {line!r}, exit={proc.poll()})"
-            )
+            raise self._error(self._no_report(line))
         return line
+
+    def _server_stderr(self):
+        """Xvfb's stderr is noise; vfb's is a reason (no free monitor, a mode the
+        driver lacks), kept in a file for the error when vfb fails to start."""
+        if self.debug:
+            return None
+        if OS_NAME == "lin":
+            return subprocess.DEVNULL
+        self._stderr = tempfile.TemporaryFile()
+        return self._stderr
+
+    def _no_report(self, got: bytes) -> str:
+        """Stop the server that exited without a report, and say why."""
+        assert self.proc is not None
+        try:
+            code = self.proc.wait(timeout=VFB_STOP_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            code = None
+        why = b""
+        if self._stderr is not None:
+            self._stderr.seek(0)
+            why = self._stderr.read()[-2000:].strip()
+        self.kill()
+        if why:
+            return f"{self._name} did not report a display: {why.decode(errors='replace')}"
+        return f"{self._name} did not report a display (got {got!r}, exit={code})"
 
     def _report(self, buf: bytes) -> None:
         """Take the server's report: "N", or vfb's "N X Y W H SCALE"."""
@@ -352,6 +372,9 @@ class VirtualDisplay:
             # vfb leaves no files; its monitor goes with the process.
             self._stop_vfb()
             self.proc = None
+            if self._stderr is not None:
+                self._stderr.close()
+                self._stderr = None
             return
 
         if self.proc.poll() is None:

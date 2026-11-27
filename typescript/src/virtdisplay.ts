@@ -103,6 +103,8 @@ export class VirtualDisplay {
 	 */
 	scale: number;
 	proc: ChildProcess | null = null;
+	/** The end of vfb's stderr, for the error when it fails to start. */
+	private stderrTail = "";
 	protected _display: number | null = null;
 	/**
 	 * Where vfb's monitor sits on the desktop, as [x, y, width, height] in the
@@ -308,10 +310,17 @@ export class VirtualDisplay {
 				console.log("Starting virtual display:", cmd.join(" "));
 			}
 			const out = this.debug ? "inherit" : "ignore";
+			// Xvfb's stderr is noise; vfb's is a reason (no free monitor, a mode
+			// the driver lacks), kept for the error when vfb fails to start.
+			const err = this.debug
+				? "inherit"
+				: OS_NAME === "lin"
+					? "ignore"
+					: "pipe";
 			this.proc = spawn(cmd[0], cmd.slice(1), {
 				stdio: win
-					? ["pipe", "pipe", out]
-					: [OS_NAME === "lin" ? "ignore" : "pipe", out, out, "pipe"],
+					? ["pipe", "pipe", err]
+					: [OS_NAME === "lin" ? "ignore" : "pipe", out, err, "pipe"],
 				// A detached child on Windows gets its own console window.
 				detached: !win,
 				windowsHide: true,
@@ -323,6 +332,10 @@ export class VirtualDisplay {
 			// treats it as uncaught and exits. readDisplayNumber() turns it into
 			// this.error(); this keeps any later one from killing the process.
 			this.proc.on("error", () => {});
+			this.stderrTail = "";
+			this.proc.stderr?.on("data", (chunk: Buffer) => {
+				this.stderrTail = (this.stderrTail + chunk.toString()).slice(-2000);
+			});
 
 			const displayFd = this.proc.stdio[
 				win ? 1 : 3
@@ -392,6 +405,27 @@ export class VirtualDisplay {
 		return this.bounds;
 	}
 
+	/** Stop the server that exited without a report, and say why. */
+	private async noReport(got: string): Promise<string> {
+		const proc = this.proc;
+		const running = proc && proc.exitCode === null && proc.signalCode === null;
+		if (proc && (running || (proc.stderr && !proc.stderr.readableEnded))) {
+			// 'close' comes once stderr is drained too.
+			await new Promise<void>((resolve) => {
+				const timer = setTimeout(resolve, VFB_STOP_TIMEOUT_MS);
+				proc.once("close", () => {
+					clearTimeout(timer);
+					resolve();
+				});
+			});
+		}
+		const code = proc?.exitCode;
+		const why = this.stderrTail.trim();
+		this.kill();
+		if (why) return `${this.serverName} did not report a display: ${why}`;
+		return `${this.serverName} did not report a display (got '${got}', exit=${code})`;
+	}
+
 	private readDisplayNumber(stream: NodeJS.ReadableStream): Promise<string> {
 		return new Promise<string>((resolve, reject) => {
 			let buf = "";
@@ -440,13 +474,7 @@ export class VirtualDisplay {
 						resolve(buf);
 						return;
 					}
-					const exit = this.proc?.exitCode;
-					this.kill();
-					reject(
-						this.error(
-							`${this.serverName} did not report a display (got '${buf}', exit=${exit})`,
-						),
-					);
+					this.noReport(buf).then((message) => reject(this.error(message)));
 				});
 			});
 			stream.on("error", (error) => {

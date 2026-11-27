@@ -140,6 +140,36 @@ describe.skipIf(process.platform === "win32").each(["mac", "win"] as const)(
 			expect(vd.proc).toBeNull();
 		});
 
+		function dying(stderr: string): string {
+			const file = path.join(dir, "vfb-dies");
+			fs.writeFileSync(
+				file,
+				`#!${process.execPath}\nprocess.stderr.write(${JSON.stringify(stderr)});\nprocess.exitCode = 1;\n`,
+			);
+			fs.chmodSync(file, 0o755);
+			return file;
+		}
+
+		it("a vfb that fails to start says why", async () => {
+			// vfb explains a failure on stderr (no free monitor, a mode the driver
+			// lacks); the error has to carry that, not just "did not report".
+			const why =
+				"vfb: all 1 virtual monitors are in use; raise <monitors><count>";
+			process.env[VFB_ENV_VAR] = dying(`${why}\n`);
+			const vd = new VirtualDisplay(PRODUCT);
+			await expect(vd.get()).rejects.toThrow(/raise <monitors><count>/);
+			expect(vd.proc).toBeNull();
+		});
+
+		it("a vfb that exits silently gives its exit code", async () => {
+			process.env[VFB_ENV_VAR] = dying("");
+			const vd = new VirtualDisplay(PRODUCT);
+			const error = await vd.get().catch((e) => e);
+			expect(error).toBeInstanceOf(CannotExecuteVfb);
+			expect(String(error.message)).toContain("exit=1");
+			expect(vd.proc).toBeNull();
+		});
+
 		it("kill() lets vfb stop itself so it can detach its monitor", async () => {
 			// A killed vfb on Windows leaves its monitor attached to the desktop,
 			// so kill() closes stdin rather than sending a signal.
