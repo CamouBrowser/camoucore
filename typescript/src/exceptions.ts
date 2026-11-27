@@ -102,10 +102,25 @@ export class CannotExecuteXvfb extends VirtualDisplayError {
 	}
 }
 
+export class CannotFindVfb extends VirtualDisplayError {
+	constructor(message?: string) {
+		super(message ?? "vfb cannot be found.");
+		this.name = "CannotFindVfb";
+	}
+}
+
+export class CannotExecuteVfb extends VirtualDisplayError {
+	constructor(message?: string) {
+		super(message ?? "vfb cannot be executed.");
+		this.name = "CannotExecuteVfb";
+	}
+}
+
 export class VirtualDisplayNotSupported extends VirtualDisplayError {
 	constructor(message?: string) {
 		super(
-			message ?? "The user tried to use a virtual display on a non-Linux OS.",
+			message ??
+				"A virtual display was asked for in a form this system can't give.",
 		);
 		this.name = "VirtualDisplayNotSupported";
 	}

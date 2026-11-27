@@ -114,9 +114,25 @@ class CannotExecuteXvfb(VirtualDisplayError):
     ...
 
 
+class CannotFindVfb(VirtualDisplayError):
+    """
+    Raised when vfb, the virtual display on macOS and Windows, cannot be found.
+    """
+
+    ...
+
+
+class CannotExecuteVfb(VirtualDisplayError):
+    """
+    Raised when vfb cannot be executed or fails to bring up its display.
+    """
+
+    ...
+
+
 class VirtualDisplayNotSupported(VirtualDisplayError):
     """
-    Raised when the user tried to use a virtual display on a non-Linux OS.
+    Raised when a virtual display was asked for in a form this system can't give.
     """
 
     ...
