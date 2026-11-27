@@ -109,6 +109,37 @@ describe.skipIf(process.platform === "win32").each(["mac", "win"] as const)(
 			expect(await exited(vd.proc as ChildProcess, 500)).toBeNull();
 		});
 
+		it.each([
+			"5 3456 0 3456 2160 2\n",
+			"5 3456 0 3456 2160 2.5\n",
+		])("window fills the monitor in CSS pixels (%s)", async (report) => {
+			// Windows reports device pixels and the user's display scaling; a
+			// window sized in device pixels came out twice the monitor's width
+			// on win-i9.
+			process.env[VFB_ENV_VAR] = fake(dir, report);
+			const vd = track(new VirtualDisplay(PRODUCT));
+			await vd.get();
+			const scale = Number(report.split(" ")[5]);
+			expect(vd.scale).toBe(scale);
+			if (os_ === "win") {
+				expect(vd.window).toEqual([
+					3456,
+					0,
+					Math.round(3456 / scale),
+					Math.round(2160 / scale),
+				]);
+			} else {
+				expect(vd.window).toEqual(vd.bounds);
+			}
+		});
+
+		it("a vfb that reports a bad scale fails", async () => {
+			process.env[VFB_ENV_VAR] = fake(dir, "5 0 0 3456 2160 0\n");
+			const vd = new VirtualDisplay(PRODUCT);
+			await expect(vd.get()).rejects.toThrow(CannotExecuteVfb);
+			expect(vd.proc).toBeNull();
+		});
+
 		it("kill() lets vfb stop itself so it can detach its monitor", async () => {
 			// A killed vfb on Windows leaves its monitor attached to the desktop,
 			// so kill() closes stdin rather than sending a signal.

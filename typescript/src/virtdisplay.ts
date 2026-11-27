@@ -97,8 +97,9 @@ export class VirtualDisplay {
 	fixed: boolean;
 	composite: boolean;
 	/**
-	 * Device pixels per point. Only vfb on macOS acts on it (a HiDPI monitor);
-	 * Xvfb and vfb on Windows draw at 1.
+	 * Device pixels per point. vfb on macOS makes a HiDPI monitor from it;
+	 * Xvfb draws at 1. Once vfb is up it holds the scale vfb reported, which
+	 * on Windows is the user's display scaling.
 	 */
 	scale: number;
 	proc: ChildProcess | null = null;
@@ -358,6 +359,37 @@ export class VirtualDisplay {
 			const [x, y, width, height] = numbers.slice(1, 5);
 			this.bounds = [x, y, width, height];
 		}
+		if (fields.length >= 6) {
+			const scale = Number(fields[5]);
+			if (!(scale > 0)) {
+				this.kill();
+				throw this.error(`${this.serverName} wrote a bad scale: '${raw}'`);
+			}
+			// The scale the system gave the monitor, which on Windows is the
+			// user's display scaling, not one vfb chose.
+			this.scale = scale;
+		}
+	}
+
+	/**
+	 * Where a browser window that fills the monitor goes, as [x, y, width,
+	 * height]: the position in desktop units and the size in the browser's
+	 * CSS pixels. macOS desktop points are already CSS pixels; Windows desktop
+	 * units are device pixels, so the size there is divided by the monitor's
+	 * scale. null on Linux.
+	 */
+	get window(): [number, number, number, number] | null {
+		if (this.bounds === null) return null;
+		const [x, y, width, height] = this.bounds;
+		if (OS_NAME === "win") {
+			return [
+				x,
+				y,
+				Math.round(width / this.scale),
+				Math.round(height / this.scale),
+			];
+		}
+		return this.bounds;
 	}
 
 	private readDisplayNumber(stream: NodeJS.ReadableStream): Promise<string> {

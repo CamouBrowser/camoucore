@@ -84,6 +84,32 @@ def test_reports_the_display_and_where_it_sits(host, tmp_path):
         vd.kill()
 
 
+@pytest.mark.parametrize("report", ["5 3456 0 3456 2160 2\n", "5 3456 0 3456 2160 2.5\n"])
+def test_window_fills_the_monitor_in_css_pixels(host, monkeypatch, tmp_path, report):
+    # Windows reports device pixels and the user's display scaling; a window
+    # sized in device pixels came out twice the monitor's width on win-i9.
+    monkeypatch.setenv(PRODUCT.env_var(VFB_KEY), str(_fake(tmp_path, report)))
+    vd = VirtualDisplay(PRODUCT)
+    try:
+        vd.get()
+        scale = float(report.split()[5])
+        assert vd.scale == scale
+        if host == "win":
+            assert vd.window == (3456, 0, round(3456 / scale), round(2160 / scale))
+        else:
+            assert vd.window == vd.bounds
+    finally:
+        vd.kill()
+
+
+def test_a_vfb_that_reports_a_bad_scale_fails(host, monkeypatch, tmp_path):
+    monkeypatch.setenv(PRODUCT.env_var(VFB_KEY), str(_fake(tmp_path, "5 0 0 3456 2160 0\n")))
+    vd = VirtualDisplay(PRODUCT)
+    with pytest.raises(CannotExecuteVfb):
+        vd.get()
+    assert vd.proc is None
+
+
 def test_kill_lets_vfb_stop_itself_so_it_can_detach_its_monitor(host, tmp_path):
     # A killed vfb on Windows leaves its monitor attached to the desktop, so
     # kill() closes stdin and waits rather than sending a signal.
