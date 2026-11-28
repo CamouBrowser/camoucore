@@ -12,19 +12,39 @@ A user who explicitly chooses something else (`camoufox set official/stable`,
 `camoufox set 156.0.1-beta.33`, ...) keeps that choice; launching then warns
 that the build differs from the one this library was released with.
 
-A development checkout carries an empty pin (`{}`): nothing is pinned and the
-channel logic applies unchanged, because there is no release to pair with yet.
-The release workflow writes the real file (ci/release.py stamp).
+The pin that wins is the browser repository's: its `camoufox` package (PyPI and
+npm) depends on exactly one release of this driver and ships
+`camoufox_pin/browser-pin.json`, naming the browser it released with it. Without
+that package, the driver reads its own `browser-pin.json`, which camoucore's
+release workflow stamps with the browser its CI tested (scripts/browser-release.py
+stamp). A development checkout carries an empty pin (`{}`): nothing is pinned
+and the channel logic applies unchanged, because there is no release to pair
+with yet.
 """
 
 import warnings
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import orjson
 
+# The driver's own pin, read when the browser repository's package is not installed.
 PIN_FILE = Path(__file__).parent / "browser-pin.json"
+# The browser repository's `camoufox` package ships its pin in this package.
+WRAPPER_PIN_PACKAGE = "camoufox_pin"
+
+
+def pin_file() -> Path:
+    """The browser repository's pin when its package is installed, else the driver's."""
+    from importlib.resources import files
+
+    with suppress(ModuleNotFoundError):
+        wrapper = files(WRAPPER_PIN_PACKAGE) / "browser-pin.json"
+        if wrapper.is_file():
+            return Path(str(wrapper))
+    return PIN_FILE
 
 
 @dataclass(frozen=True)
@@ -42,9 +62,9 @@ class BrowserPin:
 
 
 def load_pin(path: Optional[Path] = None) -> Optional[BrowserPin]:
-    """The stamped pin, or None for an unpinned (development) copy."""
+    """The stamped pin (pin_file()), or None for an unpinned (development) copy."""
     try:
-        data: Dict[str, Any] = orjson.loads((path or PIN_FILE).read_bytes())
+        data: Dict[str, Any] = orjson.loads((path or pin_file()).read_bytes())
     except (FileNotFoundError, orjson.JSONDecodeError):
         return None
     if not data or not data.get("tag"):

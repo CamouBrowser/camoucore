@@ -7,17 +7,43 @@
  * library fetches and launches exactly that build. An explicit user choice
  * (`camoufox set ...`) is kept, with a warning at launch. A development
  * checkout carries `{}` and pins nothing.
+ *
+ * The browser repository's pin wins: its `camoufox` npm package depends on
+ * exactly one release of this driver and ships `camoufox_pin/browser-pin.json`
+ * (exported at that subpath), naming the browser released with it. Without
+ * that package the driver reads its own file, which camoucore's release
+ * stamps with the browser its CI tested.
  */
 
 import * as fs from "node:fs";
+import { createRequire } from "node:module";
 import * as path from "node:path";
 import { LOCAL_DATA } from "./paths.js";
 import { warn } from "./warnings.js";
 
 /** Test seam, like pkgmanDeps: where the pin is read from. */
 export const browserPinDeps = {
+	/** The driver's own pin, read without the browser repository's package. */
 	file: path.join(LOCAL_DATA, "browser-pin.json"),
+	/** Where the browser repository's package is resolved from. */
+	resolveFrom: import.meta.url,
 };
+
+/** The browser repository's pin, in its `camoufox` package. */
+const WRAPPER_PIN = "camoufox/camoufox_pin/browser-pin.json";
+
+/** The browser repository's pin when its package is installed, else the driver's. */
+export function pinFile(): string {
+	try {
+		const wrapper = createRequire(browserPinDeps.resolveFrom).resolve(
+			WRAPPER_PIN,
+		);
+		if (fs.statSync(wrapper).isFile()) return wrapper;
+	} catch {
+		// Not installed, or it does not export the pin: the driver's own.
+	}
+	return browserPinDeps.file;
+}
 
 export interface BrowserPin {
 	tag: string;
@@ -32,8 +58,8 @@ export function pinSpec(pin: BrowserPin): string {
 	return `${pin.version}-${pin.build}`;
 }
 
-/** The stamped pin, or null for an unpinned (development) copy. */
-export function loadPin(file: string = browserPinDeps.file): BrowserPin | null {
+/** The stamped pin (pinFile()), or null for an unpinned (development) copy. */
+export function loadPin(file: string = pinFile()): BrowserPin | null {
 	let data: Record<string, string | null>;
 	try {
 		data = JSON.parse(fs.readFileSync(file, "utf-8"));

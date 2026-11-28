@@ -7,6 +7,7 @@ fetcher accepts, and the explicit-choice escape hatch -- to that pairing.
 """
 
 import json
+import sys
 import warnings
 
 import pytest
@@ -57,6 +58,49 @@ def test_an_empty_or_missing_pin_pins_nothing(tmp_path, content):
 def test_the_checked_in_pin_is_empty():
     """main pins nothing; only the release workflow writes a real pin."""
     assert json.loads(browser_pin.PIN_FILE.read_text()) == {}
+
+
+def _driver_pin(tmp_path, monkeypatch, pin):
+    """The driver's own pin, and no `camoufox_pin` package importable."""
+    f = tmp_path / "driver" / "browser-pin.json"
+    f.parent.mkdir()
+    f.write_text(json.dumps(pin))
+    monkeypatch.setattr(browser_pin, "PIN_FILE", f)
+    return f
+
+
+def _install_wrapper_pin(tmp_path, monkeypatch, pin):
+    """Installs a fake browser-repository `camoufox_pin` package carrying `pin`."""
+    site = tmp_path / "site-packages"
+    package = site / browser_pin.WRAPPER_PIN_PACKAGE
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (package / "browser-pin.json").write_text(json.dumps(pin))
+    monkeypatch.syspath_prepend(str(site))
+    # Recorded as absent, so monkeypatch's undo drops the import this test makes.
+    monkeypatch.setitem(sys.modules, browser_pin.WRAPPER_PIN_PACKAGE, None)
+    del sys.modules[browser_pin.WRAPPER_PIN_PACKAGE]
+    return package / "browser-pin.json"
+
+
+def test_without_the_browser_repositorys_package_the_drivers_own_pin_is_read(tmp_path, monkeypatch):
+    own = _driver_pin(tmp_path, monkeypatch, PIN)
+    assert browser_pin.pin_file() == own
+    assert browser_pin.load_pin().tag == PIN["tag"]
+
+
+def test_the_browser_repositorys_pin_wins_over_the_drivers(tmp_path, monkeypatch):
+    _driver_pin(tmp_path, monkeypatch, PIN)
+    wrapper = _install_wrapper_pin(tmp_path, monkeypatch, {**PIN, "tag": "v156.0.1-beta.40", "build": "beta.40"})
+    assert browser_pin.pin_file() == wrapper
+    pin = browser_pin.load_pin()
+    assert (pin.tag, pin.build) == ("v156.0.1-beta.40", "beta.40")
+
+
+def test_a_browser_repository_package_without_a_pin_file_falls_back_to_the_drivers(tmp_path, monkeypatch):
+    own = _driver_pin(tmp_path, monkeypatch, PIN)
+    _install_wrapper_pin(tmp_path, monkeypatch, PIN).unlink()
+    assert browser_pin.pin_file() == own
 
 
 def test_launch_uses_the_paired_build_even_when_another_is_marked_active(tmp_path, monkeypatch):

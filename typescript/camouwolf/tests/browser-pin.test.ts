@@ -91,6 +91,62 @@ describe("the pin file", () => {
 	});
 });
 
+describe("the browser repository's pin", () => {
+	/**
+	 * A project at `tmp/project` that the pin is resolved from, its own pin at
+	 * `tmp/driver-pin.json`, and, with `exportsPin`, the browser repository's
+	 * `camouwolf` package installed in its node_modules.
+	 */
+	async function project(opts: { wrapperPin?: object; exportsPin?: boolean }) {
+		const pinMod = await import("../src/browser-pin.js");
+		const own = path.join(tmp, "driver-pin.json");
+		fs.writeFileSync(own, JSON.stringify(PIN));
+		pinMod.browserPinDeps.file = own;
+		const root = path.join(tmp, "project");
+		fs.mkdirSync(root);
+		pinMod.browserPinDeps.resolveFrom = path.join(root, "index.js");
+		let wrapper = "";
+		if (opts.wrapperPin) {
+			const pkg = path.join(root, "node_modules", "camouwolf");
+			fs.mkdirSync(path.join(pkg, "camouwolf_pin"), { recursive: true });
+			const exports: Record<string, string> = { ".": "./index.js" };
+			if (opts.exportsPin !== false)
+				exports["./camouwolf_pin/browser-pin.json"] =
+					"./camouwolf_pin/browser-pin.json";
+			fs.writeFileSync(
+				path.join(pkg, "package.json"),
+				JSON.stringify({ name: "camouwolf", version: "1.0.0", exports }),
+			);
+			wrapper = path.join(pkg, "camouwolf_pin", "browser-pin.json");
+			fs.writeFileSync(wrapper, JSON.stringify(opts.wrapperPin));
+		}
+		return { pinMod, own, wrapper };
+	}
+
+	it("without its package, the driver's own pin is read", async () => {
+		const { pinMod, own } = await project({});
+		expect(pinMod.pinFile()).toBe(own);
+		expect(pinMod.loadPin()?.tag).toBe(PIN.tag);
+	});
+
+	it("wins over the driver's own pin when its package is installed", async () => {
+		const { pinMod, wrapper } = await project({
+			wrapperPin: { ...PIN, tag: "v156.0.1-beta.40", build: "beta.40" },
+		});
+		expect(fs.realpathSync(pinMod.pinFile())).toBe(fs.realpathSync(wrapper));
+		const pin = pinMod.loadPin();
+		expect([pin?.tag, pin?.build]).toEqual(["v156.0.1-beta.40", "beta.40"]);
+	});
+
+	it("falls back to the driver's when its package does not export the pin", async () => {
+		const { pinMod, own } = await project({
+			wrapperPin: PIN,
+			exportsPin: false,
+		});
+		expect(pinMod.pinFile()).toBe(own);
+	});
+});
+
 describe("launch", () => {
 	it("uses the paired build even when another is marked active", async () => {
 		const { pkgman, multiversion, root } = await setup({

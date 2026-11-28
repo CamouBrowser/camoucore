@@ -1,10 +1,11 @@
 name: release
 
 # A v<version> tag publishes every package at that version: camoucore and each
-# launcher to PyPI and npm, and camoucore-mcp to npm. They are released
-# together so a launcher's exact camoucore pin is always on the registry
-# beside it. Each launcher is stamped with the browser release the tests below
-# ran it against (browser-pin.json), so it fetches that build by default.
+# launcher (camoucore-<launcher>) to PyPI and npm, and camoucore-mcp to npm.
+# They are released together so a launcher's exact camoucore pin is always on
+# the registry beside it. Each launcher's own browser-pin.json is stamped with
+# the browser release the tests below ran it against: what it fetches when the
+# browser repository's <launcher> package, whose pin wins, is not installed.
 #
 # Publishing is OIDC trusted publishing with provenance; RELEASING.md lists the
 # trusted publishers this needs. Re-running a release skips what is already
@@ -53,7 +54,7 @@ jobs:
           pattern: tested-browser-*
           path: .ci-work/tested
           merge-multiple: true
-      - name: Stamp each launcher with the browser it was tested on
+      - name: Stamp each launcher's fallback pin with the browser it was tested on
         run: |
           for launcher in $(cd python && ls -d */ | tr -d / | grep -vx camoucore); do
             f=.ci-work/tested/$launcher.json
