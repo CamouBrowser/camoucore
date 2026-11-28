@@ -297,6 +297,13 @@ export function createServer(
 				await keepInside(session);
 				return result;
 			} catch (error) {
+				// A navigation off the domains that commits during the work detaches
+				// the frames it was reading; that, not the detach, is what failed.
+				try {
+					await keepInside(session);
+				} catch (outside) {
+					return refuse(outside);
+				}
 				return refuse(error);
 			}
 		};

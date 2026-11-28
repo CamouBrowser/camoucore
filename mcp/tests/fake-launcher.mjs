@@ -12,7 +12,15 @@ export const calls = [];
  * What the fake page shows: its accessibility tree, and whether an element a
  * file is uploaded to is the file input itself rather than a picker button.
  */
-export const page = { tree: '- button "Go" [ref=e2]', fileInput: true };
+export const page = {
+	tree: '- button "Go" [ref=e2]',
+	fileInput: true,
+	/**
+	 * A URL the main frame commits to while the next snapshot is read, which
+	 * then fails as Playwright's does when a frame detaches under it.
+	 */
+	navigatesDuringSnapshot: undefined,
+};
 
 function note(entry) {
 	calls.push(entry);
@@ -35,6 +43,8 @@ export const PRODUCT = {
 
 function fakePage() {
 	let url = "about:blank";
+	const listeners = {};
+	const mainFrame = { url: () => url };
 	const locator = (selector) => {
 		const act = (action) => async (argument) => {
 			if (selector === "aria-ref=gone")
@@ -69,6 +79,14 @@ function fakePage() {
 		title: async () => "A page",
 		ariaSnapshot: async (options) => {
 			note({ action: "ariaSnapshot", options });
+			const target = page.navigatesDuringSnapshot;
+			if (target) {
+				page.navigatesDuringSnapshot = undefined;
+				url = target;
+				for (const listener of listeners.framenavigated ?? [])
+					listener(mainFrame);
+				throw new Error("locator.all: Frame was detached");
+			}
 			return page.tree;
 		},
 		waitForEvent: async (event) => ({
@@ -81,7 +99,10 @@ function fakePage() {
 		mouse: { wheel: async (x, y) => note({ action: "wheel", x, y }) },
 		keyboard: { press: async (key) => note({ action: "key", key }) },
 		goBack: async () => note({ action: "goBack" }),
-		on: () => {},
+		on: (event, listener) => {
+			(listeners[event] ??= []).push(listener);
+		},
+		mainFrame: () => mainFrame,
 		context: () => ({ on: () => {} }),
 		frames: () => [],
 	};

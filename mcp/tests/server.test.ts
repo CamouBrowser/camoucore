@@ -85,6 +85,7 @@ describe("camoucore-mcp tools", () => {
 		calls.length = 0;
 		fake.page.tree = '- button "Go" [ref=e2]';
 		fake.page.fileInput = true;
+		fake.page.navigatesDuringSnapshot = undefined;
 	});
 	afterEach(async () => {
 		await client?.close();
@@ -343,6 +344,20 @@ describe("camoucore-mcp tools", () => {
 		expect(refused.isError).toBe(true);
 		expect(refused.json.message).toContain("type_secret");
 		expect(pageCalls("pressSequentially")).toEqual([]);
+	});
+
+	it("says a tool failed because the page left the allowed domains", async () => {
+		// A click's navigation can commit while the next tool reads the page; the
+		// frames detaching under it is a symptom, the domain is what to report.
+		const mcp = await connect({}, { allowedDomains: ["*.example.com"] });
+		const session_id = await open(mcp);
+		await mcp.tool("navigate", { session_id, url: "https://www.example.com/" });
+		fake.page.navigatesDuringSnapshot = "https://example.org/";
+		const refused = await mcp.tool("snapshot", { session_id });
+		expect(refused.isError).toBe(true);
+		expect(refused.json.message).toContain("outside the allowed domains");
+		expect(refused.json.message).not.toContain("detached");
+		expect(pageCalls("goto").at(-1).url).toBe("about:blank");
 	});
 
 	it("navigates only inside the allowed domains", async () => {
