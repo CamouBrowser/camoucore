@@ -100,7 +100,7 @@ function fakePage() {
 		keyboard: { press: async (key) => note({ action: "key", key }) },
 		goBack: async () => note({ action: "goBack" }),
 		on: (event, listener) => {
-			(listeners[event] ??= []).push(listener);
+			listeners[event] = [...(listeners[event] ?? []), listener];
 		},
 		mainFrame: () => mainFrame,
 		context: () => ({ on: () => {} }),
