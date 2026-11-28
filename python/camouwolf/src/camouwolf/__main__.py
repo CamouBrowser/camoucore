@@ -990,7 +990,7 @@ class VersionInfo:
         Add installed package version rows to the table
         """
         self._header("Python Packages")
-        self._pkg("Camouwolf", "camouwolf")
+        self._pkg("Camouwolf", "camoucore-camouwolf")
         self._pkg("fpgen", "fpgen")
         self._pkg("Playwright", "playwright")
 
@@ -1078,7 +1078,7 @@ class VersionInfo:
         self._header("GeoIP")
         if not ALLOW_GEOIP:
             # maxminddb not installed
-            self._row("Status", "Not supported (install camouwolf[geoip])", style="dim")
+            self._row("Status", "Not supported (install camoucore-camouwolf[geoip])", style="dim")
         else:
             mmdb_path = get_mmdb_path()
             if mmdb_path.exists():

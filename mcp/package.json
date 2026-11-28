@@ -51,7 +51,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
     "@types/node": "^24.19.2",
-    "camouwolf": "workspace:*",
+    "camoucore-camoufox": "workspace:*",
+    "camoucore-camouwolf": "workspace:*",
     "playwright-core": "1.62.0",
     "rimraf": "^6.1.4",
     "typescript": "^5.9.3",

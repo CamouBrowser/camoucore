@@ -1,7 +1,7 @@
 /**
  * The built server driving a real launcher's browser, humanized, on local
  * pages: a form, and a login whose secret is typed, redacted and kept on its
- * domain. CAMOUCORE_MCP_LAUNCHER names the launcher package (camouwolf in CI),
+ * domain. CAMOUCORE_MCP_LAUNCHER names the launcher package (camoucore-<launcher> in CI),
  * whose browser must be installed.
  */
 import fs from "node:fs";

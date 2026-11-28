@@ -7,7 +7,7 @@
  * probe answers the question a caller choosing between headless modes has:
  * does this display render on hardware, or on SwiftShader?
  *
- *     import { hostGpu, rendersOnHardware } from "camouwolf";
+ *     import { hostGpu, rendersOnHardware } from "camoucore-camouwolf";
  *     const gpu = await hostGpu(executablePath, true, process.env, []);
  *
  * TypeScript twin of python/camouwolf/src/camouwolf/host_rendering.py. Python runs the

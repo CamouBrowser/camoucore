@@ -20,9 +20,15 @@ with the same options. Notes for AI coding agents are in
 ## Install
 
 ```bash
-pip install -U "camoufox[geoip]"
+pip install -U camoufox "camoucore-camoufox[geoip]"
 camoufox fetch
 ```
+
+`camoufox` is the [daijro/camoufox](https://github.com/daijro/camoufox) repository's
+package: it installs this driver, `camoucore-camoufox`, at the exact release that
+browser was tested with, and pins that browser build (`camoufox_pin`). The driver
+on its own fetches the browser camoucore's CI tested it with. The import is
+`camoufox` either way.
 
 | Requirement | Value |
 |---|---|

@@ -115,7 +115,7 @@ def _get_library_version() -> str:
     from importlib.metadata import version
 
     try:
-        return version('camouwolf')
+        return version('camoucore-camouwolf')
     except Exception:
         return '0.0.0'
 

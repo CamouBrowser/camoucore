@@ -122,7 +122,7 @@ def _get_library_version() -> str:
     from importlib.metadata import version
 
     try:
-        return version('camoufox')
+        return version('camoucore-camoufox')
     except Exception:
         return '0.0.0'
 

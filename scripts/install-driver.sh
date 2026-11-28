@@ -6,7 +6,8 @@
 #   scripts/install-driver.sh <launcher> <python-venv-dir> <npm-target-dir> [python-extras]
 #
 #   launcher         a launcher in this repository: python/<launcher> and
-#                    typescript/<launcher> (camouwolf)
+#                    typescript/<launcher> (camoufox, camouwolf), published as
+#                    camoucore-<launcher>
 #   python-venv-dir  a virtualenv; created when it does not exist. camoucore and
 #                    the launcher are pip-installed into it (not editable).
 #   npm-target-dir   typescript/camoucore and typescript/<launcher> are built,
@@ -37,7 +38,7 @@ fi
 "$venv/bin/python" -m pip install --quiet --upgrade pip
 "$venv/bin/python" -m pip install --quiet \
 	"$repo/python/camoucore$suffix" "$repo/python/$launcher$suffix"
-"$venv/bin/python" -c "import camoucore, $launcher; print('python:', '$launcher', 'and camoucore installed')"
+"$venv/bin/python" -c "import camoucore, $launcher; print('python:', 'camoucore-$launcher', 'and camoucore installed')"
 
 # ---- npm
 if [ -z "$npm_dir" ] || [ "$npm_dir" = "-" ]; then
@@ -75,9 +76,9 @@ trap 'rm -rf "$pack"' EXIT
 # and the camoucore tarball installed beside it satisfies that.
 (cd "$npm_dir" && npm install --no-audit --no-fund --silent "$pack"/*.tgz)
 (cd "$npm_dir" && node --input-type=module -e "
-	const m = await import('$launcher');
-	if (typeof m.launchOptions !== 'function') throw new Error('$launcher has no launchOptions');
+	const m = await import('camoucore-$launcher');
+	if (typeof m.launchOptions !== 'function') throw new Error('camoucore-$launcher has no launchOptions');
 	const { createRequire } = await import('node:module');
-	const v = createRequire(import.meta.url)('$launcher/package.json').version;
-	console.log('npm: $launcher', v, 'installed in $npm_dir');
+	const v = createRequire(import.meta.url)('camoucore-$launcher/package.json').version;
+	console.log('npm: camoucore-$launcher', v, 'installed in $npm_dir');
 ")

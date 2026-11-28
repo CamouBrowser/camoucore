@@ -23,7 +23,7 @@ const protocolStream = new Writable({
 
 const USAGE =
 	"usage: camoucore-mcp <launcher> [--secrets <file>] [--allowed-domains <pattern,...>] [--profile <dir>] [--uploads <dir>]\n" +
-	"  <launcher>  the package to drive: camoufox or camouwolf\n" +
+	"  <launcher>  the launcher package to drive: camoucore-camoufox or camoucore-camouwolf\n" +
 	"  --profile   your own browser profile, which session_open { profile: true } runs a copy of\n" +
 	"  --uploads   the one directory upload_file may attach files from";
 let parsed: ReturnType<typeof parse>;

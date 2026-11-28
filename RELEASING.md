@@ -4,18 +4,28 @@ Every package is released together, at one version:
 
 | Registry | Packages |
 |---|---|
-| PyPI | `camoucore`, `camouwolf` |
-| npm | `camoucore`, `camouwolf`, `camoucore-mcp` |
+| PyPI | `camoucore`, `camoucore-camoufox`, `camoucore-camouwolf` |
+| npm | `camoucore`, `camoucore-camoufox`, `camoucore-camouwolf`, `camoucore-mcp` |
+
+The launchers' import packages and CLIs are `camoufox` and `camouwolf`. The
+PyPI and npm packages of those names belong to the browser repositories
+(daijro/camoufox, CamouBrowser/camouwolf): each depends on exactly one
+`camoucore-<launcher>` release and ships the browser pin.
 
 A launcher pins exactly its own release's camoucore, so they cannot be
 released apart.
 
 ## The browser ships first
 
-A release is tested against each launcher's newest browser release and
-stamped with it (`browser-pin.json`): by default the published driver fetches
-exactly the browser build it was tested with. So release a browser change
-first, then the driver that needs it. A browser repository whose CI must test
+A release is tested against each launcher's newest browser release, and each
+driver's own `browser-pin.json` is stamped with it. The pin that wins,
+though, is the browser repository's: its `<launcher>` package ships
+`<launcher>_pin/browser-pin.json` (Python: the `<launcher>_pin` package; npm:
+`<launcher>/<launcher>_pin/browser-pin.json`, exported at that subpath), and
+the driver reads it whenever that package is installed. The driver's stamped
+pin is the fallback for a driver installed on its own: the browser camoucore's
+CI tested it with. So release a browser change first, then the driver that
+needs it, then the browser repository's package that pairs them. A browser repository whose CI must test
 an unreleased driver points its `ci/driver-ref` at a camoucore ref until the
 driver ships.
 
@@ -35,8 +45,8 @@ driver ships.
    - the whole of `tests.yml`, including each launcher against its newest
      browser release;
    - checks that the tag is the version every package carries;
-   - stamps each launcher's `browser-pin.json` with the browser it was tested
-     on (into the built packages only; the repository keeps `{}`);
+   - stamps each launcher's fallback `browser-pin.json` with the browser it
+     was tested on (into the built packages only; the repository keeps `{}`);
    - builds the Python sdists and wheels and the npm tarballs (`pnpm pack`
      writes `workspace:*` as the exact version) and attests their build
      provenance;
@@ -54,9 +64,11 @@ needs a trusted publisher for this repository, workflow `release.yml`:
 | Registry | Package | Environment |
 |---|---|---|
 | PyPI | `camoucore` | `pypi` |
-| PyPI | `camouwolf` | `pypi` |
+| PyPI | `camoucore-camoufox` | `pypi` |
+| PyPI | `camoucore-camouwolf` | `pypi` |
 | npm | `camoucore` | `npm` |
-| npm | `camouwolf` | `npm` |
+| npm | `camoucore-camoufox` | `npm` |
+| npm | `camoucore-camouwolf` | `npm` |
 | npm | `camoucore-mcp` | `npm` |
 
 The repository's `pypi` and `npm` environments should allow only `v*` tags.

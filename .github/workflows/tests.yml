@@ -236,7 +236,8 @@ jobs:
       - name: The MCP server drives the browser
         working-directory: mcp
         env:
-          CAMOUCORE_MCP_LAUNCHER: ${{ matrix.launcher }}
+          # The launcher's npm package, which the MCP workspace depends on.
+          CAMOUCORE_MCP_LAUNCHER: camoucore-${{ matrix.launcher }}
         run: xvfb-run -a pnpm exec vitest run tests/real-browser.test.ts
       - name: The packed drivers, installed clean, launch the browser
         run: |

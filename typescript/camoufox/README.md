@@ -23,9 +23,16 @@ AI coding agents are in [`AGENTS.md`](https://github.com/daijro/camoufox/blob/ma
 ## Install
 
 ```bash
-npm install camoufox playwright-core
+npm install camoufox camoucore-camoufox playwright-core
 npx camoufox fetch
 ```
+
+`camoufox` is the [daijro/camoufox](https://github.com/daijro/camoufox)
+repository's package: it pins this driver, `camoucore-camoufox`, at the exact
+release that browser was tested with, and that browser build
+(`camoufox/camoufox_pin`). The driver is the module you import, as
+`camoucore-camoufox`; on its own it fetches the browser camoucore's CI tested it
+with.
 
 | Requirement | Value |
 |---|---|
@@ -46,7 +53,7 @@ persistent profile), so existing Playwright code works once the launch is
 changed.
 
 ```javascript
-import { Camoufox } from "camoufox";
+import { Camoufox } from "camoucore-camoufox";
 
 const browser = await Camoufox({ headless: true });
 const page = await browser.newPage();
@@ -62,7 +69,7 @@ parity with Python.
 ### Proxy with a matching location
 
 ```javascript
-import { Camoufox } from "camoufox";
+import { Camoufox } from "camoucore-camoufox";
 
 const browser = await Camoufox({
     proxy: { server: "http://proxy.example.com:8080", username: "user", password: "pass" },
@@ -81,7 +88,7 @@ browser behaves as on an IPv4-only network, and a `LeakWarning` says why.
 ### Persistent profile
 
 ```javascript
-import { Camoufox } from "camoufox";
+import { Camoufox } from "camoucore-camoufox";
 
 const context = await Camoufox({ persistent_context: true, user_data_dir: "./profiles/alice" });
 const page = await context.newPage();
@@ -96,7 +103,7 @@ fonts, voices, timezone, WebRTC IP), applied through
 `addInitScript` before any page script runs.
 
 ```javascript
-import { Camoufox, NewContext } from "camoufox";
+import { Camoufox, NewContext } from "camoucore-camoufox";
 
 const browser = await Camoufox({ headless: true, canvas_noise: true });
 const alice = await NewContext(browser, { os: "windows" });
@@ -189,7 +196,7 @@ host's only when the identity claims the host's GPU. Otherwise
 | `"virtual-gpu"` | A headed browser on a private, headless Xorg server bound to one GPU | Linux only, needs Xorg and the card's driver. Canvas and WebGL render on the card. Handled like `"virtual"`. |
 
 ```javascript
-import { Camoufox } from "camoufox";
+import { Camoufox } from "camoucore-camoufox";
 
 const browser = await Camoufox({ headless: "virtual-gpu", gpu: "0000:01:00.0", os: "linux" });
 ```
@@ -210,7 +217,7 @@ errors: [The GPU display](https://github.com/daijro/camoufox/blob/main/python/RE
 ### Remote server
 
 ```javascript
-import { launchServer } from "camoufox";
+import { launchServer } from "camoucore-camoufox";
 
 const server = await launchServer({ headless: true, port: 1234, ws_path: "camoufox" });
 console.log(server.wsEndpoint());
@@ -226,7 +233,7 @@ returns the options for `firefox.launch()`:
 
 ```javascript
 import { firefox } from "playwright-core";
-import { NewBrowser, launchOptions } from "camoufox";
+import { NewBrowser, launchOptions } from "camoucore-camoufox";
 
 const browser = await NewBrowser(firefox, { os: "linux", headless: true });
 await browser.close();
@@ -245,7 +252,7 @@ window size is spoofed, and to the host's own color scheme and motion settings.
 The browser does not humanize input: each Playwright call reaches the page as one native-looking event ([docs/humanize.md](../docs/humanize.md)). Humanization belongs to the driver. The `humanize` option picks an engine per channel, run in your own process:
 
 ```ts
-import { Camoufox, myuri, raw } from "camoufox";
+import { Camoufox, myuri, raw } from "camoucore-camoufox";
 
 // `humanize: true` is myuri() on every channel
 const browser = await Camoufox({
@@ -270,7 +277,7 @@ Each piece of myuri is a part you can replace with a function of yours, in your 
 
 ```ts
 import { setTimeout as sleep } from "node:timers/promises";
-import { Camoufox, myuri } from "camoufox";
+import { Camoufox, myuri } from "camoucore-camoufox";
 
 const browser = await Camoufox({
 	humanize: {

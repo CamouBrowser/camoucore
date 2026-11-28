@@ -3,7 +3,10 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "camoufox"
+# The driver. The browser repository publishes `camoufox` itself: a wrapper that
+# pins this release and the browser it was tested with (camoufox_pin). The import
+# package and the CLI stay `camoufox`.
+name = "camoucore-camoufox"
 version = "0.6.0"
 description = "Wrapper around Playwright to help launch Camoufox"
 authors = ["daijro <daijro.dev@gmail.com>"]
@@ -11,6 +14,7 @@ license = "MIT"
 repository = "https://github.com/CamouBrowser/camoucore"
 homepage = "https://camoufox.com/python"
 readme = "README.md"
+packages = [{ include = "camoufox", from = "src" }]
 keywords = [
     "client",
     "fingerprint",

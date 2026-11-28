@@ -31,7 +31,7 @@ class FallbackWarning(RuntimeWarning):
         with a block of versions and the error for the user to paste into an issue.
         """
         try:
-            camoufox_version = version('camoufox')
+            camoufox_version = version('camoucore-camoufox')
         except PackageNotFoundError:
             camoufox_version = 'source checkout'
         lines = [

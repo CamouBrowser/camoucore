@@ -1002,7 +1002,7 @@ def start_telemetry(target: Any, from_options: Dict[str, Any], setting: Optional
         passthrough = launch_is_passthrough(from_options)
         telemetry = Telemetry(
             PRODUCT,
-            version=package_version('camouwolf'),
+            version=package_version('camoucore-camouwolf'),
             browser_version=resolve_version(from_options['executable_path']),
             # Camouwolf has no Pro build.
             pro=False,

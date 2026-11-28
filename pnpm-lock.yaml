@@ -24,7 +24,10 @@ importers:
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
-      camouwolf:
+      camoucore-camoufox:
+        specifier: workspace:*
+        version: link:../typescript/camoufox
+      camoucore-camouwolf:
         specifier: workspace:*
         version: link:../typescript/camouwolf
       playwright-core:

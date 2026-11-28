@@ -11,18 +11,18 @@ itself, such as a payment.
 ## Running it
 
 The server takes the launcher package to drive. That package must export
-`PRODUCT` and `NewBrowser`, as camouwolf does from 0.1.0, and its browser must
+`PRODUCT` and `NewBrowser`, as `camoucore-camoufox` and `camoucore-camouwolf` do, and its browser must
 be installed:
 
 ```bash
-npx camouwolf fetch
-npx -y -p camoucore-mcp -p camouwolf camoucore-mcp camouwolf
+npx -y -p camoucore-camouwolf camouwolf fetch
+npx -y -p camoucore-mcp -p camoucore-camouwolf camoucore-mcp camoucore-camouwolf
 ```
 
 In Claude Code:
 
 ```bash
-claude mcp add camouwolf -- npx -y -p camoucore-mcp -p camouwolf camoucore-mcp camouwolf
+claude mcp add camouwolf -- npx -y -p camoucore-mcp -p camoucore-camouwolf camoucore-mcp camoucore-camouwolf
 ```
 
 Any other MCP client takes the same command:
@@ -32,7 +32,7 @@ Any other MCP client takes the same command:
   "mcpServers": {
     "camouwolf": {
       "command": "npx",
-      "args": ["-y", "-p", "camoucore-mcp", "-p", "camouwolf", "camoucore-mcp", "camouwolf"]
+      "args": ["-y", "-p", "camoucore-mcp", "-p", "camoucore-camouwolf", "camoucore-mcp", "camoucore-camouwolf"]
     }
   }
 }
@@ -83,7 +83,7 @@ to the sites they belong to, after browser-use's `sensitive_data`:
 
 ```bash
 chmod 600 ~/.config/camoucore-mcp/secrets.json
-claude mcp add camouwolf -- npx -y -p camoucore-mcp -p camouwolf camoucore-mcp camouwolf \
+claude mcp add camouwolf -- npx -y -p camoucore-mcp -p camoucore-camouwolf camoucore-mcp camoucore-camouwolf \
   --secrets ~/.config/camoucore-mcp/secrets.json
 ```
 

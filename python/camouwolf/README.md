@@ -17,11 +17,17 @@ to the browser, which answers with it from C++.
 ## Install
 
 ```bash
-pip install -U "camouwolf[geoip]"
+pip install -U camouwolf "camoucore-camouwolf[geoip]"
 camouwolf fetch
 ```
 
-Add the `captcha` extra (`"camouwolf[geoip,captcha]"`) to use the `captcha`
+`camouwolf` is the [CamouBrowser/camouwolf](https://github.com/CamouBrowser/camouwolf) repository's
+package: it installs this driver, `camoucore-camouwolf`, at the exact release that
+browser was tested with, and pins that browser build (`camouwolf_pin`). The driver
+on its own fetches the browser camoucore's CI tested it with. The import is
+`camouwolf` either way.
+
+Add the `captcha` extra (`"camoucore-camouwolf[geoip,captcha]"`) to use the `captcha`
 option.
 
 `camouwolf fetch` installs the browser from the

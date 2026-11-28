@@ -3,7 +3,10 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "camouwolf"
+# The driver. The browser repository publishes `camouwolf` itself: a wrapper that
+# pins this release and the browser it was tested with (camouwolf_pin). The import
+# package and the CLI stay `camouwolf`.
+name = "camoucore-camouwolf"
 version = "0.6.0"
 description = "Wrapper around Playwright to help launch Camouwolf"
 # Camouwolf's launcher is derived from the Camoufox Python launcher (MIT, daijro
@@ -12,6 +15,7 @@ authors = ["JWriter20", "daijro <daijro.dev@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/CamouBrowser/camoucore"
 readme = "README.md"
+packages = [{ include = "camouwolf", from = "src" }]
 keywords = [
     "client",
     "fingerprint",

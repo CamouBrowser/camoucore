@@ -1,14 +1,14 @@
-// Launch the INSTALLED camoufox npm package, run the shared page probe, then
+// Launch the INSTALLED camoucore-camoufox npm package, run the shared page probe, then
 // click and type as python_probe.py's "interact" mode does: its Node twin, used
 // by ci/run_install.py.
 //
 //   echo '{"url": "...", "probe": "<path to probe.js>", "text": "...", "kwargs": {...}}' | node node_probe.mjs
 //
-// A bare `camoufox` import resolves from this file's directory, so the caller
+// A bare `camoucore-camoufox` import resolves from this file's directory, so the caller
 // copies it into the project that installed the packed tarball. Prints one
 // JSON object, {"probe", "events", "value"}, as the last line of stdout.
 import fs from "node:fs";
-import { Camoufox } from "camoufox";
+import { Camoufox } from "camoucore-camoufox";
 
 const req = JSON.parse(fs.readFileSync(0, "utf-8"));
 const probe = fs.readFileSync(req.probe, "utf-8");

@@ -1,5 +1,5 @@
 {
-  "name": "camoufox",
+  "name": "camoucore-camoufox",
   "version": "0.6.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
