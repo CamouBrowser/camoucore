@@ -1793,15 +1793,25 @@ describe.skipIf(!MODEL.ok)(
 		])("every bundled %s preset launches with its own GPU", async (osName) => {
 			const presets = fingerprints.loadPresets("150")?.presets[osName] ?? [];
 			expect(presets.length).toBeGreaterThan(0);
-			for (const [i, preset] of presets.entries()) {
-				const config = await launchConfig({
-					os: osName,
-					fingerprint_preset: preset,
-				});
-				expect(config["webGl:parameters"], `${osName} ${i}`).toBeTruthy();
-				expect(config["webGl:renderer"], `${osName} ${i}`).toBe(
-					preset.webgl.unmaskedRenderer,
-				);
+			// hardwareConcurrency follows the host, and the GPU must fit it (no
+			// Intel Mac reports 20 or 24 cores beside its IGP), so a many-core CI
+			// host would redraw a preset's GPU. 8 cores fit every preset's machine.
+			const fix = deps.fixHardwareConcurrency;
+			deps.fixHardwareConcurrency = (config, canPin) =>
+				fix(config, canPin, { cpuCount: 8 });
+			try {
+				for (const [i, preset] of presets.entries()) {
+					const config = await launchConfig({
+						os: osName,
+						fingerprint_preset: preset,
+					});
+					expect(config["webGl:parameters"], `${osName} ${i}`).toBeTruthy();
+					expect(config["webGl:renderer"], `${osName} ${i}`).toBe(
+						preset.webgl.unmaskedRenderer,
+					);
+				}
+			} finally {
+				deps.fixHardwareConcurrency = fix;
 			}
 		}, 120_000);
 	},

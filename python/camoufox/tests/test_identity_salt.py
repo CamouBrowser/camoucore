@@ -95,9 +95,13 @@ class TestPinnedIdentityIsStable:
         # The test above draws ONE preset at random, so a preset that cannot
         # launch would show up as a flake rather than a failure. Every preset
         # must launch with its own GPU and that GPU's recorded parameters.
+        # hardwareConcurrency follows the host, and the GPU must fit it (no Intel
+        # Mac reports 20 or 24 cores beside its IGP), so a many-core host would
+        # redraw a preset's GPU. 8 cores fit every preset's machine.
         presets = fp.load_presets("150")["presets"][os_name]
         for i, preset in enumerate(presets):
-            config = launch(os=os_name, fingerprint_preset=preset)
+            with mock.patch.object(fp, "host_cpu_count", lambda: 8):
+                config = launch(os=os_name, fingerprint_preset=preset)
             assert config["webGl:renderer"] == preset["webgl"]["unmaskedRenderer"], (os_name, i)
             assert config.get("webGl:parameters"), (os_name, i)
 

@@ -70,14 +70,19 @@ jobs:
         # xvfb: the virtual-display lifecycle tests start servers of their own.
         run: command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends xvfb; }
       # Every extra each package declares (geoip: camoucore's GeoIP source
-      # tests download every source and fail when one stops publishing).
+      # tests download every source and fail when one stops publishing). Into a
+      # fresh venv: a self-hosted runner keeps setup-python's interpreter across
+      # jobs, and a package another job installed there non-editable (the
+      # integration job's camoufox) would shadow this checkout's.
       - env:
           PKG: ${{ matrix.package }}
         run: |
           extras() { python3 -c 'import sys, tomllib; print(",".join(tomllib.load(open(sys.argv[1], "rb"))["tool"]["poetry"].get("extras", {})))' "python/$1/pyproject.toml"; }
           pkgs=("python/camoucore[$(extras camoucore)]")
           [ "$PKG" = camoucore ] || pkgs+=("python/$PKG[$(extras "$PKG")]")
-          python3 -m pip install -q -r python/requirements-dev.txt "${pkgs[@]/#/-e}"
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/python" -m pip install -q -r python/requirements-dev.txt "${pkgs[@]/#/-e}"
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
       - uses: ./.github/actions/fpgen-model
       - name: pytest
         working-directory: python/${{ matrix.package }}
