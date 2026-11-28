@@ -24,8 +24,8 @@ import pytest
 
 from camoucore import ip
 
-from camoufox import async_api, sync_api
-from camoufox.exceptions import InvalidIP
+from camoucore.camoufox import async_api, sync_api
+from camoucore.camoufox.exceptions import InvalidIP
 
 
 class _Response:

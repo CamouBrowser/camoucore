@@ -16,11 +16,11 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
+REPO = Path(__file__).resolve().parents[4]
 FORBIDDEN = re.compile(r'Emulation\.set(UserAgentOverride|TimezoneOverride|LocaleOverride)')
 SOURCES = [
-    *(REPO / 'python' / 'camouwolf' / 'src').rglob('*.py'),
-    *(REPO / 'typescript' / 'camouwolf' / 'src').rglob('*.ts'),
+    *(REPO / 'python' / 'camoucore' / 'src' / 'camoucore' / 'camouwolf').rglob('*.py'),
+    *(REPO / 'typescript' / 'camoucore' / 'src' / 'camouwolf').rglob('*.ts'),
 ]
 
 

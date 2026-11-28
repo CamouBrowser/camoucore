@@ -20,14 +20,14 @@ carry a 1080p floor.
 
 import pytest
 
-from camoufox.fingerprints import (
+from camoucore.camoufox.fingerprints import (
     MODERN_SCREEN_FLOOR,
     _renderer_bucket,
     gpu_screen_is_plausible,
     is_software_renderer,
     raise_screen_to_modern_floor,
 )
-from camoufox.webgl import sample_webgl_for_screen
+from camoucore.camoufox.webgl import sample_webgl_for_screen
 
 # The three spellings Gecko emits for one discrete-NVIDIA bucket.
 _NV_ANGLE = "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar"
@@ -200,7 +200,7 @@ def test_context_fingerprints_get_the_same_treatment(target_os):
     build-tester drives the browser through it. It drew the GPU without the
     screen and never applied the floor, so the coherence fix reached
     launch_options() only."""
-    from camoufox.fingerprints import generate_context_fingerprint
+    from camoucore.camoufox.fingerprints import generate_context_fingerprint
 
     for _ in range(15):
         config = generate_context_fingerprint(os=target_os)["config"]
@@ -227,10 +227,10 @@ def test_preset_screens_are_never_lifted():
     import json
     from pathlib import Path
 
-    from camoufox.utils import launch_options
+    from camoucore.camoufox.utils import launch_options
 
     presets = json.loads(
-        (Path(__file__).parent.parent / "src" / "camoufox" / "fingerprint-presets-v150.json").read_text()
+        (Path(__file__).resolve().parents[2] / "src" / "camoucore" / "camoufox" / "fingerprint-presets-v150.json").read_text()
     )
 
     def small_presets(node):

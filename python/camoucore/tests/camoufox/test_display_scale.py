@@ -2,8 +2,8 @@
 
 import pytest
 
-from camoufox import utils
-from camoufox.fingerprints import Screen
+from camoucore.camoufox import utils
+from camoucore.camoufox.fingerprints import Screen
 
 from test_launch_environment import isolated_launch_dependencies  # noqa: F401
 

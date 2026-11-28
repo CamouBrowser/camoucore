@@ -12,7 +12,7 @@ that way, and a macOS or Linux identity is left as it is.
 
 import pytest
 
-from camoufox import utils
+from camoucore.camoufox import utils
 
 from test_launch_environment import isolated_launch_dependencies  # noqa: F401
 
@@ -162,7 +162,7 @@ def test_caller_scrollbar_style_wins(launch):
 
 
 def test_a_windows_identity_without_coordinates_never_has_location_on():
-    from camoufox.fingerprints import set_location_setting_default
+    from camoucore.camoufox.fingerprints import set_location_setting_default
     seen = set()
     for salt in range(400):
         config = {"navigator.userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0)"}

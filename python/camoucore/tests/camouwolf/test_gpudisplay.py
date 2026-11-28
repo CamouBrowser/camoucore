@@ -19,9 +19,9 @@ from unittest import mock
 
 import pytest
 
-from camouwolf import gpudisplay, host_rendering, sync_api, utils
-from camouwolf._warnings import LeakWarning
-from camouwolf.exceptions import (
+from camoucore.camouwolf import gpudisplay, host_rendering, sync_api, utils
+from camoucore.camouwolf._warnings import LeakWarning
+from camoucore.camouwolf.exceptions import (
     AmbiguousGpuSelection,
     CannotExecuteXorg,
     CannotFindXorg,
@@ -31,7 +31,7 @@ from camouwolf.exceptions import (
     NoGpuFound,
     VirtualDisplayError,
 )
-from camouwolf.gpudisplay import (
+from camoucore.camouwolf.gpudisplay import (
     GPU_SWITCHES,
     GpuDevice,
     GpuDisplay,
@@ -214,7 +214,7 @@ class TestXorgConfig:
         assert config_name(NVIDIA) == 'camouwolf-gpu-0000_01_00_0.conf'
 
     def test_the_cli_prints_it(self, monkeypatch, capsys):
-        from camouwolf.__main__ import cli
+        from camoucore.camouwolf.__main__ import cli
 
         monkeypatch.setattr(gpudisplay, 'enumerate_gpus', lambda: HOST)
         with pytest.raises(SystemExit) as exit:
@@ -270,7 +270,7 @@ class TestSetup:
         assert ('nvidia_drv.so' in script) is (gpu.xorg_driver == 'nvidia')
 
     def test_the_cli_prints_it(self, monkeypatch, capsys):
-        from camouwolf.__main__ import cli
+        from camoucore.camouwolf.__main__ import cli
 
         monkeypatch.setattr(gpudisplay, 'enumerate_gpus', lambda: HOST)
         with pytest.raises(SystemExit) as exit:

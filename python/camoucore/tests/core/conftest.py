@@ -10,7 +10,7 @@ TESTS_DIR = Path(__file__).resolve().parent
 # Tests that start another interpreter test this checkout too, and can import
 # PRODUCT from here.
 os.environ['PYTHONPATH'] = os.pathsep.join(
-    filter(None, (str(TESTS_DIR.parent / 'src'), str(TESTS_DIR), os.environ.get('PYTHONPATH')))
+    filter(None, (str(TESTS_DIR.parents[1] / 'src'), str(TESTS_DIR), os.environ.get('PYTHONPATH')))
 )
 
 # A launcher for the tests to be: camoucore code never names a real one.

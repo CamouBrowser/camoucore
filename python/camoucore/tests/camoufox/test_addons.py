@@ -13,7 +13,7 @@ Run with:
 import warnings
 from pathlib import Path
 
-from camoufox.addons import DefaultAddons, add_default_addons, get_addon_path
+from camoucore.camoufox.addons import DefaultAddons, add_default_addons, get_addon_path
 
 
 def _build(root: Path, *, mac: bool = False, bundled: bool = True) -> Path:

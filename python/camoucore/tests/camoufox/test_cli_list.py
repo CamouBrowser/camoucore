@@ -4,9 +4,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from camoufox import __main__ as cli
-from camoufox.multiversion import InstalledVersion
-from camoufox.pkgman import Version
+from camoucore.camoufox import __main__ as cli
+from camoucore.camoufox.multiversion import InstalledVersion
+from camoucore.camoufox.pkgman import Version
 
 
 def test_list_all_shows_the_path_of_an_installed_build(monkeypatch):

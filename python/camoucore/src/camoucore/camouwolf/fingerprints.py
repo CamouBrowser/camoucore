@@ -16,8 +16,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import orjson
 
-from camouwolf.clienthints import retarget_user_agent
-from camouwolf.pkgman import LAUNCHER_CONSTANTS, LOCAL_DATA, load_yaml
+from .clienthints import retarget_user_agent
+from .pkgman import LAUNCHER_CONSTANTS, LOCAL_DATA, load_yaml
 
 # Load the fpgen mapping file
 FPGEN_DATA = load_yaml('fpgen.yml')
@@ -627,7 +627,7 @@ def handle_screenXY(camouwolf_data: Dict[str, Any], fingerprint: Dict[str, Any])
 
 def fingerprint_os(fingerprint: Dict[str, Any]) -> Optional[str]:
     """The OS key ('win', 'mac', 'lin') an fpgen fingerprint was recorded on."""
-    from camouwolf.clienthints import ua_os
+    from .clienthints import ua_os
 
     user_agent = (fingerprint.get('navigator') or {}).get('userAgent')
     return ua_os(user_agent) if isinstance(user_agent, str) else None
@@ -643,7 +643,7 @@ def from_fpgen(
     recorded user agent is rewritten to it. `network_voices` keeps the recorded
     network voices, for a build whose product is Chrome (pack_voices).
     """
-    from camouwolf.webgl import webgl_identity
+    from .webgl import webgl_identity
 
     camouwolf_data: Dict[str, Any] = {}
     _cast_to_properties(camouwolf_data, FPGEN_DATA, fingerprint)

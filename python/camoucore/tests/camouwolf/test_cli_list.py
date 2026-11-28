@@ -4,9 +4,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from camouwolf import __main__ as cli
-from camouwolf.multiversion import InstalledVersion
-from camouwolf.pkgman import Version
+from camoucore.camouwolf import __main__ as cli
+from camoucore.camouwolf.multiversion import InstalledVersion
+from camoucore.camouwolf.pkgman import Version
 
 
 def test_list_all_shows_the_path_of_an_installed_build(monkeypatch):

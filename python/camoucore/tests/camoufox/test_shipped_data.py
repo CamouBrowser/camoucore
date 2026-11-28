@@ -4,7 +4,7 @@
 a page either way. This is the second filter, on the data itself: a row that
 survives here is one a future refresh could ship, a consumer reading the JSON
 directly would get, and a reviewer would take as real. Both filters run the same
-rules -- `python/camoufox/scripts/clean-fingerprint-data.py --write` is what makes these pass.
+rules -- `python/camoucore/scripts/camoufox/clean-fingerprint-data.py --write` is what makes these pass.
 
 Dropped on 2026-09-17: 38 of 435 presets (26 with a GPU their OS cannot report,
 7 pairing Apple Silicon with a core count Apple never shipped, 4 with a colour
@@ -19,10 +19,10 @@ from pathlib import Path
 
 import pytest
 
-from camoufox import coherence
-from camoufox.fingerprints import from_preset
+from camoucore.camoufox import coherence
+from camoucore.camoufox.fingerprints import from_preset
 
-DATA = Path(__file__).parent.parent / "src" / "camoufox"
+DATA = Path(__file__).resolve().parents[2] / "src" / "camoucore" / "camoufox"
 PRESET_FILES = ("fingerprint-presets.json", "fingerprint-presets-v150.json")
 OS_KEY = {"macos": "mac", "windows": "win", "linux": "lin"}
 
@@ -38,7 +38,7 @@ def test_every_bundled_preset_is_coherent_as_stored(filename):
             assert violations == [], (
                 f"{filename} {os_name}[{index}]: "
                 + "; ".join(v.detail for v in violations)
-                + " -- run python/camoufox/scripts/clean-fingerprint-data.py --write"
+                + " -- run python/camoucore/scripts/camoufox/clean-fingerprint-data.py --write"
             )
 
 
@@ -47,7 +47,7 @@ def test_every_preset_gpu_has_webgl_data(filename):
     """A preset records only its GPU's name; the WebGL parameters behind it come
     from fpgen. A GPU fpgen has never seen Firefox report on that OS has none, so
     launching it would pair the name with another device's parameters."""
-    from camoufox.webgl import firefox_gpus
+    from camoucore.camoufox.webgl import firefox_gpus
 
     presets = json.loads((DATA / filename).read_text())["presets"]
     for os_name, entries in presets.items():
@@ -56,5 +56,5 @@ def test_every_preset_gpu_has_webgl_data(filename):
             gpu = (preset["webgl"]["unmaskedVendor"], preset["webgl"]["unmaskedRenderer"])
             assert gpu in known, (
                 f"{filename} {os_name}[{index}]: {gpu[1]!r} has no WebGL data"
-                " -- run python/camoufox/scripts/clean-fingerprint-data.py --write"
+                " -- run python/camoucore/scripts/camoufox/clean-fingerprint-data.py --write"
             )

@@ -2,8 +2,8 @@
 
 import pytest
 
-from camouwolf import fingerprints, webgl
-from camouwolf.fingerprints import from_fpgen
+from camoucore.camouwolf import fingerprints, webgl
+from camoucore.camouwolf.fingerprints import from_fpgen
 
 RENDERER = 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002503) Direct3D11 vs_5_0 ps_5_0, D3D11)'
 
@@ -152,7 +152,7 @@ def test_a_chrome_build_keeps_the_recorded_network_voices():
 
 
 def test_the_build_states_its_product(tmp_path):
-    from camouwolf.utils import build_product
+    from camoucore.camouwolf.utils import build_product
 
     binary = tmp_path / 'camouwolf'
     assert build_product(binary) == 'chromium'
@@ -179,7 +179,7 @@ def test_every_essential_font_is_in_the_bundle(target_os):
 
 
 def test_every_mapped_key_is_in_the_schema():
-    from camouwolf import utils
+    from camoucore.camouwolf import utils
 
     utils.validate_config(from_fpgen(WINDOWS_FINGERPRINT, chrome_version=152))
 
@@ -222,7 +222,7 @@ def test_a_drawn_fingerprint_is_chrome_on_the_asked_os(os_name, key):
 
     assert 'Chrome/' in fingerprint['navigator']['userAgent']
     assert fingerprints.fingerprint_os(fingerprint) == key
-    from camouwolf import utils
+    from camoucore.camouwolf import utils
     utils.validate_config(from_fpgen(fingerprint, chrome_version=152))
 
 

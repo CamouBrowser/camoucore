@@ -11,7 +11,7 @@ from unittest import mock
 
 import pytest
 
-from camoufox import async_api, sync_api
+from camoucore.camoufox import async_api, sync_api
 
 
 def _user_agent(init_script):

@@ -9,7 +9,7 @@ import asyncio
 
 import pytest
 
-from camoufox import async_api, sync_api, utils
+from camoucore.camoufox import async_api, sync_api, utils
 
 
 class FakeDisplay:

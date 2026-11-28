@@ -14,9 +14,9 @@ import pytest
 import requests
 from click.testing import CliRunner
 
-from camoufox import __main__ as cli
-from camoufox import browser_pin, multiversion, pkgman
-from camoufox.__version__ import CONSTRAINTS
+from camoucore.camoufox import __main__ as cli
+from camoucore.camoufox import browser_pin, multiversion, pkgman
+from camoucore.camoufox.__version__ import CONSTRAINTS
 
 API = "https://api.github.com/repos/daijro/camoufox/releases"
 UPDATE = cli.CamoufoxUpdate

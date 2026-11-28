@@ -9,7 +9,7 @@ can carry. typescript/camoufox/tests/fingerprints.test.ts mirrors them.
 """
 
 
-from camoufox.fingerprints import (
+from camoucore.camoufox.fingerprints import (
     clamp_screen_to_display,
     clamp_window_dimensions,
     clamp_window_position,
@@ -262,7 +262,7 @@ class TestSetMediaDevicesDefaults:
         assert 0.55 < cams / 400 < 0.95
 
     def test_per_os_label_style(self):
-        from camoufox.fingerprints import draw_media_devices
+        from camoucore.camoufox.fingerprints import draw_media_devices
 
         mac = draw_media_devices("mac", 7)
         assert all(not s.startswith("Microphone (") for s in mac["mediaDevices:microphoneLabels"])
@@ -287,7 +287,7 @@ class TestSetMediaDevicesDefaults:
                 assert len(set(cams)) == len(cams)
 
     def test_capture_capabilities_align_with_devices(self):
-        from camoufox.fingerprints import _load_media_devices, draw_media_devices
+        from camoucore.camoufox.fingerprints import _load_media_devices, draw_media_devices
 
         cat = _load_media_devices()
         for os_key in ("win", "mac", "lin"):
@@ -324,7 +324,7 @@ class TestFixHardwareConcurrency:
         # An Intel iGPU Mac reports at most 16 threads, so a kept draw snaps
         # into that table (#1090); a dGPU Mac goes to 56 and keeps 32.
         from camoucore import cpu_affinity
-        from camoufox import coherence, fingerprints as fp
+        from camoucore.camoufox import coherence, fingerprints as fp
 
         monkeypatch.setattr(cpu_affinity, "supported", lambda: True)
         monkeypatch.setattr(fp, "host_cpu_count", lambda: 32)
@@ -347,7 +347,7 @@ class TestFixHardwareConcurrency:
         # ships with AND the browser can be pinned to it (reported == measurable
         # by construction).
         from camoucore import cpu_affinity
-        from camoufox import fingerprints as fp
+        from camoucore.camoufox import fingerprints as fp
 
         monkeypatch.setattr(cpu_affinity, "supported", lambda: True)
         monkeypatch.setattr(fp, "host_cpu_count", lambda: 16)
@@ -360,7 +360,7 @@ class TestFixHardwareConcurrency:
         # Counts no desktop ships with (2, odd counts) snap DOWN into
         # PLAUSIBLE_CORE_COUNTS, with the table floor for anything below it.
         from camoucore import cpu_affinity
-        from camoufox import fingerprints as fp
+        from camoucore.camoufox import fingerprints as fp
 
         monkeypatch.setattr(cpu_affinity, "supported", lambda: True)
         monkeypatch.setattr(fp, "host_cpu_count", lambda: 16)
@@ -382,7 +382,7 @@ class TestFixHardwareConcurrency:
         # 18/22/24/28/32 are in the table (recorded on real devices); 2 is NOT,
         # although it is recorded, because 2 is the resistFingerprinting value.
         from camoucore import cpu_affinity
-        from camoufox import fingerprints as fp
+        from camoucore.camoufox import fingerprints as fp
 
         monkeypatch.setattr(cpu_affinity, "supported", lambda: False)
         for host, expected in (
@@ -410,7 +410,7 @@ class TestFixHardwareConcurrency:
         assert c["navigator.hardwareConcurrency"] == 8
 
     def test_no_host_count_leaves_the_draw(self, monkeypatch):
-        from camoufox import fingerprints as fp
+        from camoucore.camoufox import fingerprints as fp
 
         monkeypatch.setattr(fp, "host_cpu_count", lambda: None)
         c = {"navigator.hardwareConcurrency": 8}
@@ -461,7 +461,7 @@ class TestPerLaunchTimingDraws:
     each launch draws its own (in range), and a caller's value is kept."""
 
     def test_alias_load_varies_per_launch(self):
-        from camoufox.fingerprints import WINDOWS_ALIAS_LOAD_MS, set_windows_alias_load_default
+        from camoucore.camoufox.fingerprints import WINDOWS_ALIAS_LOAD_MS, set_windows_alias_load_default
 
         seen = set()
         for _ in range(50):
@@ -476,7 +476,7 @@ class TestPerLaunchTimingDraws:
         assert c['fonts:windowsAliasLoadMs'] == 5
 
     def test_cmap_load_varies_per_launch(self):
-        from camoufox.fingerprints import WINDOWS_CMAP_LOAD_MS, set_windows_alias_load_default
+        from camoucore.camoufox.fingerprints import WINDOWS_CMAP_LOAD_MS, set_windows_alias_load_default
 
         seen = set()
         for _ in range(50):
@@ -495,7 +495,7 @@ class TestPerLaunchTimingDraws:
         assert 'fonts:windowsCmapLoadMs' not in c
 
     def test_output_latency_delay_varies_per_launch_device_does_not(self):
-        from camoufox.fingerprints import set_output_latency_default
+        from camoucore.camoufox.fingerprints import set_output_latency_default
 
         base = {'navigator.userAgent': 'x', 'screen.width': 1920}
         devices, delays = set(), set()

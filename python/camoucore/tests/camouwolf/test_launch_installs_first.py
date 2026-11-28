@@ -10,8 +10,8 @@ identity for the old Chromium version and then launched the upgraded one.
 
 import pytest
 
-from camouwolf import DefaultAddons, utils
-from camouwolf.exceptions import CamouwolfNotInstalled
+from camoucore.camouwolf import DefaultAddons, utils
+from camoucore.camouwolf.exceptions import CamouwolfNotInstalled
 
 
 @pytest.fixture

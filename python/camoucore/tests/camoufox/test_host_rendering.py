@@ -13,14 +13,14 @@ import warnings
 from contextlib import contextmanager
 from unittest import mock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 import orjson  # noqa: E402
 import pytest  # noqa: E402
 
-from camoufox import host_rendering, sync_api, utils  # noqa: E402
-from camoufox._warnings import LeakWarning  # noqa: E402
-from camoufox.host_rendering import (  # noqa: E402
+from camoucore.camoufox import host_rendering, sync_api, utils  # noqa: E402
+from camoucore.camoufox._warnings import LeakWarning  # noqa: E402
+from camoucore.camoufox.host_rendering import (  # noqa: E402
     BASELINE_OVERRIDES_PREF,
     CANVAS_PLACEHOLDER_TARGETS,
     FEATURE_BLOCKED_DEVICE,
@@ -238,7 +238,7 @@ def test_the_probe_ignores_what_the_launcher_adds_to_the_environment():
     """host_identity probes with the launch's env and prefs, which carry
     CAMOU_*, FONTCONFIG_FILE and prefs that choose no device; that must hit
     launch_options' cached probe."""
-    from camoufox import host_rendering
+    from camoucore.camoufox import host_rendering
 
     with mock.patch.object(host_rendering, "_host_gpu", return_value=HOST_GPU) as probe:
         host_gpu("/bin/camoufox", True, {"DISPLAY": ":0"}, {})
@@ -363,7 +363,7 @@ class TestHostIdentity:
 
 
 def test_the_probe_does_not_key_on_the_identity(monkeypatch):
-    from camoufox import host_rendering
+    from camoucore.camoufox import host_rendering
 
     reads = []
     monkeypatch.setattr(host_rendering, "_PROBED", {})

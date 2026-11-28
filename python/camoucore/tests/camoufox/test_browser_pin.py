@@ -12,8 +12,8 @@ import warnings
 
 import pytest
 
-from camoufox import browser_pin, multiversion, pkgman, utils
-from camoufox.exceptions import CamoufoxNotInstalled, UnsupportedVersion
+from camoucore.camoufox import browser_pin, multiversion, pkgman, utils
+from camoucore.camoufox.exceptions import CamoufoxNotInstalled, UnsupportedVersion
 
 PIN = {
     "tag": "v156.0.1-beta.33",

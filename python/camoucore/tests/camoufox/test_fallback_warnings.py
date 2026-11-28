@@ -8,9 +8,9 @@ GitHub issue, so the failure reaches us instead of shipping silently.
 import pytest
 from test_identity_salt import launch
 
-from camoufox import fingerprints as fp
-from camoufox import utils
-from camoufox._warnings import FallbackWarning
+from camoucore.camoufox import fingerprints as fp
+from camoucore.camoufox import utils
+from camoucore.camoufox._warnings import FallbackWarning
 
 REPORT = r"Please report this at https://github\.com/daijro/camoufox/issues/new"
 

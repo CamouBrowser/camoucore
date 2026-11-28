@@ -9,11 +9,11 @@ with its GPU and OS, and sent to the browser as general.cpu_identity.
 
 import pytest
 
-from camoufox import coherence
-from camoufox.fingerprints import X86_INTEL_SHARE, is_software_renderer, set_cpu_default
-from camoufox.pkgman import LAUNCHER_CONSTANTS
-from camoufox.utils import _os_for_cpu, cpu_identity_pref, vpx_realtime_only
-from camoufox.webgl import sample_webgl_for_screen
+from camoucore.camoufox import coherence
+from camoucore.camoufox.fingerprints import X86_INTEL_SHARE, is_software_renderer, set_cpu_default
+from camoucore.camoufox.pkgman import LAUNCHER_CONSTANTS
+from camoucore.camoufox.utils import _os_for_cpu, cpu_identity_pref, vpx_realtime_only
+from camoucore.camoufox.webgl import sample_webgl_for_screen
 
 WIN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:159.0) Gecko/20100101 Firefox/159.0"
 NVIDIA = "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar"

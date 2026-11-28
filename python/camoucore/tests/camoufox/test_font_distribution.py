@@ -42,11 +42,11 @@ from collections import Counter
 
 import pytest
 
-from camoufox import fingerprints
-from camoufox.fingerprints import OS_KEYS
-from camoufox.fingerprints import _generate_random_font_subset as draw
+from camoucore.camoufox import fingerprints
+from camoucore.camoufox.fingerprints import OS_KEYS
+from camoucore.camoufox.fingerprints import _generate_random_font_subset as draw
 
-DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src', 'camoufox')
+DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'src', 'camoucore', 'camoufox')
 N = 1500
 
 

@@ -13,7 +13,7 @@ def no_host_gpu_probe(monkeypatch):
     identity claims the host's OS. This suite has no browser, and its results
     must not depend on the machine running it, so the host reads as having no
     WebGL. Tests of the probe's consumers patch it themselves."""
-    from camoufox import utils
+    from camoucore.camoufox import utils
 
     monkeypatch.setattr(utils, 'host_gpu', lambda *args: None)
 
@@ -23,7 +23,7 @@ def properties_of_this_checkout(monkeypatch):
     """launch_options reads properties.json from the installed build. This
     suite runs without a browser, so it reads the snapshot in tests/data; the
     integration tests read the released browser's own."""
-    from camoufox import utils
+    from camoucore.camoufox import utils
 
     load = utils._load_properties
     monkeypatch.setattr(

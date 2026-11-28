@@ -986,7 +986,7 @@ class VersionInfo:
         Add installed package version rows to the table
         """
         self._header("Python Packages")
-        self._pkg("Camoufox", "camoucore-camoufox")
+        self._pkg("Camoufox", "camoucore")
         self._pkg("fpgen", "fpgen")
         self._pkg("Playwright", "playwright")
 
@@ -1074,7 +1074,7 @@ class VersionInfo:
         self._header("GeoIP")
         if not ALLOW_GEOIP:
             # maxminddb not installed
-            self._row("Status", "Not supported (install camoucore-camoufox[geoip])", style="dim")
+            self._row("Status", "Not supported (install camoufox[geoip])", style="dim")
         else:
             try:
                 config = load_geoip_config()

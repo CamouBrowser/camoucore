@@ -8,7 +8,7 @@ browser's half is browser/tests/playwright/patches/http3-socks5-udp.py.
 
 import pytest
 
-from camoufox import utils
+from camoucore.camoufox import utils
 
 SOCKS = {"server": "socks5://proxy.example:1080", "username": "u", "password": "p"}
 DOH = {**utils.PROXY_DOH_PREFS, "network.trr.excluded-domains": "proxy.example"}

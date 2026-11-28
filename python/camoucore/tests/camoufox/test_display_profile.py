@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from camoufox import display_profile as dp
-from camoufox import utils
+from camoucore.camoufox import display_profile as dp
+from camoucore.camoufox import utils
 
 from test_launch_environment import isolated_launch_dependencies  # noqa: F401
 
@@ -126,7 +126,7 @@ class TestLaunch:
 def _reduce_script():
     import importlib.util
 
-    path = Path(__file__).resolve().parents[1] / "scripts" / "reduce-icc-profile.py"
+    path = Path(__file__).resolve().parents[2] / "scripts" / "camoufox" / "reduce-icc-profile.py"
     spec = importlib.util.spec_from_file_location("reduce_icc_profile", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

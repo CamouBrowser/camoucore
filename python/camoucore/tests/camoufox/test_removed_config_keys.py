@@ -13,8 +13,8 @@ import json
 
 import pytest
 
-from camoufox._warnings import LeakWarning
-from camoufox.utils import validate_config
+from camoucore.camoufox._warnings import LeakWarning
+from camoucore.camoufox.utils import validate_config
 
 
 def _browser_with(tmp_path, entries):

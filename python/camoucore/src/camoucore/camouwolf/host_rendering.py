@@ -6,7 +6,7 @@ renders on, so a launch never needs to know the host's device. The probe
 answers the question a caller choosing between headless modes has: does this
 display render on hardware, or on SwiftShader?
 
-    from camouwolf.host_rendering import host_gpu, renders_on_hardware
+    from .host_rendering import host_gpu, renders_on_hardware
     gpu = host_gpu(executable_path, headless=True, env=os.environ, args=())
 """
 
@@ -74,7 +74,7 @@ def _host_gpu(
         filter(None, (str(Path(__file__).resolve().parent.parent), child_env.get('PYTHONPATH')))
     )
     child = subprocess.Popen(
-        [sys.executable, '-m', 'camouwolf.host_rendering'],
+        [sys.executable, '-m', 'camoucore.camouwolf.host_rendering'],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

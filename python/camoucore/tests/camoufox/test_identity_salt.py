@@ -14,8 +14,8 @@ import pytest
 
 from camoucore import cpu_affinity
 
-from camoufox import utils
-from camoufox import fingerprints as fp
+from camoucore.camoufox import utils
+from camoucore.camoufox import fingerprints as fp
 
 
 @contextmanager
@@ -231,7 +231,7 @@ def test_config_overrides_reach_the_config_and_the_init_script():
 
 
 def test_instant_animations_warn_that_they_are_detectable():
-    from camoufox._warnings import LeakWarning
+    from camoucore.camoufox._warnings import LeakWarning
 
     with pytest.warns(LeakWarning, match="getComputedTiming"):
         launch(config={"instantAnimations": True}, i_know_what_im_doing=False)
@@ -239,7 +239,7 @@ def test_instant_animations_warn_that_they_are_detectable():
 
 def test_is_mobile_warns_that_camoufox_is_desktop_only():
     """A persistent context takes its context options at launch."""
-    from camoufox._warnings import LeakWarning
+    from camoucore.camoufox._warnings import LeakWarning
 
     with pytest.warns(LeakWarning, match="built for desktops"):
         launch(is_mobile=True, i_know_what_im_doing=False)

@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from camoufox import multiversion, pkgman, utils
+from camoucore.camoufox import multiversion, pkgman, utils
 
 
 def test_missing_linux_profile_directory_is_created(tmp_path, monkeypatch):

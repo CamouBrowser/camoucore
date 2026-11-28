@@ -11,10 +11,10 @@ import base64
 import orjson
 from playwright._impl._driver import compute_driver_executable
 
-from camouwolf.pkgman import LOCAL_DATA
-from camouwolf.gpudisplay import GpuDisplay, prove_gpu
-from camouwolf.humanize import driven_channels
-from camouwolf.utils import launch_options, start_virtual_display
+from .pkgman import LOCAL_DATA
+from .gpudisplay import GpuDisplay, prove_gpu
+from .humanize import driven_channels
+from .utils import launch_options, start_virtual_display
 from camoucore.virtdisplay import VirtualDisplay
 
 LAUNCH_SCRIPT: Path = LOCAL_DATA / "launchServer.js"

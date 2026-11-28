@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from camouwolf import DefaultAddons, browser_pin, multiversion, pkgman, utils
-from camouwolf.exceptions import CamouwolfNotInstalled, UnsupportedVersion
+from camoucore.camouwolf import DefaultAddons, browser_pin, multiversion, pkgman, utils
+from camoucore.camouwolf.exceptions import CamouwolfNotInstalled, UnsupportedVersion
 
 PIN = {
     "tag": "v156.0.1-beta.33",

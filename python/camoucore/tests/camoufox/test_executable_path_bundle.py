@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from camoufox import pkgman, utils
+from camoucore.camoufox import pkgman, utils
 
 
 @pytest.fixture

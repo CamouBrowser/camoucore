@@ -1,4 +1,4 @@
-from camoufox import utils
+from camoucore.camoufox import utils
 
 from test_launch_environment import isolated_launch_dependencies  # noqa: F401  (fixture)
 

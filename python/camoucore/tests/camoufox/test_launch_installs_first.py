@@ -10,8 +10,8 @@ identity for the old Firefox version and then launched the upgraded one.
 
 import pytest
 
-from camoufox import utils
-from camoufox.exceptions import CamoufoxNotInstalled
+from camoucore.camoufox import utils
+from camoucore.camoufox.exceptions import CamoufoxNotInstalled
 
 
 @pytest.fixture

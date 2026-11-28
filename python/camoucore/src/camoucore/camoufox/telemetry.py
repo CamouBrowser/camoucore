@@ -23,7 +23,7 @@ def start(from_options: Dict[str, Any], setting: Optional[bool], passthrough: bo
         binary = Path(from_options['executable_path'])
         return Telemetry(
             PRODUCT,
-            version=package_version('camoucore-camoufox'),
+            version=package_version('camoucore'),
             browser_version=_firefox_version(binary),
             cross_os=launch_os(from_options) != OS_NAMES[_host_os_key()],
             passthrough=passthrough,

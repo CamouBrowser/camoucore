@@ -9,8 +9,8 @@ navigator.oscpu stands the fix down.
 
 import pytest
 
-from camoufox import fingerprints as fp
-from camoufox import utils
+from camoucore.camoufox import fingerprints as fp
+from camoucore.camoufox import utils
 
 from test_launch_environment import isolated_launch_dependencies  # noqa: F401
 

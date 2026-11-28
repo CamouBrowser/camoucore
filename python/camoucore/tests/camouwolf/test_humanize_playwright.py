@@ -8,7 +8,7 @@ TypeScript launcher is held to as well. The browser run is
 browser/tests/playwright/patches/humanize.py.
 
 Regenerate the sequence after an intended change with
-    CAMOUWOLF_REGEN_GOLDEN=1 python3 -m pytest python/camouwolf/tests/test_humanize_playwright.py
+    CAMOUWOLF_REGEN_GOLDEN=1 python3 -m pytest python/camoucore/tests/camouwolf/test_humanize_playwright.py
 """
 
 import asyncio
@@ -21,9 +21,9 @@ import pytest
 from myuri.page_functions import HIT_TEST_JS, SCROLL_PLAN_JS
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from camouwolf import _humanize_playwright as hp
-from camouwolf.driver_defaults import FILL_NEEDS_CLICK
-from camouwolf.humanize import CHANNELS, myuri, raw
+from camoucore.camouwolf import _humanize_playwright as hp
+from camoucore.camouwolf.driver_defaults import FILL_NEEDS_CLICK
+from camoucore.camouwolf.humanize import CHANNELS, myuri, raw
 
 SEQUENCE = Path(__file__).resolve().parent / "data" / "humanize-sequence.json"
 VIEWPORT = (1000, 700)
@@ -671,7 +671,7 @@ def test_the_sync_api_refuses_an_async_part():
 
 
 def test_launch_server_refuses_humanize(monkeypatch):
-    from camouwolf import server
+    from camoucore.camouwolf import server
 
     monkeypatch.setattr(server, "launch_options", lambda **_: pytest.fail("launched"))
     with pytest.raises(ValueError, match="launch_server\\(\\) cannot run humanize engines"):

@@ -22,10 +22,10 @@ import sys
 
 import pytest
 
-from camoufox import coherence
-from camoufox import fingerprints as fp
-from camoufox.utils import get_target_os
-from camoufox.webgl import sample_webgl_for_screen
+from camoucore.camoufox import coherence
+from camoucore.camoufox import fingerprints as fp
+from camoucore.camoufox.utils import get_target_os
+from camoucore.camoufox.webgl import sample_webgl_for_screen
 
 from test_identity_salt import launch
 
@@ -352,7 +352,7 @@ class TestEveryIdentityIsCoherent:
 
 
 _MIDPOINT_REPAIRS = """
-from camoufox import coherence
+from camoucore.camoufox import coherence
 out = []
 for os_key, steps in sorted(coherence.PLAUSIBLE_DPR.items()):
     steps = sorted(steps)
@@ -373,7 +373,7 @@ def test_a_midpoint_repairs_to_the_lower_step_whether_or_not_bytecode_is_cached(
     import sys
     from pathlib import Path
 
-    env = {"PYTHONPYCACHEPREFIX": str(tmp_path), "PYTHONPATH": str(Path(coherence.__file__).parents[1])}
+    env = {"PYTHONPYCACHEPREFIX": str(tmp_path), "PYTHONPATH": str(Path(coherence.__file__).parents[2])}
     runs = [
         subprocess.run([sys.executable, "-c", _MIDPOINT_REPAIRS], env=env, capture_output=True,
                        text=True, check=True).stdout

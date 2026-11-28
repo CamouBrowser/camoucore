@@ -15,7 +15,7 @@ import re
 
 import pytest
 
-from camoufox import ip, utils
+from camoucore.camoufox import ip, utils
 
 SOCKS = {"server": "socks5://127.0.0.1:1080", "username": "user+denver+os-linux", "password": "pw"}
 AUTH = {"host": "127.0.0.1", "port": 1080, "username": "user+denver+os-linux", "password": "pw"}

@@ -24,7 +24,7 @@ import json
 
 import pytest
 
-from camoufox.fingerprints import _app_version_from_user_agent, from_preset
+from camoucore.camoufox.fingerprints import _app_version_from_user_agent, from_preset
 
 # The tokens Firefox actually reports: Windows and Macintosh collapse to the family name, X11 keeps a
 # distro token when the user agent carries one, and Android keeps its version.
@@ -145,7 +145,7 @@ def test_a_drawn_app_version_follows_the_drawn_user_agent():
     browser only reports with an extension rewriting one of the two. Firefox
     computes appVersion from the user agent, so the config does the same.
     """
-    from camoufox.fingerprints import from_fpgen, generate_fingerprint
+    from camoucore.camoufox.fingerprints import from_fpgen, generate_fingerprint
 
     fingerprint = generate_fingerprint(os="linux")
     fingerprint["navigator"] = {
@@ -162,7 +162,7 @@ def test_a_drawn_app_version_follows_the_drawn_user_agent():
 def test_a_context_is_given_its_own_app_version(os_name):
     """A NewContext() identity on another OS than the launch must not report the
     launch's appVersion, so its init script sets the one its user agent implies."""
-    from camoufox.fingerprints import generate_context_fingerprint
+    from camoucore.camoufox.fingerprints import generate_context_fingerprint
 
     fp = generate_context_fingerprint(os=os_name)
     app_version = _app_version_from_user_agent(fp["config"]["navigator.userAgent"])

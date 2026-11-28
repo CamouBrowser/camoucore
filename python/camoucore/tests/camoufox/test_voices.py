@@ -15,7 +15,7 @@ them and the host machine's native voices leak through.
 
 import pytest
 
-from camoufox.fingerprints import (
+from camoucore.camoufox.fingerprints import (
     _generate_random_voice_subset,
     _normalize_preset_voices,
 )
@@ -58,7 +58,7 @@ def test_linux_voices_follow_the_font_release(seed):
     # One machine runs one Ubuntu release: its voices and its fonts are that
     # release's, never a mix. 24.04 lists 13362 speech-dispatcher voices and
     # 26.04 lists 14805 (measured on each release's default install).
-    import camoufox.fingerprints as fp
+    import camoucore.camoufox.fingerprints as fp
 
     release = fp._pick_release("lin", fp._rng(seed))["id"]
     base = next(b for b in fp._load_font_bases()["lin"] if b["id"] == release)
@@ -104,7 +104,7 @@ def test_a_given_speechd_grid_is_kept():
     ],
 )
 def test_validate_speechd_voices_rejects_unusable_shapes(value):
-    from camoufox.utils import validate_speechd_voices
+    from camoucore.camoufox.utils import validate_speechd_voices
 
     with pytest.raises(InvalidPropertyType):
         validate_speechd_voices(value)
@@ -182,15 +182,15 @@ def test_unknown_os_falls_back_to_macos():
 # 14805 espeak-ng entries on a stock Linux box -- under a fingerprint claiming
 # macOS or Windows.
 
-from camoufox.exceptions import InvalidPropertyType  # noqa: E402
-from camoufox.utils import validate_voices  # noqa: E402
+from camoucore.camoufox.exceptions import InvalidPropertyType  # noqa: E402
+from camoucore.camoufox.utils import validate_voices  # noqa: E402
 
 
 @pytest.fixture
 def any_installed_browser(monkeypatch):
     """The grid must not depend on the build this machine has active, whose
     properties.json may predate it."""
-    from camoufox import utils
+    from camoucore.camoufox import utils
 
     monkeypatch.setattr(utils, "validate_config", lambda *args, **kwargs: None)
 
@@ -199,7 +199,7 @@ def _launch_config(**kwargs):
     """Rebuild the config dict from the chunked CAMOU_CONFIG_* env vars."""
     import json
 
-    from camoufox.utils import launch_options
+    from camoucore.camoufox.utils import launch_options
 
     opts = launch_options(headless=True, i_know_what_im_doing=True, **kwargs)
     env = opts["env"]
@@ -222,9 +222,9 @@ def test_caller_can_override_the_block_flag():
 
 
 def test_voice_generation_failure_fails_closed(monkeypatch):
-    import camoufox.utils as utils
+    import camoucore.camoufox.utils as utils
 
-    from camoufox._warnings import FallbackWarning
+    from camoucore.camoufox._warnings import FallbackWarning
 
     def boom(*_args, **_kwargs):
         raise OSError("voice-manifests.json unreadable")

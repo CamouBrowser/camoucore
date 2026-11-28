@@ -25,8 +25,8 @@ from pathlib import Path
 import orjson
 import pytest
 
-from camoufox import server, utils
-from camoufox.server import get_nodejs
+from camoucore.camoufox import server, utils
+from camoucore.camoufox.server import get_nodejs
 
 # Anything on the driver's private lib/ path is fair game for Playwright to
 # move between releases; only the package entrypoint is a supported contract.

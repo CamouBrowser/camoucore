@@ -1,7 +1,7 @@
 """
 Per-channel humanized input, run by the driver, never by the browser.
 
-    from camouwolf.humanize import myuri, raw
+    from .humanize import myuri, raw
 
     Camouwolf(humanize=True)                     # myuri on every channel
     Camouwolf(humanize={

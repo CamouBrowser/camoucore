@@ -1,4 +1,4 @@
-from camoufox.utils import CACHE_PREFS
+from camoucore.camoufox.utils import CACHE_PREFS
 
 
 def test_enable_cache_leaves_history_length_at_stock():

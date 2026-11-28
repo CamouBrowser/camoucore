@@ -8,8 +8,8 @@ SCRIPT = """
 import yaml
 del yaml.CLoader, yaml.CDumper
 yaml.__with_libyaml__ = False
-from camoufox import pkgman
-from camoufox._warnings import WARNINGS_DATA
+from camoucore.camoufox import pkgman
+from camoucore.camoufox._warnings import WARNINGS_DATA
 pkgman.RepoConfig.load_repos()
 assert WARNINGS_DATA
 """

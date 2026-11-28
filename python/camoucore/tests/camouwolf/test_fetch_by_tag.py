@@ -14,9 +14,9 @@ import pytest
 import requests
 from click.testing import CliRunner
 
-from camouwolf import __main__ as cli
-from camouwolf import browser_pin, multiversion, pkgman
-from camouwolf.__version__ import CONSTRAINTS
+from camoucore.camouwolf import __main__ as cli
+from camoucore.camouwolf import browser_pin, multiversion, pkgman
+from camoucore.camouwolf.__version__ import CONSTRAINTS
 
 API = "https://api.github.com/repos/CamouBrowser/camouwolf/releases"
 UPDATE = cli.CamouwolfUpdate
@@ -63,7 +63,7 @@ def installs(tmp_path, monkeypatch):
             installed.append((self.repo_config.name, self.selected.version.full_string, i_know_what_im_doing))
 
     monkeypatch.setattr(cli, "CamouwolfUpdate", Update)
-    monkeypatch.setattr("camouwolf.addons.fetch_default_addons", lambda *args, **kwargs: [])
+    monkeypatch.setattr("camoucore.camouwolf.addons.fetch_default_addons", lambda *args, **kwargs: [])
     for name in ("remove_incompatible_data", "ensure_fpgen_model", "download_mmdb"):
         monkeypatch.setattr(cli, name, lambda *a, **k: None)
     monkeypatch.setattr(multiversion, "REPO_CACHE_FILE", tmp_path / "repo_cache.json")

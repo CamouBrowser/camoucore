@@ -15,7 +15,7 @@ import json
 
 import pytest
 
-from camoufox import pkgman, utils
+from camoucore.camoufox import pkgman, utils
 
 
 def _bundle(tmp_path, build):

@@ -8,8 +8,8 @@ import pytest
 from camoucore.passthrough import IDENTITY_OPTIONS
 from camoucore.virtdisplay import SCREEN_KEY
 
-from camoufox import sync_api, utils
-from camoufox.product import PRODUCT
+from camoucore.camoufox import sync_api, utils
+from camoucore.camoufox.product import PRODUCT
 
 from test_identity_salt import config_of, host
 

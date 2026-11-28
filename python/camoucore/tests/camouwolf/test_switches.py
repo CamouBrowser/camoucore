@@ -2,8 +2,8 @@
 
 import pytest
 
-from camouwolf import switches
-from camouwolf.switches import audit_switches, merge_list_switches
+from camoucore.camouwolf import switches
+from camoucore.camouwolf.switches import audit_switches, merge_list_switches
 
 
 def test_the_base_switches_are_added_first():

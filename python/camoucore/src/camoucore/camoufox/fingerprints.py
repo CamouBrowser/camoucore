@@ -9,10 +9,10 @@ from pathlib import Path
 from random import Random, choice, randrange
 from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
 
-from camoufox._warnings import WARNINGS_DATA, FallbackWarning, _warn_from_caller
-from camoufox.coherence import hardware_cpu, intel_mac_cores
+from ._warnings import WARNINGS_DATA, FallbackWarning, _warn_from_caller
+from .coherence import hardware_cpu, intel_mac_cores
 from camoucore.ip import valid_ipv4, validate_ip
-from camoufox.pkgman import LAUNCHER_CONSTANTS, load_yaml
+from .pkgman import LAUNCHER_CONSTANTS, load_yaml
 
 # Load the fpgen mapping file
 FPGEN_DATA = load_yaml('fpgen.yml')

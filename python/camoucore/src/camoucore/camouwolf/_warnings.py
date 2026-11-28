@@ -4,14 +4,14 @@ from typing import Optional
 
 from camoucore._warnings import LeakWarning, _warn_from_caller  # noqa: F401
 
-from camouwolf.pkgman import load_yaml
+from .pkgman import load_yaml
 
 WARNINGS_DATA = load_yaml('warnings.yml')
 
 
 def _browser_version() -> str:
-    from camouwolf.exceptions import CamouwolfNotInstalled
-    from camouwolf.pkgman import installed_verstr
+    from .exceptions import CamouwolfNotInstalled
+    from .pkgman import installed_verstr
 
     try:
         return installed_verstr()
@@ -31,7 +31,7 @@ class FallbackWarning(RuntimeWarning):
         with a block of versions and the error for the user to paste into an issue.
         """
         try:
-            camouwolf_version = version('camoucore-camouwolf')
+            camouwolf_version = version('camoucore')
         except PackageNotFoundError:
             camouwolf_version = 'source checkout'
         lines = [

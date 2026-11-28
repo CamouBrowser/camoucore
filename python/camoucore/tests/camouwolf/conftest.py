@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-PYTHON_DIR = Path(__file__).resolve().parents[1]
+PYTHON_DIR = Path(__file__).resolve().parents[2]
 
 # Tests that start another interpreter test this checkout too, whatever
-# camouwolf is installed.
+# camoucore is installed.
 os.environ['PYTHONPATH'] = os.pathsep.join(
     filter(None, (str(PYTHON_DIR / 'src'), os.environ.get('PYTHONPATH')))
 )
@@ -43,7 +43,7 @@ def isolated_environment(monkeypatch, tmp_path):
     monkeypatch.setenv('CAMOUWOLF_TELEMETRY', '0')
     monkeypatch.delenv('DO_NOT_TRACK', raising=False)
     monkeypatch.setenv('CAMOUWOLF_DEFAULTS', str(tmp_path / 'user-defaults.json'))
-    from camouwolf import addons, utils
+    from camoucore.camouwolf import addons, utils
 
     monkeypatch.setattr(utils, 'INSTALL_DIR', tmp_path / 'cache')
     monkeypatch.setattr(addons, 'ADDONS_DIR', tmp_path / 'cache' / 'addons')
@@ -60,7 +60,7 @@ def bundle(tmp_path) -> Path:
 def options(bundle):
     """launch_options() against the fake bundle, without the default addon
     (which is installed by `camouwolf fetch`, not present in a test)."""
-    from camouwolf import DefaultAddons, launch_options
+    from camoucore.camouwolf import DefaultAddons, launch_options
 
     def build(**kwargs):
         kwargs.setdefault('executable_path', bundle)

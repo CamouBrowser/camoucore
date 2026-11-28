@@ -11,13 +11,13 @@ import base64
 import orjson
 from playwright._impl._driver import compute_driver_executable
 
-from camoufox.defaults import with_defaults
+from .defaults import with_defaults
 from camoucore.virtdisplay import VirtualDisplay
 
-from camoufox.pkgman import LOCAL_DATA
-from camoufox.gpudisplay import GpuDisplay, prove_gpu
-from camoufox.humanize import driven_channels
-from camoufox.utils import launch_options, start_virtual_display
+from .pkgman import LOCAL_DATA
+from .gpudisplay import GpuDisplay, prove_gpu
+from .humanize import driven_channels
+from .utils import launch_options, start_virtual_display
 
 LAUNCH_SCRIPT: Path = LOCAL_DATA / "launchServer.js"
 

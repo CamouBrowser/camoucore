@@ -6,8 +6,8 @@ from pathlib import Path
 import orjson
 import pytest
 
-from camouwolf import utils
-from camouwolf.exceptions import InvalidPropertyType, UnknownProperty
+from camoucore.camouwolf import utils
+from camoucore.camouwolf.exceptions import InvalidPropertyType, UnknownProperty
 
 SCHEMA = Path(utils.PROPERTIES_FILE)
 TYPES = {'str', 'int', 'uint', 'double', 'bool', 'array', 'dict'}

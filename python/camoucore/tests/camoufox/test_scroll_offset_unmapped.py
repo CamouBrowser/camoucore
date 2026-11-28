@@ -4,7 +4,7 @@ The browser returns a configured screen.pageYOffset from scrollY on every read,
 so a drawn value froze the page at one scroll position whatever the user did.
 """
 
-from camoufox.fingerprints import from_fpgen, generate_fingerprint
+from camoucore.camoufox.fingerprints import from_fpgen, generate_fingerprint
 
 _SCROLL_KEYS = ("screen.pageXOffset", "screen.pageYOffset")
 

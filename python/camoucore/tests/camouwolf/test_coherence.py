@@ -1,6 +1,6 @@
 """The identity is checked against itself on every launch."""
 
-from camouwolf import clienthints, coherence
+from camoucore.camouwolf import clienthints, coherence
 
 
 def windows():

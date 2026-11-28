@@ -2,7 +2,7 @@
 
 import pytest
 
-from camouwolf import clienthints as ch
+from camoucore.camouwolf import clienthints as ch
 
 
 @pytest.mark.parametrize('os_key, token, platform, ch_platform', [

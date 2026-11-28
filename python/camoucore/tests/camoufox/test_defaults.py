@@ -1,4 +1,4 @@
-"""camoufox.defaults.json: the packaged file every launch starts from, and that
+"""camoucore.camoufox.defaults.json: the packaged file every launch starts from, and that
 the user's own copy overlays."""
 
 import inspect
@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from camoufox import defaults, utils
-from camoufox.__main__ import cli
-from camoufox.addons import DefaultAddons
-from camoufox.fingerprints import Screen
+from camoucore.camoufox import defaults, utils
+from camoucore.camoufox.__main__ import cli
+from camoucore.camoufox.addons import DefaultAddons
+from camoucore.camoufox.fingerprints import Screen
 
 # Launch arguments that are not defaults: an internal value.
 NOT_DEFAULTS = {'virtual_display'}

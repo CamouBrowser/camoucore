@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from camoufox import utils
+from camoucore.camoufox import utils
 
 
 @pytest.fixture
@@ -449,19 +449,19 @@ class TestNativeWindowsVariantFonts:
     """A native Windows identity claims the Win11 font variant iff the host has it."""
 
     def test_native_windows_11_host_claims_variant(self, monkeypatch):
-        from camoufox import fingerprints as fp
+        from camoucore.camoufox import fingerprints as fp
         monkeypatch.setattr(fp, "_host_has_variant_fonts", lambda target_os: True)
         fonts = fp._generate_random_font_subset("windows", seed=1, native=True)
         assert fp.WINDOWS_11_MARKER_FONTS <= set(fonts)
 
     def test_native_windows_10_host_does_not(self, monkeypatch):
-        from camoufox import fingerprints as fp
+        from camoucore.camoufox import fingerprints as fp
         monkeypatch.setattr(fp, "_host_has_variant_fonts", lambda target_os: False)
         fonts = fp._generate_random_font_subset("windows", seed=1, native=True)
         assert not (fp.WINDOWS_11_MARKER_FONTS & set(fonts))
 
     def test_non_windows_hosts_never_report_variant(self):
-        from camoufox import fingerprints as fp
+        from camoucore.camoufox import fingerprints as fp
         assert fp._host_has_variant_fonts("linux") is False
         assert fp._host_has_variant_fonts("macos") is False
 
@@ -615,7 +615,7 @@ class TestScreenshotCaret:
     def shot(owner, **kwargs):
         import asyncio
 
-        from camoufox import driver_defaults
+        from camoucore.camoufox import driver_defaults
 
         async def original(self, **kw):
             return kw
@@ -623,7 +623,7 @@ class TestScreenshotCaret:
         return asyncio.run(driver_defaults._with_caret_default(original)(owner, **kwargs))
 
     def test_pages_under_a_camoufox_launch_keep_the_caret(self):
-        from camoufox import driver_defaults
+        from camoucore.camoufox import driver_defaults
 
         browser = driver_defaults.mark(self.Owner())
         handle = self.Owner(self.Owner(self.Owner(self.Owner(browser))))  # handle, frame, page, context
@@ -631,7 +631,7 @@ class TestScreenshotCaret:
         assert self.shot(handle)["caret"] == "initial"
 
     def test_the_callers_caret_wins(self):
-        from camoufox import driver_defaults
+        from camoucore.camoufox import driver_defaults
 
         page = self.Owner(driver_defaults.mark(self.Owner()))
         assert self.shot(page, caret="hide")["caret"] == "hide"
@@ -642,7 +642,7 @@ class TestScreenshotCaret:
     def test_fill_clicks_a_text_field_without_focus_first(self):
         import asyncio
 
-        from camoufox import driver_defaults
+        from camoucore.camoufox import driver_defaults
 
         clicks = []
         evaluates = []
@@ -680,7 +680,7 @@ class TestScreenshotCaret:
         from playwright._impl._element_handle import ElementHandle
         from playwright._impl._page import Page
 
-        from camoufox import driver_defaults
+        from camoucore.camoufox import driver_defaults
 
         driver_defaults.mark(self.Owner())
         driver_defaults.mark(self.Owner())
@@ -692,7 +692,7 @@ class TestScreenshotCaret:
         # Playwright before 1.54 has no Frame._fill; launching must not fail there.
         from playwright._impl import _frame
 
-        from camoufox import driver_defaults
+        from camoucore.camoufox import driver_defaults
 
         class OldFrame:
             async def fill(self, selector, value, **kwargs):
@@ -717,7 +717,7 @@ class TestSharedTrafficProxyWarning:
             return kwargs
 
     def test_a_context_proxy_without_a_launch_proxy_warns(self):
-        from camoufox._warnings import LeakWarning
+        from camoucore.camoufox._warnings import LeakWarning
 
         browser = utils.attach_shared_traffic_warning(self.FakeBrowser())
         for create in (browser.new_page, browser.new_context):
@@ -746,7 +746,7 @@ class TestDesktopOnlyWarning:
             return kwargs
 
     def test_is_mobile_warns(self):
-        from camoufox._warnings import LeakWarning
+        from camoucore.camoufox._warnings import LeakWarning
 
         browser = utils.attach_desktop_only_warning(self.FakeBrowser())
         for create in (browser.new_page, browser.new_context):

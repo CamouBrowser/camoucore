@@ -13,7 +13,7 @@ import warnings
 
 import pytest
 
-from camoufox import fingerprints, utils
+from camoucore.camoufox import fingerprints, utils
 
 RULES = {
     "rules": [

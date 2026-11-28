@@ -6,8 +6,8 @@ import json
 import pytest
 from click.testing import CliRunner
 
-from camouwolf import __main__ as cli
-from camouwolf import utils
+from camoucore.camouwolf import __main__ as cli
+from camoucore.camouwolf import utils
 
 
 def documented(path=utils.DEFAULTS_FILE):

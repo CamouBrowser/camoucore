@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-import camoufox
+from camoucore import camoufox
 
 PACKAGE = Path(camoufox.__file__).resolve().parent
 
@@ -45,7 +45,7 @@ def spy(*args, **kwargs):
     seen.append("fpgen" in sys.modules)
     return real(*args, **kwargs)
 fpgen_model.ensure_fpgen_model = spy
-from camoufox import {module}
+from camoucore.camoufox import {module}
 {call}
 print(seen)
 """

@@ -19,7 +19,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SNAPSHOT = HERE / 'data' / 'fontconfig-linux-fonts.conf'
-FONTS = HERE.parent / 'src' / 'camoufox' / 'fonts.json'
+FONTS = HERE.parents[1] / 'src' / 'camoucore' / 'camoufox' / 'fonts.json'
 
 GENERICS = {'serif', 'sans-serif', 'sans serif', 'sans', 'monospace', 'mono', 'cursive', 'fantasy',
             'system-ui', 'emoji', 'math'}

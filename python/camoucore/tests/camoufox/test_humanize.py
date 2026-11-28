@@ -4,8 +4,8 @@ per channel, run by the driver. Nothing of it reaches the browser's config."""
 
 import pytest
 
-from camoufox import utils
-from camoufox.humanize import CHANNELS, cursory, myuri, normalize, raw
+from camoucore.camoufox import utils
+from camoucore.camoufox.humanize import CHANNELS, cursory, myuri, normalize, raw
 
 
 def noop(*_args, **_kwargs):

@@ -6,9 +6,9 @@ import warnings
 
 import pytest
 
-from camouwolf import DefaultAddons, addons, coherence, switches, utils, webgl
-from camouwolf._warnings import LeakWarning
-from camouwolf.exceptions import (
+from camoucore.camouwolf import DefaultAddons, addons, coherence, switches, utils, webgl
+from camoucore.camouwolf._warnings import LeakWarning
+from camoucore.camouwolf.exceptions import (
     IncoherentIdentity,
     InvalidAddonPath,
     InvalidOS,
@@ -16,7 +16,7 @@ from camouwolf.exceptions import (
     UnknownIPLocation,
     UnsupportedOSSpoof,
 )
-from camouwolf.fingerprints import Screen, chrome_viewport_width, chrome_window_reports
+from camoucore.camouwolf.fingerprints import Screen, chrome_viewport_width, chrome_window_reports
 
 
 @pytest.fixture(autouse=True)
@@ -118,7 +118,7 @@ def test_a_fingerprint_from_another_browser_is_refused(options):
 
 
 def test_webgl_config_draws_a_machine_with_that_gpu(options):
-    from camouwolf.webgl import chrome_gpus
+    from camoucore.camouwolf.webgl import chrome_gpus
 
     vendor, renderer = sorted(chrome_gpus('windows'))[0]
     config = config_of(options(os='windows', webgl_config=(vendor, renderer)))
@@ -162,7 +162,7 @@ def test_a_self_contradicting_identity_is_refused(options):
 
 
 def test_the_reported_core_count_is_the_hosts_unless_pinned(options, monkeypatch):
-    from camouwolf import fingerprints
+    from camoucore.camouwolf import fingerprints
 
     monkeypatch.setattr(fingerprints, 'host_cpu_count', lambda: 8)
     assert config_of(options(os='windows'))['navigator.hardwareConcurrency'] == 8
@@ -557,7 +557,7 @@ def test_fetching_the_default_addon_verifies_and_unpacks_it(tmp_path, monkeypatc
     import io
     import zipfile
 
-    from camouwolf.exceptions import CorruptedDownload
+    from camoucore.camouwolf.exceptions import CorruptedDownload
 
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, 'w') as z:

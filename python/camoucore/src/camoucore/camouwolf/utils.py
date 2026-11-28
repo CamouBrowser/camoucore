@@ -993,7 +993,7 @@ def start_telemetry(target: Any, from_options: Dict[str, Any], setting: Optional
         passthrough = launch_is_passthrough(from_options)
         telemetry = Telemetry(
             PRODUCT,
-            version=package_version('camoucore-camouwolf'),
+            version=package_version('camoucore'),
             browser_version=resolve_version(from_options['executable_path']),
             cross_os=not passthrough and launch_os(from_options) != OS_NAMES[OS_NAME],
             passthrough=passthrough,

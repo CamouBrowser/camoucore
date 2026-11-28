@@ -8,7 +8,7 @@ hang on *already-released* browser builds -- no rebuild needed.
 
 import pytest
 
-from camoufox.utils import attach_no_viewport_default, spoofs_window_dimensions
+from camoucore.camoufox.utils import attach_no_viewport_default, spoofs_window_dimensions
 
 
 def _opts(config_blob: str):

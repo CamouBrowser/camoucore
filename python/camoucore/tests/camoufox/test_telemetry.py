@@ -7,7 +7,7 @@ from importlib.metadata import version as package_version
 
 import pytest
 
-from camoufox import async_api, sync_api, telemetry, utils
+from camoucore.camoufox import async_api, sync_api, telemetry, utils
 
 
 class Emitter:
@@ -90,7 +90,7 @@ def test_its_dimensions(sent, monkeypatch):
     monkeypatch.setattr(utils, '_host_os_key', lambda: 'lin')
     reporter = telemetry.start(OPTIONS, None, passthrough=False)
     assert reporter.dimensions == {
-        'product': 'camoufox', 'version': package_version('camoucore-camoufox'), 'browser_version': '150.0.2',
+        'product': 'camoufox', 'version': package_version('camoucore'), 'browser_version': '150.0.2',
         'pro': False, 'cross_os': True, 'passthrough': False, 'proxy_provider': 'example.co.uk',
     }
     reporter.close()

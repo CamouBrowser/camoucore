@@ -11,9 +11,9 @@ from unittest import mock
 
 import orjson
 import pytest
-from camoufox.fingerprints import BASELINE_TASKBAR_HEIGHT, Screen
+from camoucore.camoufox.fingerprints import BASELINE_TASKBAR_HEIGHT, Screen
 
-from camoufox import utils
+from camoucore.camoufox import utils
 
 # What get_screen_cons() reports under the Xvfb that headless='virtual' starts:
 # virtdisplay.py sizes it "1x1x24", and launch_options mutates os.environ's
@@ -147,7 +147,7 @@ class TestViewportOperationsDoNotDeadlock:
 def _zoomed_windows_fingerprint(dpr):
     """fpgen's 1920x1080 monitor recorded at a 110% browser zoom: every CSS size
     shrunk by the zoom folded into the ratio."""
-    from camoufox.fingerprints import generate_fingerprint
+    from camoucore.camoufox.fingerprints import generate_fingerprint
 
     fp = generate_fingerprint(os="windows")
     fp["screen"].update(width=1760, height=990, availWidth=1760, availHeight=946, availLeft=0, availTop=0)

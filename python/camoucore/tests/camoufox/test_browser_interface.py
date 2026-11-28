@@ -14,9 +14,9 @@ import warnings
 
 import pytest
 
-from camoufox import multiversion, pkgman
-from camoufox.__version__ import CONSTRAINTS
-from camoufox.exceptions import UnsupportedVersion
+from camoucore.camoufox import multiversion, pkgman
+from camoucore.camoufox.__version__ import CONSTRAINTS
+from camoucore.camoufox.exceptions import UnsupportedVersion
 
 NEWER = CONSTRAINTS.INTERFACE + 1
 
@@ -69,7 +69,7 @@ def test_a_manifest_without_the_field_is_interface_1(manifests):
 
 def test_the_fetcher_skips_a_browser_this_library_cannot_drive(manifests, monkeypatch, capsys):
     served, _ = manifests
-    monkeypatch.setattr("camoufox.browser_pin.effective_pin", lambda *a, **k: None)
+    monkeypatch.setattr("camoucore.camoufox.browser_pin.effective_pin", lambda *a, **k: None)
     fetcher = pkgman.CamoufoxFetcher.__new__(pkgman.CamoufoxFetcher)
     fetcher.repo_config = pkgman.RepoConfig.get_default()
     fetcher.pattern = fetcher.repo_config.build_pattern(spoof_os="lin", spoof_arch="x86_64")
@@ -116,7 +116,7 @@ def _active_install(tmp_path, monkeypatch, interface):
     monkeypatch.setattr(multiversion, "BROWSERS_DIR", root / "browsers")
     monkeypatch.setattr(multiversion, "CONFIG_FILE", root / "config.json")
     monkeypatch.setattr(multiversion, "COMPAT_FLAG", root / ".0.5_FLAG")
-    monkeypatch.setattr("camoufox.browser_pin.effective_pin", lambda *a, **k: None)
+    monkeypatch.setattr("camoucore.camoufox.browser_pin.effective_pin", lambda *a, **k: None)
     return root / relative
 
 
@@ -163,7 +163,7 @@ def test_no_warning_when_every_synced_browser_is_drivable(tmp_path, monkeypatch)
 
 
 def test_sync_keeps_builds_needing_an_upgrade_out_of_the_installable_list(manifests, monkeypatch, tmp_path, capsys):
-    from camoufox import __main__ as cli
+    from camoucore.camoufox import __main__ as cli
 
     served, _ = manifests
     served["https://api.github.com/repos/daijro/camoufox/releases"] = [

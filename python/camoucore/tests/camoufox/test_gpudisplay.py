@@ -19,9 +19,9 @@ from unittest import mock
 
 import pytest
 
-from camoufox import gpudisplay, host_rendering, sync_api, utils
-from camoufox._warnings import LeakWarning
-from camoufox.exceptions import (
+from camoucore.camoufox import gpudisplay, host_rendering, sync_api, utils
+from camoucore.camoufox._warnings import LeakWarning
+from camoucore.camoufox.exceptions import (
     AmbiguousGpuSelection,
     CannotExecuteXorg,
     CannotFindXorg,
@@ -31,7 +31,7 @@ from camoufox.exceptions import (
     NoGpuFound,
     VirtualDisplayError,
 )
-from camoufox.gpudisplay import (
+from camoucore.camoufox.gpudisplay import (
     GPU_PREFS,
     GpuDevice,
     GpuDisplay,
@@ -214,7 +214,7 @@ class TestXorgConfig:
         assert config_name(NVIDIA) == 'camoufox-gpu-0000_01_00_0.conf'
 
     def test_the_cli_prints_it(self, monkeypatch, capsys):
-        from camoufox.__main__ import cli
+        from camoucore.camoufox.__main__ import cli
 
         monkeypatch.setattr(gpudisplay, 'enumerate_gpus', lambda: HOST)
         with pytest.raises(SystemExit) as exit:
@@ -270,7 +270,7 @@ class TestSetup:
         assert ('nvidia_drv.so' in script) is (gpu.xorg_driver == 'nvidia')
 
     def test_the_cli_prints_it(self, monkeypatch, capsys):
-        from camoufox.__main__ import cli
+        from camoucore.camoufox.__main__ import cli
 
         monkeypatch.setattr(gpudisplay, 'enumerate_gpus', lambda: HOST)
         with pytest.raises(SystemExit) as exit:

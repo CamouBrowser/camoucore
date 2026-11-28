@@ -4,8 +4,8 @@ import warnings
 
 import pytest
 
-from camouwolf import sync_api, utils
-from camouwolf._warnings import LeakWarning
+from camoucore.camouwolf import sync_api, utils
+from camoucore.camouwolf._warnings import LeakWarning
 
 
 

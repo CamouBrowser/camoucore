@@ -8,8 +8,8 @@ i_know_what_im_doing does not silence names the key and what it contradicts.
 
 import warnings
 
-from camoufox import utils
-from camoufox._warnings import LeakWarning
+from camoucore.camoufox import utils
+from camoucore.camoufox._warnings import LeakWarning
 
 from test_launch_environment import isolated_launch_dependencies  # noqa: F401
 

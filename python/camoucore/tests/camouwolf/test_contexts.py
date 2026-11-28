@@ -7,9 +7,9 @@ import warnings
 import orjson
 import pytest
 
-from camouwolf import async_api, coherence, sync_api, utils
-from camouwolf._warnings import LeakWarning
-from camouwolf.exceptions import IncoherentIdentity
+from camoucore.camouwolf import async_api, coherence, sync_api, utils
+from camoucore.camouwolf._warnings import LeakWarning
+from camoucore.camouwolf.exceptions import IncoherentIdentity
 
 
 class FakeContext:
@@ -85,7 +85,7 @@ class FakePlaywright:
 
 @pytest.fixture
 def launch_kwargs(bundle):
-    from camouwolf import DefaultAddons
+    from camoucore.camouwolf import DefaultAddons
 
     return {'executable_path': bundle, 'exclude_addons': [DefaultAddons.UBO], 'os': 'linux', 'headless': True}
 
@@ -292,7 +292,7 @@ def test_a_proxied_context_is_placed_where_the_proxy_exits(browser, exit_lookup)
 
 
 def test_a_failed_exit_lookup_raises(browser, exit_lookup, monkeypatch):
-    from camouwolf.exceptions import InvalidIP
+    from camoucore.camouwolf.exceptions import InvalidIP
 
     def unreachable(proxy=None):
         raise InvalidIP('Failed to get IP address')

@@ -4,8 +4,8 @@ ci/tribal-rules.yml. The twin is typescript/camoufox/tests/settled-rules.test.ts
 
 from camoucore.virtdisplay import COMPOSITE_KEY, SCREEN_KEY
 
-from camoufox import gpudisplay
-from camoufox.product import PRODUCT
+from camoucore.camoufox import gpudisplay
+from camoucore.camoufox.product import PRODUCT
 
 
 def test_the_screen_size_is_overridable():
@@ -31,7 +31,7 @@ def test_firefox_virtual_display_is_1x1x24():
 
 def test_a_spoofed_window_gets_no_viewport():
     # no-viewport-when-window-is-spoofed: a Playwright viewport would override it.
-    from camoufox import utils
+    from camoucore.camoufox import utils
 
     assert callable(utils.spoofs_window_dimensions)
     assert callable(utils.attach_no_viewport_default)

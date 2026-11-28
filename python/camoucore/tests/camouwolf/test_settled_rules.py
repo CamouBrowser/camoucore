@@ -4,8 +4,8 @@ ci/tribal-rules.yml. The twin is typescript/camouwolf/tests/settled-rules.test.t
 
 from camoucore.virtdisplay import COMPOSITE_KEY, SCREEN_KEY
 
-from camouwolf import gpudisplay
-from camouwolf.product import PRODUCT
+from camoucore.camouwolf import gpudisplay
+from camoucore.camouwolf.product import PRODUCT
 
 
 def test_the_screen_size_is_overridable():

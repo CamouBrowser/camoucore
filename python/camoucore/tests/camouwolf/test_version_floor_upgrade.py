@@ -12,8 +12,8 @@ import json
 
 import pytest
 
-from camouwolf import multiversion, pkgman
-from camouwolf.exceptions import UnsupportedVersion
+from camoucore.camouwolf import multiversion, pkgman
+from camoucore.camouwolf.exceptions import UnsupportedVersion
 
 
 def _install(tmp_path, monkeypatch, layout, build, floor):

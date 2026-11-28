@@ -25,9 +25,9 @@ from unittest import mock
 import orjson
 import pytest
 
-from camoufox import fingerprints as fp
-from camoufox import utils
-from camoufox._warnings import LeakWarning
+from camoucore.camoufox import fingerprints as fp
+from camoucore.camoufox import utils
+from camoucore.camoufox._warnings import LeakWarning
 
 LINUX_1366 = {'os': 'lin', 'screen': (1366, 768), 'window': {'x': 0, 'y': 0, 'width': 1366, 'height': 768}}
 VIEWPORT = {'width': 1000, 'height': 700}

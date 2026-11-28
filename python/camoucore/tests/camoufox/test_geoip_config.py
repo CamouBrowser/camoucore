@@ -21,7 +21,7 @@ def _saved(cache, **fields):
 
 
 def test_an_explicit_source_missing_from_the_list_can_be_replaced_from_the_cli(cache, monkeypatch):
-    from camoufox import __main__ as cli
+    from camoucore.camoufox import __main__ as cli
 
     _saved(cache, name="Gone", explicit=True)
     monkeypatch.setattr(cli, "_inquirer_select", lambda choices, message: dict(choices)[DEFAULT])
@@ -32,7 +32,7 @@ def test_an_explicit_source_missing_from_the_list_can_be_replaced_from_the_cli(c
 def test_the_cli_reports_an_explicit_source_missing_from_the_list(cache, monkeypatch, capsys):
     from click.testing import CliRunner
 
-    from camoufox import __main__ as cli
+    from camoucore.camoufox import __main__ as cli
 
     _saved(cache, name="Gone", explicit=True)
     monkeypatch.setattr(cli, "ALLOW_GEOIP", True)

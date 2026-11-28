@@ -134,7 +134,7 @@ def _probe_host_gpu(
         filter(None, (str(Path(__file__).resolve().parent.parent), child_env.get('PYTHONPATH')))
     )
     child = subprocess.Popen(
-        [sys.executable, '-m', 'camoufox.host_rendering'],
+        [sys.executable, '-m', 'camoucore.camoufox.host_rendering'],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

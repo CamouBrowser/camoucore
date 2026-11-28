@@ -2,8 +2,8 @@
 
 import pytest
 
-from camoufox.exceptions import InvalidIP
-from camoufox.fingerprints import _build_init_script
+from camoucore.camoufox.exceptions import InvalidIP
+from camoucore.camoufox.fingerprints import _build_init_script
 
 
 def test_ipv4_goes_to_the_ipv4_setter():
