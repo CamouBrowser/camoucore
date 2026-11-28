@@ -378,29 +378,23 @@ it("a timed-out page read closes its browser", async () => {
 	}
 });
 
-it("the probe carries the Pro lease without keying on it", () => {
+it("the probe does not key on the identity", () => {
 	const launch = vi
 		.spyOn(firefox, "launch")
 		.mockImplementation(() => new Promise(() => undefined));
-	const [first, second] = ["a", "b"].map((lease) =>
+	const [first, second] = ["{}", '{"a": 1}'].map((config) =>
 		hostGpu(
-			"/nonexistent/camoufox-lease",
+			"/nonexistent/camoufox-identity",
 			true,
-			{
-				DISPLAY: ":0",
-				CAMOU_CONFIG_1: "{}",
-				CAMOU_LEASE_FILE: `/run/camoufox-pro/${lease}.json`,
-			},
+			{ DISPLAY: ":0", CAMOU_CONFIG_1: config },
 			{},
 		),
 	);
 
+	// Read once; the identity's CAMOU_ values stay out.
 	expect(second).toBe(first);
 	expect(launch).toHaveBeenCalledTimes(1);
-	expect(launch.mock.calls[0][0]?.env).toEqual({
-		DISPLAY: ":0",
-		CAMOU_LEASE_FILE: "/run/camoufox-pro/a.json",
-	});
+	expect(launch.mock.calls[0][0]?.env).toEqual({ DISPLAY: ":0" });
 });
 
 function browserOnHost(gpu: Gpu | null) {

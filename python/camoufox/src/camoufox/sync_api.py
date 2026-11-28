@@ -11,11 +11,10 @@ from typing_extensions import Literal
 from camoucore.ip import ExitGeo, Proxy, proxy_exit_geo
 from camoucore.virtdisplay import VirtualDisplay
 
-from . import _humanize_playwright, driver_defaults, pro, telemetry
+from . import _humanize_playwright, driver_defaults, telemetry
 from .defaults import with_defaults
 from .fingerprints import generate_context_fingerprint
 from .utils import (
-    captcha_solver,
     attach_context_defaults,
     attach_persistent_geometry,
     attach_socks5_auth,
@@ -130,9 +129,6 @@ def NewBrowser(
     # humanize runs in this process: checked before the launch,
     # attached to the browser after it (also with from_options).
     _humanize_playwright.check(kwargs.get('humanize'), is_async=False)
-    # The captcha solver is made before the launch, so an unusable option
-    # fails before a browser starts, and is the browser's `.captcha` after it.
-    captcha = captcha_solver(kwargs.get('captcha'), asynchronous=False, pro_key=kwargs.get('pro_key'))
     virtual_display, headless = start_virtual_display(headless, debug, kwargs)
     # Everything after the display exists can fail (bad proxy, missing binary,
     # unsatisfiable constraints) before sync/async_attach_vd wires kill() into
@@ -145,7 +141,6 @@ def NewBrowser(
         browser = _humanize_playwright.attach(
             browser, kwargs.get('humanize'), os, i_know_what_im_doing=kwargs.get('i_know_what_im_doing')
         )
-        browser.captcha = captcha
         return browser
     except BaseException:
         if virtual_display:
@@ -189,9 +184,6 @@ def _launch(
     from camoucore import cpu_affinity
     from .utils import driver_pid, pinned_core_count
 
-    lease = pro.claim(from_options, virtual_display)
-    # A Camoufox Pro profile runs in its own user-data directory.
-    persistent_context = persistent_context or bool(lease and lease.grants.get('profile'))
     pin_to = pinned_core_count(from_options)
     pid = driver_pid(playwright) if pin_to else None
     previous = cpu_affinity.pin(pid, pin_to) if pid else None
@@ -202,23 +194,16 @@ def _launch(
             )
             driver_defaults.mark(context)
             attach_persistent_geometry(context, from_options)
-            if lease:
-                pro.attach_lease(lease, context, 'close')
             telemetry.attach(context, telemetry.start(from_options, telemetry_setting, passthrough), is_async=False)
             return sync_attach_vd(context, virtual_display), launch_os(from_options)
 
         identity = host_identity(from_options, canvas_noise)
         browser = playwright.firefox.launch(**from_options)
-        if lease:
-            pro.attach_lease(lease, browser, 'disconnected')
         attach_context_defaults(browser, no_viewport_default, launch_geometry(from_options))
         browser._camoufox_host_identity = identity
         browser._camoufox_passthrough = passthrough
         telemetry.attach(browser, telemetry.start(from_options, telemetry_setting, passthrough), is_async=False)
         return sync_attach_vd(browser, virtual_display), launch_os(from_options)
-    except Exception as error:
-        pro.launch_failed(lease, error)
-        raise
     finally:
         if pid:
             cpu_affinity.restore(pid, previous)

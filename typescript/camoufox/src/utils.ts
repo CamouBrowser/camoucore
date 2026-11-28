@@ -9,15 +9,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { inspect } from "node:util";
-import {
-	type Captcha,
-	type CaptchaOption,
-	type PageSolver,
-	resolveCaptcha,
-} from "camoucore/captcha.js";
 import * as cpuAffinity from "camoucore/cpu_affinity.js";
 import { hasDisplay, largestDisplay } from "camoucore/display.js";
-import { CaptchaKeyMissing, ProNotLaunched } from "camoucore/exceptions.js";
 import {
 	allowGeoip,
 	geoipAllowed,
@@ -31,7 +24,6 @@ import {
 	validIPv6,
 } from "camoucore/ip.js";
 import { handleLocales } from "camoucore/locales.js";
-import { checkProOptions, proApiSet } from "camoucore/pro.js";
 import { VirtualDisplay } from "camoucore/virtdisplay.js";
 import { ensureModel } from "fpgen-js";
 import { UAParser } from "ua-parser-js";
@@ -42,12 +34,10 @@ import {
 	type DisplayProfileOption,
 } from "./display_profile.js";
 import {
-	CamoufoxNotInstalled,
 	InvalidOS,
 	InvalidPropertyType,
 	NonFirefoxFingerprint,
 	UnknownIPLocation,
-	UnsupportedVersion,
 } from "./exceptions.js";
 import {
 	BASELINE_TASKBAR_HEIGHT,
@@ -101,8 +91,6 @@ import {
 	publicIPv6,
 	socks5Auth,
 } from "./ip.js";
-import { type Managed, managedRequest } from "./managed.js";
-import { getActivePath } from "./multiversion.js";
 import {
 	INSTALL_DIR,
 	LAUNCHER_CONSTANTS,
@@ -123,10 +111,7 @@ import {
 	Version,
 	warnIfPackageOutdated,
 } from "./pkgman.js";
-import * as pro from "./pro.js";
-import { openProfile } from "./pro-profile.js";
 import { PRODUCT } from "./product.js";
-import { ProxySession } from "./proxy_session.js";
 import {
 	comparePyStr,
 	formatPyFloatRepr,
@@ -1998,14 +1983,7 @@ export async function hostIdentity(
 	canvasNoise: boolean | undefined,
 ): Promise<HostIdentity | null> {
 	const prefs = fromOptions.firefoxUserPrefs ?? {};
-	// A farm-rendered browser draws there, not on this host.
-	const env = fromOptions.env ?? {};
-	if (
-		canvasNoise != null ||
-		hasCanvasPlaceholder(prefs) ||
-		pro.RENDER_FILE_ENV in env
-	)
-		return null;
+	if (canvasNoise != null || hasCanvasPlaceholder(prefs)) return null;
 	// Without the placeholder, the launch claimed the host's OS and no named GPU.
 	const hostOs = utilsDeps.hostOsKey();
 	const [covered, gpu] = await planRendering(
@@ -2347,32 +2325,6 @@ export interface LaunchOptions {
 	 * (webgl_config, a preset's, or a host GPU fpgen never recorded), whose
 	 * canvas would otherwise show the host. */
 	canvas_noise?: boolean | null;
-	/** Camoufox Pro key (cfp_live_...) for a Pro build. Defaults to
-	 * CAMOUFOX_PRO_KEY, then the key `camoufox login` stored. A Pro build is
-	 * launched with a lease minted with it (see docs/pro.md); the lease is
-	 * released when the browser closes, or at exit when these options are
-	 * launched without NewBrowser/Camoufox. */
-	pro_key?: string;
-	/** A Camoufox Pro profile's key (any name up to 64 characters). The browser
-	 * presents the profile's identity, the same on every launch, and its state
-	 * (cookies, storage, logins) is restored before the launch and synced back
-	 * when it closes. Needs `os`; the launch is a persistent context. See
-	 * docs/pro.md, "Profiles". */
-	profile?: string;
-	/** The warm plan a new `profile` is created with: `"none"` (the default
-	 * with your own `proxy`) is the only plan whose state syncs to this
-	 * machine; `"standard"` and `"continuous"` profiles are kept warm in the
-	 * cloud and launch with their identity only. Left out, the API decides. */
-	warm_plan?: "none" | "standard" | "continuous";
-	/** A Camoufox Pro managed proxy: a `Managed` naming the provider, type,
-	 * network and country wanted, `true` for the defaults, or `false` for none.
-	 * Left out, a `profile` gets the default and a launch without one goes
-	 * direct. With your own `proxy` there is none, and passing both throws.
-	 * See docs/pro.md, "Managed proxies". */
-	managed?: boolean | Managed;
-	/** `false` renders WebGL, WebGPU and canvas on this machine's GPU for a
-	 * Camoufox Pro Windows identity, instead of on a remote GPU. */
-	farm_gpu?: false;
 	/** The display's ICC colour profile, which ICC-tagged images are converted
 	 * to (a page reads it from their decoded pixels): ICC bytes or a path, e.g.
 	 * one recorded with GetICMProfileW on the machine the identity presents.
@@ -2381,19 +2333,6 @@ export interface LaunchOptions {
 	 * for its OS and screen; an identity of the host's OS uses the host
 	 * display's, as stock does. */
 	display_profile?: DisplayProfileOption;
-	/** Solve captchas with CaptchaKraken (the optional `captchakraken` peer
-	 * dependency): a Camoufox account key (cfp_live_...), a CaptchaKraken key
-	 * (ck_live_...), or the URL of a CaptchaKraken server you host. `true`
-	 * reads `pro_key`, then CAMOUFOX_PRO_KEY, CAPTCHA_KRAKEN_API_KEY and
-	 * CAMOUFOX_CAPTCHA_URL, then the key `camoufox login` stored, and throws
-	 * CaptchaKeyMissing with none of them. The launched browser (or persistent
-	 * context) then has a `.captcha` solver.
-	 *
-	 * Camoufox Pro has not launched yet: pro_key, profile, warm_plan,
-	 * `managed: true` and `farm_gpu: true` throw ProNotLaunched, with the page
-	 * where an account is made, before anything is downloaded, unless the
-	 * launch runs a Pro build or CAMOUFOX_PRO_API is set. */
-	captcha?: CaptchaOption;
 	/** Additional Firefox launch options, passed straight through to Playwright. */
 	[key: string]: any;
 }
@@ -2404,109 +2343,10 @@ export interface LaunchOptions {
  * Accepts all Playwright Firefox launch options, along with the Camoufox ones
  * documented on {@link LaunchOptions}.
  */
-/**
- * Where the `captcha` option's solves go, and with which key; undefined for no
- * solver. Throws CaptchaKeyMissing or CaptchaKrakenMissing.
- *
- * One Camoufox key serves every service: captcha `true` solves with the
- * launch's `pro_key` when it has one, then the environment camoucore reads
- * (CAMOUFOX_PRO_KEY first), then the key `camoufox login` stored.
- */
-export function captchaOf(
-	option: CaptchaOption,
-	proKey?: string | null,
-): Captcha | undefined {
-	if (option === true && proKey) return resolveCaptcha(PRODUCT, proKey);
-	try {
-		return resolveCaptcha(PRODUCT, option);
-	} catch (error) {
-		const stored =
-			option === true && error instanceof CaptchaKeyMissing
-				? pro.storedKey()
-				: null;
-		if (!stored) throw error;
-		return resolveCaptcha(PRODUCT, stored);
-	}
-}
-
-/** The CaptchaKraken solver the `captcha` option asks for, or undefined. Made
- * before the launch, so an unusable option fails before a browser starts. */
-export async function captchaSolver(
-	option: CaptchaOption,
-	proKey?: string | null,
-): Promise<PageSolver | undefined> {
-	const captcha = captchaOf(option, proKey);
-	return captcha ? await captcha.solver(PRODUCT) : undefined;
-}
-
-/**
- * Whether the build this launch would run is a Camoufox Pro build, read from
- * what is installed: nothing is downloaded or written to find out.
- */
-export function launchesProBuild(
-	executablePath?: string | null,
-	browser?: string | null,
-): boolean {
-	let executable: string;
-	try {
-		if (browser && !executablePath) {
-			executable = utilsDeps.selectedLaunchPath(browser);
-		} else {
-			executable =
-				executablePath ||
-				(process.env.CAMOUFOX_EXECUTABLE_PATH ?? "").trim() ||
-				utilsDeps.launchPath(getActivePath() ?? utilsDeps.installDir());
-		}
-	} catch (error) {
-		if (
-			error instanceof CamoufoxNotInstalled ||
-			error instanceof UnsupportedVersion
-		)
-			return false;
-		throw error;
-	}
-	return pro.readBuild(buildFile(executable, "pro-build.json")) !== null;
-}
-
-/**
- * Throw ProNotLaunched for a Pro option before Camoufox Pro opens, unless the
- * launch runs a Pro build or this process names a Pro API (CAMOUFOX_PRO_API),
- * whose launches keep every Pro option.
- */
-export function checkProLaunch(
-	options: Readonly<Record<string, unknown>>,
-	executablePath?: string | null,
-	browser?: string | null,
-): void {
-	try {
-		checkProOptions(PRODUCT, options);
-	} catch (error) {
-		if (
-			!(error instanceof ProNotLaunched) ||
-			!launchesProBuild(executablePath, browser)
-		)
-			throw error;
-	}
-}
-
-/** What a launch opened along the way: a Pro lease, a managed proxy session. */
-interface Held {
-	lease: pro.Lease | null;
-	proxy: ProxySession | null;
-}
-
 export async function launchOptions(
 	options: LaunchOptions = {},
 ): Promise<Record<string, any>> {
-	// A Camoufox Pro lease or proxy session opened along the way goes back if the build fails.
-	const held: Held = { lease: null, proxy: null };
-	try {
-		return await buildLaunchOptions(options, held);
-	} catch (error) {
-		await held.lease?.release("error");
-		await held.proxy?.release("error");
-		throw error;
-	}
+	return buildLaunchOptions(options);
 }
 
 const OS_CODE: Record<string, string> = {
@@ -2515,69 +2355,48 @@ const OS_CODE: Record<string, string> = {
 	linux: "lin",
 };
 
-/** The Firefox version of the build at `executablePath`, without Camoufox's release suffix. */
-function firefoxVersion(executablePath: string): string {
-	return resolveVerstr(executablePath).split("-", 1)[0];
-}
-
-async function buildLaunchOptions(
-	{
-		config,
-		os: targetOsOption,
-		block_images,
-		block_webrtc,
-		block_webgl,
-		disable_coop,
-		webgl_config,
-		cpu,
-		geoip,
-		geoip_db,
-		humanize,
-		locale,
-		addons,
-		fonts,
-		custom_fonts_only,
-		exclude_addons,
-		screen,
-		window,
-		fingerprint,
-		fingerprint_preset,
-		ff_version,
-		headless,
-		main_world_eval,
-		allow_addon_new_tab,
-		executable_path,
-		browser,
-		firefox_user_prefs,
-		proxy,
-		proxy_dns,
-		proxy_optimistic_data,
-		enable_cache,
-		args,
-		env,
-		i_know_what_im_doing,
-		debug,
-		virtual_display,
-		pin_cpu_cores,
-		canvas_noise,
-		pro_key,
-		profile,
-		warm_plan,
-		managed,
-		farm_gpu,
-		display_profile,
-		captcha,
-		...passthrough
-	}: LaunchOptions,
-	held: Held,
-): Promise<Record<string, any>> {
-	// Before anything is downloaded, written or leased.
-	checkProLaunch(
-		{ pro_key, profile, warm_plan, managed, farm_gpu },
-		executable_path,
-		browser,
-	);
-	captchaOf(captcha, pro_key);
+async function buildLaunchOptions({
+	config,
+	os: targetOsOption,
+	block_images,
+	block_webrtc,
+	block_webgl,
+	disable_coop,
+	webgl_config,
+	cpu,
+	geoip,
+	geoip_db,
+	humanize,
+	locale,
+	addons,
+	fonts,
+	custom_fonts_only,
+	exclude_addons,
+	screen,
+	window,
+	fingerprint,
+	fingerprint_preset,
+	ff_version,
+	headless,
+	main_world_eval,
+	allow_addon_new_tab,
+	executable_path,
+	browser,
+	firefox_user_prefs,
+	proxy,
+	proxy_dns,
+	proxy_optimistic_data,
+	enable_cache,
+	args,
+	env,
+	i_know_what_im_doing,
+	debug,
+	virtual_display,
+	pin_cpu_cores,
+	canvas_noise,
+	display_profile,
+	...passthrough
+}: LaunchOptions): Promise<Record<string, any>> {
 	utilsDeps.ensureBrowserProfileDir(env);
 
 	// The launch fills these in, so it works on copies: a caller's object
@@ -2626,92 +2445,10 @@ async function buildLaunchOptions(
 		await utilsDeps.ensureCamoufoxInstalled();
 	}
 
-	// A Pro build is recognised by its files, so the binary is resolved before
-	// the lease.
+	// The binary that will launch, whose files the launch reads.
 	const resolvedExecutable = executable_path
 		? String(executable_path)
 		: utilsDeps.launchPath();
-
-	// A Pro build does not start without a lease. The caller's own lease file,
-	// if they hold one, wins, as every other variable in the environment does.
-	const proBuild = pro.readBuild(
-		buildFile(resolvedExecutable, "pro-build.json"),
-	);
-	const leased = Boolean(proBuild) && !(pro.LEASE_FILE_ENV in env);
-	const proRequest: pro.LeaseRequest = {};
-	if (profile !== undefined) proRequest.profile = profile;
-	if (warm_plan !== undefined) {
-		if (profile === undefined) {
-			throw new ValueError("warm_plan applies to a profile: pass profile too.");
-		}
-		proRequest.warm_plan = warm_plan;
-	}
-	const wire = managedRequest(managed, { profile, proxy });
-	// A Pro build's managed proxy is a section of its lease, and your own proxy tells the lease to
-	// add none. A standard build has no lease: it opens a proxy session of its own, below, and only
-	// when the launch asked for one, so nobody is put on a metered proxy they did not choose.
-	let proxyWire: Managed | boolean | undefined;
-	if (!proBuild) {
-		if (wire !== undefined && wire !== false) proxyWire = wire;
-	} else if (wire !== undefined && (leased || managed !== undefined)) {
-		proRequest.managed = wire;
-	}
-	// Rendering on this machine is what a standard build does: only a Pro build,
-	// or a launch against a Pro API, tells its lease so.
-	if (farm_gpu === false && (proBuild || proApiSet(PRODUCT)))
-		proRequest.gpu = false;
-	if (Object.keys(proRequest).length && !leased) {
-		throw new ValueError(
-			proBuild
-				? `profile, warm_plan, managed and farm_gpu are lease options, and this launch carries its own ${pro.LEASE_FILE_ENV}.`
-				: "profile, warm_plan and farm_gpu need a Camoufox Pro build (see docs/pro.md).",
-		);
-	}
-	// What the lease adds to the environment, after every launch rule.
-	const proEnv: EnvVars = {};
-
-	if (profile !== undefined && proBuild) {
-		if (typeof targetOsOption !== "string") {
-			throw new ValueError(
-				"A profile launch needs `os`: the one OS its identity presents.",
-			);
-		}
-		checkValidOs(targetOsOption);
-		if (
-			fingerprint != null ||
-			pyTruthy(fingerprint_preset) ||
-			pyTruthy(config) ||
-			passthrough.user_data_dir !== undefined ||
-			passthrough.userDataDir !== undefined
-		) {
-			throw new ValueError(
-				"A profile carries its own identity and browser state: pass no config, fingerprint, " +
-					"fingerprint_preset or user_data_dir with it.",
-			);
-		}
-		held.lease = await pro.acquire(
-			proBuild,
-			OS_CODE[targetOsOption],
-			pro_key,
-			proRequest,
-		);
-		const { identity, userDataDir } = await openProfile(
-			held.lease,
-			firefoxVersion(resolvedExecutable),
-		);
-		// The identity is the bundle's, whole: nothing is drawn for it here.
-		config = identity.config;
-		fingerprint = identity.fingerprint;
-		targetOsOption = identity.os;
-		ff_version = identity.ff_version;
-		exclude_addons = identity.exclude_addons as DefaultAddon[];
-		i_know_what_im_doing = true;
-		Object.assign(firefox_user_prefs, identity.firefox_user_prefs);
-		for (const key of Object.keys(identity.firefox_user_prefs)) {
-			userPrefKeys.add(key);
-		}
-		passthrough.user_data_dir = userDataDir;
-	}
 
 	// Handle virtual display
 	if (virtual_display) {
@@ -2943,49 +2680,6 @@ async function buildLaunchOptions(
 			launchViewport[0] + chromeW,
 			launchViewport[1] + chromeH,
 		);
-	}
-
-	if (leased) {
-		held.lease ??= await pro.acquire(
-			proBuild as pro.ProBuild,
-			targetOs,
-			pro_key,
-			proRequest,
-		);
-		proEnv[pro.LEASE_FILE_ENV] = held.lease.path;
-		const grants = held.lease.grants;
-		if (grants.egress) {
-			proxy = {
-				server: grants.egress.server,
-				username: grants.egress.username,
-				password: grants.egress.password,
-				// The managed proxy refuses local destinations, so they go direct.
-				bypass: "localhost,127.0.0.1,::1,*.local",
-			};
-			geoip ??= grants.egress.exit_ip ?? true;
-		}
-		// A profile's bundle leaves timezone and locale to the exit it runs behind.
-		if (grants.profile) geoip ??= true;
-		if (grants.gpu) {
-			proEnv[pro.RENDER_FILE_ENV] = held.lease.renderPath as string;
-			Object.assign(firefox_user_prefs, grants.gpu.prefs);
-			for (const key of Object.keys(grants.gpu.prefs)) userPrefKeys.add(key);
-			// The farm draws the canvas on the identity's own OS, so there is nothing to cover.
-			canvas_noise ??= false;
-			// The farm is reached directly: the page's proxy is for the page, and one that cannot reach
-			// the render gateway leaves every farm call waiting on a route that never opens.
-			if (proxy) {
-				const farmHost = new URL(grants.gpu.render.endpoint).hostname;
-				const bypass = (proxy.bypass ?? "").split(",").filter(Boolean);
-				proxy = { ...proxy, bypass: [...bypass, farmHost].join(",") };
-			}
-		}
-	}
-
-	if (proxyWire !== undefined) {
-		held.proxy ??= await ProxySession.open(proxyWire, pro_key);
-		proxy = held.proxy.proxy();
-		geoip ??= held.proxy.egress.exit_ip ?? true;
 	}
 
 	// A preset whose screen is a phone viewport is not a real desktop device.
@@ -3516,16 +3210,8 @@ async function buildLaunchOptions(
 		pyTruthy(webgl_config) ||
 			(pyTruthy(config["webGl:vendor"]) && pyTruthy(config["webGl:renderer"])),
 		Boolean(block_webgl),
-		// With the lease this launch carries (minted above): a Pro build will not start without one.
 		() =>
-			utilsDeps.hostGpu(
-				resolvedExecutable,
-				headless,
-				pro.LEASE_FILE_ENV in proEnv
-					? { ...env, [pro.LEASE_FILE_ENV]: proEnv[pro.LEASE_FILE_ENV] }
-					: env,
-				firefox_user_prefs,
-			),
+			utilsDeps.hostGpu(resolvedExecutable, headless, env, firefox_user_prefs),
 	);
 	if (coverCanvas) {
 		addCanvasPlaceholder(firefox_user_prefs);
@@ -3683,8 +3369,6 @@ async function buildLaunchOptions(
 		...(proxyAuth ? proxyAuthEnv(proxyAuth) : {}),
 		...env,
 	};
-
-	Object.assign(envVars, proEnv);
 
 	const result: Record<string, any> = {
 		executablePath: resolvedExecutable,

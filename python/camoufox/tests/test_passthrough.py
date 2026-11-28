@@ -8,7 +8,7 @@ import pytest
 from camoucore.passthrough import IDENTITY_OPTIONS
 from camoucore.virtdisplay import SCREEN_KEY
 
-from camoufox import pro, pro_update, sync_api, utils
+from camoufox import sync_api, utils
 from camoufox.product import PRODUCT
 
 from test_identity_salt import config_of, host
@@ -62,13 +62,6 @@ def test_every_identity_option_camoufox_takes_is_checked():
     checked = {'config', 'os', 'fingerprint', 'fingerprint_preset', 'webgl_config', 'cpu', 'screen', 'window',
                'fonts', 'custom_fonts_only', 'locale', 'geoip', 'canvas_noise', 'pin_cpu_cores', 'ff_version'}
     assert checked == set(IDENTITY_OPTIONS) - {'allow_os_mismatch', 'chrome_version'}
-
-
-def test_a_pro_build_refuses_it(monkeypatch):
-    monkeypatch.setattr(pro, 'read_build', lambda path: object())
-    monkeypatch.setattr(pro_update, 'newest', lambda build, binary, key: binary)
-    with pytest.raises(ValueError, match='standard build'):
-        passthrough()
 
 
 def test_its_virtual_display_is_a_common_screen(monkeypatch):

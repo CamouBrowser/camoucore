@@ -10,9 +10,7 @@ from typing import Any, Dict, Optional
 
 from camoucore.telemetry import Telemetry, telemetry_enabled
 
-from . import pro
 from .product import PRODUCT
-from .pkgman import build_file
 
 
 def start(from_options: Dict[str, Any], setting: Optional[bool], passthrough: bool) -> Optional[Telemetry]:
@@ -27,7 +25,8 @@ def start(from_options: Dict[str, Any], setting: Optional[bool], passthrough: bo
             PRODUCT,
             version=package_version('camoufox'),
             browser_version=_firefox_version(binary),
-            pro=pro.read_build(build_file(binary, 'pro-build.json')) is not None,
+            # The public driver launches no Pro build.
+            pro=False,
             cross_os=launch_os(from_options) != OS_NAMES[_host_os_key()],
             passthrough=passthrough,
             proxy=from_options.get('proxy'),

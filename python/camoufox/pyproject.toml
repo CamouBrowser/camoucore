@@ -33,15 +33,11 @@ python = "^3.11"
 # The launcher code camoufox shares with the other CamouBrowser launchers:
 # downloads, GeoIP, locales, proxy lookups, Xvfb, the fpgen model pin, the
 # defaults file, passthrough and telemetry. It brings fpgen, PyYAML,
-# platformdirs, screeninfo, language-tags and PySocks with it. The captcha
-# extra takes camoucore's, which brings the CaptchaKraken client. Exactly this
+# platformdirs, screeninfo, language-tags and PySocks with it. Exactly this
 # release's version (scripts/set-version.py).
-camoucore = [
-    {version = "==0.6.0"},
-    {version = "==0.6.0", extras = ["captcha"], markers = "extra == 'captcha'"},
-]
+camoucore = "==0.6.0"
 rich-click = "*"
-# Imported directly by the Pro modules (camoucore brings it too).
+# utils.py reads the install directory from it (camoucore brings it too).
 platformdirs = "*"
 rich = "*"
 requests = "*"
@@ -60,17 +56,9 @@ inquirer = "*"
 # TypeScript, and in every install of one camoufox release.
 myuri = "5.1.0"
 maxminddb = {version = "*", optional = true}  # camoucore[geoip]
-# Camoufox Pro profile state sync: XChaCha20-Poly1305, zstd, FastCDC.
-pynacl = {version = ">=1.5", optional = true}
-zstandard = {version = ">=0.22", optional = true}
-pyfastcdc = {version = ">=0.3", optional = true}
 
 [tool.poetry.extras]
 geoip = ["maxminddb"]
-# The captcha launch option's solver (camoucore[captcha]).
-captcha = []
-# A leased launch behind its own proxy, or of a stored profile, turns geoip on.
-pro = ["maxminddb", "pynacl", "zstandard", "pyfastcdc"]
 
 [tool.poetry.scripts]
 camoufox = "camoufox.__main__:cli"

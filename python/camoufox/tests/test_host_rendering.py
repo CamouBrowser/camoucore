@@ -285,19 +285,6 @@ def test_the_host_gpu_probe_reports_why_the_browser_did_not_start(monkeypatch):
         host_gpu("/nonexistent/firefox", True, {}, {})
 
 
-def test_the_probed_browser_gets_the_pro_lease(tmp_path, monkeypatch):
-    """The probe runs in a child interpreter; the lease still reaches the
-    browser it launches, without which a Pro build exits before rendering."""
-    seen = tmp_path / "lease"
-    browser = tmp_path / "firefox"
-    browser.write_text(f"#!/bin/sh\nprintf %s \"$CAMOU_LEASE_FILE\" > {seen}\nexec sleep 600\n")
-    browser.chmod(0o755)
-    monkeypatch.setattr(host_rendering, "HOST_GPU_PROBE_TIMEOUT_S", 5)
-    monkeypatch.setattr(host_rendering, "_PROBED", {})
-    with pytest.raises(TimeoutError):
-        host_gpu(str(browser), True, {"CAMOU_LEASE_FILE": "/run/camoufox-pro/a.json"}, {})
-    assert seen.read_text() == "/run/camoufox-pro/a.json"
-
 
 def browser_on_host(gpu):
     browser = mock.MagicMock()
@@ -375,15 +362,15 @@ class TestHostIdentity:
         assert self.attach(False, canvas_noise) is None
 
 
-def test_the_probe_carries_the_pro_lease_without_keying_on_it(monkeypatch):
+def test_the_probe_does_not_key_on_the_identity(monkeypatch):
     from camoufox import host_rendering
 
     reads = []
     monkeypatch.setattr(host_rendering, "_PROBED", {})
     monkeypatch.setattr(host_rendering, "_probe_host_gpu", lambda *args: reads.append(args) or HOST_GPU)
-    for lease in ("/run/camoufox-pro/a.json", "/run/camoufox-pro/b.json"):
-        env = {"DISPLAY": ":5", "CAMOU_CONFIG_1": "{}", "CAMOU_LEASE_FILE": lease}
+    for config in ("{}", '{"a": 1}'):
+        env = {"DISPLAY": ":5", "CAMOU_CONFIG_1": config}
         assert host_gpu("/x/camoufox", False, env, {}) == HOST_GPU
 
-    # Read once, under the first launch's lease; the identity's CAMOU_ values stay out.
-    assert reads == [("/x/camoufox", False, (("DISPLAY", ":5"),), (), "/run/camoufox-pro/a.json")]
+    # Read once; the identity's CAMOU_ values stay out.
+    assert reads == [("/x/camoufox", False, (("DISPLAY", ":5"),), ())]

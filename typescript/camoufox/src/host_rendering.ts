@@ -37,10 +37,6 @@ export const FEATURE_BLOCKED_DEVICE = 4;
 // What the launcher itself adds to the browser's environment; none of it
 // changes which device Firefox renders on.
 const LAUNCHER_ENV = ["CAMOU_", "FONTCONFIG_FILE"];
-// Except the Camoufox Pro lease (pro.LEASE_FILE_ENV), without which a Pro build
-// exits before it renders anything. It is not part of the cache key: a new
-// lease does not move the GPU.
-const LEASE_ENV = "CAMOU_LEASE_FILE";
 
 /** A GPU as WEBGL_debug_renderer_info reports it: [vendor, renderer]. */
 export type Gpu = [string, string];
@@ -144,14 +140,10 @@ export function hostGpu(
 	const key = JSON.stringify([executablePath, headless, hostEnv, hostPrefs]);
 	let gpu = probes.get(key);
 	if (!gpu) {
-		const lease = env[LEASE_ENV];
 		gpu = readGpu(
 			executablePath,
 			headless,
-			{
-				...Object.fromEntries(hostEnv),
-				...(lease ? { [LEASE_ENV]: String(lease) } : {}),
-			},
+			Object.fromEntries(hostEnv),
 			Object.fromEntries(hostPrefs),
 		);
 		// Remember a reading, not a failure: the next launch tries again.

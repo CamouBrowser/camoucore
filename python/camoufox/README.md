@@ -28,7 +28,6 @@ camoufox fetch
 |---|---|
 | Python | 3.11 or newer |
 | Playwright | below 1.63 (installed as a dependency) |
-| `captcha` extra | needed for `captcha=`: `pip install -U "camoufox[geoip,captcha]"` ([Captcha](#captcha)) |
 | `geoip` extra | needed for `geoip=`; downloads the [GeoIP All-in-One](https://github.com/daijro/geoip-all-in-one) database, refreshed once it is a week old, into `~/.cache/camoucore/geoip` on Linux (camoucore's cache, shared by every launcher built on it) |
 
 `camoufox fetch` installs the browser build this release is paired with, and
@@ -322,49 +321,8 @@ Behaviour options still apply: `proxy`, `headless`, `addons`, `humanize`,
 `fingerprint`, `locale`, `geoip`, `screen`, `window`, `fonts`, `webgl_config`,
 ...) raise `ValueError` with it, and so do `preset`, `os`, `ff_version` and
 `webrtc_ip` in `NewContext()` on its browser. With a proxy it warns: the
-timezone and languages stay this machine's, not the exit's. A Camoufox Pro build
-refuses it, since its lease grants an identity. On `headless="virtual"` the
+timezone and languages stay this machine's, not the exit's. On `headless="virtual"` the
 display is 1920x1080 unless `CAMOUFOX_VIRTUAL_DISPLAY_SIZE` says otherwise.
-
-### Captcha
-
-`captcha=` gives the launched browser, or persistent context, a solver at
-`.captcha`; without it `.captcha` is `None`. It needs the `captcha` extra
-(the [captchakraken](https://pypi.org/project/captchakraken) client). A key or
-server comes from one of:
-
-1. A Camoufox account key (`cfp_live_...`), the one key every Camoufox service
-   takes: make a free account at <https://camoufox.com/early-access/>.
-2. A CaptchaKraken server you host: `pip install "captchakraken[serve]"`,
-   `captchakraken server start`, then `captcha="http://localhost:8000/v1"`.
-
-A CaptchaKraken key (`ck_live_...`) works too, solving at CaptchaKraken's API.
-
-`captcha=True` reads the key from the launch's `pro_key`, `CAMOUFOX_PRO_KEY`,
-`CAPTCHA_KRAKEN_API_KEY` or `CAMOUFOX_CAPTCHA_URL`, then the `camoufox login`
-key. When none is set it raises `CaptchaKeyMissing`, which lists the account
-first and hosting the solver yourself second. The option is checked before
-anything is downloaded and never reaches Playwright.
-
-```python
-with Camoufox(captcha="cfp_live_...") as browser:
-    page = browser.new_page()
-    page.goto("https://example.com")
-    browser.captcha.solve(page)
-```
-
-The async API's `.captcha` is the async solver.
-
-### Pro options
-
-`pro_key`, `profile`, `warm_plan`, `managed` and `farm_gpu` are Camoufox Pro's.
-Pro has not launched: on a standard build any of them raises `ProNotLaunched`,
-before anything is downloaded, naming <https://camoufox.com/early-access/>,
-where an account is made and the waitlist joined. Values that ask for nothing
-(`managed=False`, `farm_gpu=False`) launch. `camoufox login` prints the same page and exits 1. A Camoufox
-Pro build, or a process that sets `CAMOUFOX_PRO_API`, launches them as before
-([docs/pro.md](https://github.com/daijro/camoufox/blob/main/docs/pro.md)).
-Camoufox itself stays free.
 
 ### Telemetry
 
@@ -439,10 +397,6 @@ passed to Playwright's `firefox.launch()` (or `launch_persistent_context()`).
 | `virtual_display` | `str` | none | Use an existing X display, e.g. `":99"`. |
 | `i_know_what_im_doing` | `bool` | `False` | Silence the leak warnings above. |
 | `debug` | `bool` | `False` | Print the config sent to the browser. |
-| `captcha` | `True`, `str` or `{"endpoint", "key"}` | none | A CaptchaKraken solver at `.captcha`: an account key, a CaptchaKraken key or a self-hosted server URL ([Captcha](#captcha)). |
-| `pro_key` | `str` | `CAMOUFOX_PRO_KEY`, then the `camoufox login` key | Camoufox Pro key for a Pro build, which launches with a lease ([docs/pro.md](https://github.com/daijro/camoufox/blob/main/docs/pro.md)). Not launched yet ([Pro options](#pro-options)). |
-| `profile`, `warm_plan`, `managed`, `farm_gpu` | see docs/pro.md | none | `managed` is a managed proxy on any build (pay-as-you-go with a Camoufox key); `profile`, `warm_plan` and `farm_gpu=False` are Camoufox Pro lease options: a stored profile, its warm plan, and rendering on this machine instead of a remote GPU. |
-| `pool_profile` | `str` | none | Camoufox Pro's pool warmer only: the pool profile this launch presents. |
 
 `NewBrowser` and `AsyncNewBrowser` also take `persistent_context` and
 `from_options` (a dict from `launch_options()` to use as is).
@@ -454,7 +408,6 @@ passed to Playwright's `firefox.launch()` (or `launch_persistent_context()`).
 | Command | Options | What it does |
 |---|---|---|
 | `fetch [VERSION]` | | Install the paired build (or, after `set`, the latest in the chosen channel), or `VERSION` without making it active. A named or paired build is read from its own release; anything else syncs first. Exits non-zero when nothing is installed. |
-| `fetch pro [VERSION]` | | Install the newest Camoufox Pro release for this machine, or `VERSION` (`159.0-pro.12`), and make it the build every launch uses. Needs `camoufox login` and a subscription; checks the release's signature with the public keys this package ships before it downloads, then the SHA-256, and resumes an interrupted download ([docs/pro.md](https://github.com/daijro/camoufox/blob/main/docs/pro.md#installing-a-pro-build)). |
 | `sync` | `--spoof-os auto\|mac\|win\|lin`, `--spoof-arch auto\|x86_64\|i686\|arm64` | Refresh the list of available builds from every repository. |
 | `set [SPECIFIER]` | `--geoip`, `--release` | Pin a build (`official/stable/134.0.2-beta.20`) or follow a channel (`official/stable`). No specifier opens a picker. `--geoip` picks the GeoIP database instead; `--release` goes back to the paired build. |
 | `active` | | Print the active build. A build that is chosen but not downloaded is marked `(not fetched)`. |
@@ -467,9 +420,6 @@ passed to Playwright's `firefox.launch()` (or `launch_persistent_context()`).
 | `server` | | Start a Playwright server with default options and print its websocket endpoint. |
 | `gpu-setup [GPU]` | | Print the root script that sets this machine up for `headless="virtual-gpu"` on the card `GPU` names (or `CAMOUFOX_GPU`). Run it with `\| sudo sh`. |
 | `gpu-xorg-config [GPU]` | | Print the Xorg config `headless="virtual-gpu"` needs for the card `GPU` names (or `CAMOUFOX_GPU`). |
-| `login` | | Sign in to Camoufox Pro on this machine and store its key. Until Pro launches it prints <https://camoufox.com/early-access/> and exits 1, unless a Pro build is installed or `CAMOUFOX_PRO_API` is set. |
-| `logout` | | Delete the stored Camoufox Pro key. |
-| `pro` | `--activate`, `--executable-path PATH`, `--os` | `--activate` mints a lease for the local Pro build, prints what it grants, and releases it; exits 0 only when granted. |
 
 `set` and `fetch` read builds from these repositories (`repos.yml`):
 

@@ -12,7 +12,7 @@ webgl2), so a seeded identity always presents the same device.
 
 from functools import lru_cache
 from random import Random
-from typing import AbstractSet, Any, Dict, FrozenSet, List, Optional, Tuple
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 import orjson
 
@@ -249,11 +249,9 @@ def sample_webgl_for_screen(
     seed: Optional[int] = None,
     cores: Optional[int] = None,
     cpu: Optional[Dict[str, str]] = None,
-    renderers: Optional[AbstractSet[str]] = None,
 ) -> Dict[str, Any]:
     """Draw a GPU for a synthetic identity, weighted as fpgen records Firefox
-    on `target_os`, and its WebGL config. With `renderers`, only those GPUs
-    are drawn: the ones a Camoufox Pro render farm draws on.
+    on `target_os`, and its WebGL config.
 
     Only GPUs the rest of the identity can stand beside are drawn: never a
     software rasteriser, a GPU the OS cannot report, the resistFingerprinting
@@ -279,7 +277,6 @@ def sample_webgl_for_screen(
             and gpu_fits_machine(renderer, target_os, cores, width, height)
             and gpu_screen_is_plausible(renderer, width, height)
             and gpu_fits_cpu(renderer, target_os, *_cpu_pair(cpu))
-            and (renderers is None or renderer in renderers)
         )
 
     candidates = tuple(result for result in _trace('gpu', target_os) if fits(result, False))
@@ -293,11 +290,6 @@ def sample_webgl_for_screen(
     ):
         candidates = tuple(result for result in _trace('gpu', target_os) if fits(result, True))
     if not candidates:
-        if renderers is not None:
-            raise ValueError(
-                f"No GPU the render farm draws on ({', '.join(sorted(renderers))}) fits this "
-                f"{target_os} identity's {width}x{height} screen, {cores} cores and CPU"
-            )
         if cpu and not any(
             gpu_fits_cpu(r.value['renderer'], target_os, *_cpu_pair(cpu)) for r in _trace('gpu', target_os)
         ):

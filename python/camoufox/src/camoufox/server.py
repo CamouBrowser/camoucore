@@ -11,7 +11,6 @@ import base64
 import orjson
 from playwright._impl._driver import compute_driver_executable
 
-from camoufox import pro
 from camoufox.defaults import with_defaults
 from camoucore.virtdisplay import VirtualDisplay
 
@@ -65,8 +64,7 @@ def launch_server(**kwargs) -> NoReturn:
     kwargs = with_defaults(kwargs)
     # The client drives the pages, so this process has nothing to report on.
     kwargs.pop('telemetry', None)
-    # A Camoufox Pro profile launches as a persistent context too.
-    for unsupported in ('persistent_context', 'user_data_dir', 'profile'):
+    for unsupported in ('persistent_context', 'user_data_dir'):
         if kwargs.get(unsupported):
             raise ValueError(
                 f"launch_server() does not support {unsupported!r}: Playwright cannot "
@@ -85,14 +83,9 @@ def launch_server(**kwargs) -> NoReturn:
     virtual_display, kwargs['headless'] = start_virtual_display(
         kwargs.get('headless'), kwargs.get('debug'), kwargs
     )
-    lease = None
     try:
-        config = launch_options(**kwargs)
-        lease = pro.claim(config, virtual_display)
-        _serve(config, virtual_display)
+        _serve(launch_options(**kwargs), virtual_display)
     finally:
-        if lease:
-            lease.release()
         if virtual_display:
             virtual_display.kill()
 

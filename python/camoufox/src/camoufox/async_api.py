@@ -13,12 +13,11 @@ from typing_extensions import Literal
 from camoucore.ip import ExitGeo, Proxy, proxy_exit_geo
 from camoucore.virtdisplay import VirtualDisplay
 
-from . import _humanize_playwright, driver_defaults, pro, telemetry
+from . import _humanize_playwright, driver_defaults, telemetry
 from .defaults import with_defaults
 from .fingerprints import generate_context_fingerprint
 from .utils import (
     async_attach_vd,
-    captcha_solver,
     attach_context_defaults,
     attach_persistent_geometry,
     attach_socks5_auth,
@@ -128,9 +127,6 @@ async def AsyncNewBrowser(
     # humanize runs in this process: checked before the launch,
     # attached to the browser after it (also with from_options).
     _humanize_playwright.check(kwargs.get('humanize'), is_async=True)
-    # The captcha solver is made before the launch, so an unusable option
-    # fails before a browser starts, and is the browser's `.captcha` after it.
-    captcha = captcha_solver(kwargs.get('captcha'), asynchronous=True, pro_key=kwargs.get('pro_key'))
     virtual_display, headless = await asyncio.get_running_loop().run_in_executor(
         None, start_virtual_display, headless, debug, kwargs
     )
@@ -145,7 +141,6 @@ async def AsyncNewBrowser(
         browser = _humanize_playwright.attach(
             browser, kwargs.get('humanize'), os, i_know_what_im_doing=kwargs.get('i_know_what_im_doing')
         )
-        browser.captcha = captcha
         return browser
     except BaseException:
         if virtual_display:
@@ -230,29 +225,24 @@ async def _launch(
     reporter: Optional[telemetry.Telemetry],
     passthrough: bool,
 ) -> Union[Browser, BrowserContext]:
-    lease = pro.claim(from_options, virtual_display)
-    # A Camoufox Pro profile runs in its own user-data directory.
-    persistent_context = persistent_context or bool(lease and lease.grants.get('profile'))
     try:
-        return await _launch_leased(
-            playwright, from_options, persistent_context, no_viewport_default, virtual_display, canvas_noise, lease,
+        return await _launch_browser(
+            playwright, from_options, persistent_context, no_viewport_default, virtual_display, canvas_noise,
             reporter, passthrough,
         )
-    except Exception as error:
+    except Exception:
         if reporter:
             reporter.close()
-        pro.launch_failed(lease, error)
         raise
 
 
-async def _launch_leased(
+async def _launch_browser(
     playwright: Playwright,
     from_options: Dict[str, Any],
     persistent_context: bool,
     no_viewport_default: bool,
     virtual_display: Optional[VirtualDisplay],
     canvas_noise: Optional[bool],
-    lease: Optional[pro.Lease],
     reporter: Optional[telemetry.Telemetry],
     passthrough: bool,
 ) -> Union[Browser, BrowserContext]:
@@ -262,15 +252,11 @@ async def _launch_leased(
         )
         driver_defaults.mark(context)
         attach_persistent_geometry(context, from_options)
-        if lease:
-            pro.attach_lease(lease, context, 'close', is_async=True)
         telemetry.attach(context, reporter, is_async=True)
         return await async_attach_vd(context, virtual_display)
 
     identity = await asyncio.get_running_loop().run_in_executor(None, host_identity, from_options, canvas_noise)
     browser = await playwright.firefox.launch(**from_options)
-    if lease:
-        pro.attach_lease(lease, browser, 'disconnected', is_async=True)
     attach_context_defaults(browser, no_viewport_default, launch_geometry(from_options))
     browser._camoufox_host_identity = identity
     browser._camoufox_passthrough = passthrough

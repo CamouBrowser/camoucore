@@ -399,7 +399,6 @@ def test_launch_server_passes_only_launch_options_their_defaults(monkeypatch):
     seen = {}
     monkeypatch.setattr(server, "launch_options", lambda **kwargs: seen.update(kwargs) or {})
     monkeypatch.setattr(server, "_serve", lambda config, display: None)
-    monkeypatch.setattr(server.pro, "claim", lambda config, display: None)
     server.launch_server(headless=True)
     assert "persistent_context" not in seen and "telemetry" not in seen
     assert seen["passthrough"] is False

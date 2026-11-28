@@ -23,7 +23,6 @@ import {
 	saveGeoipConfig,
 	warnIfDeprecated,
 } from "camoucore/geolocation.js";
-import { earlyAccessUrl, proApiSet } from "camoucore/pro.js";
 import { Argument, Command, Option } from "commander";
 import { ensureModel } from "fpgen-js";
 import { LIBRARY_VERSION } from "./__version__.js";
@@ -59,14 +58,12 @@ import { INSTALL_DIR, rprint, style } from "./paths.js";
 import {
 	AvailableVersion,
 	CamoufoxFetcher,
-	camoufoxPath,
 	formatAssetDate,
 	type IncompatibleBuild,
 	incompatibleMessage,
 	installedPackageVersion,
 	installedVerStr,
 	interfaceSupported,
-	launchPath,
 	listAvailableVersions,
 	RepoConfig,
 	resolvedPlaywrightVersionRaw,
@@ -74,8 +71,6 @@ import {
 	upgradeMessage,
 	Version,
 } from "./pkgman.js";
-import type { ProBuild } from "./pro.js";
-import { PRODUCT } from "./product.js";
 
 // --------------------------------------------------------------------------
 // click-style output + prompts
@@ -609,49 +604,11 @@ program
 		);
 	});
 
-/** The channel `camoufox fetch pro` chooses: Camoufox Pro's published releases. */
-const PRO_CHANNEL = "pro/stable";
-
-/** The Pro build a launch would run, or null when it is not a Pro build. */
-async function activeProBuild(): Promise<ProBuild | null> {
-	const { readBuild } = await import("./pro.js");
-	const { buildFile } = await import("./pkgman.js");
-	let executable: string;
-	try {
-		executable = activeExecutable();
-	} catch {
-		return null;
-	}
-	return readBuild(buildFile(executable, "pro-build.json"));
-}
-
-/**
- * Install a Camoufox Pro release and make it the chosen build: the newest
- * one, which `camoufox fetch` then follows, or `version`, which it keeps.
- */
-async function fetchPro(version: string | null): Promise<void> {
-	const { fetchRelease } = await import("./pro-update.js");
-	try {
-		await fetchRelease(version, await activeProBuild());
-	} catch (e) {
-		fail(errorMessage(e));
-	}
-	const config = loadConfig();
-	delete config.pinned_sha;
-	delete config.pinned;
-	config.channel = PRO_CHANNEL;
-	if (version) config.pinned = version;
-	saveConfig(config);
-}
-
 program
 	.command("fetch")
-	.description(
-		"Install the active version, a specific version, or (fetch pro [version]) a Camoufox Pro release",
-	)
-	.argument("[version]", "e.g. official/135.0-beta.25, or pro")
-	.argument("[pro_version]", "after pro: a release, e.g. 159.0-pro.12")
-	.action(async (version?: string, proVersion?: string) => {
+	.description("Install the active version, or a specific version")
+	.argument("[version]", "e.g. official/135.0-beta.25")
+	.action(async (version?: string) => {
 		// Clean up an incompatible old data directory
 		if (
 			fs.existsSync(INSTALL_DIR) &&
@@ -662,16 +619,7 @@ program
 			fs.rmSync(INSTALL_DIR, { recursive: true, force: true });
 		}
 
-		const config = loadConfig();
-		if (version === "pro") {
-			await fetchPro(proVersion ?? null);
-		} else if (proVersion) {
-			fail("Only `camoufox fetch pro` takes a second argument.");
-		} else if (!version && config.channel === PRO_CHANNEL) {
-			await fetchPro(config.pinned ?? null);
-		} else {
-			await fetchPublic(config, version);
-		}
+		await fetchPublic(loadConfig(), version);
 		if (allowGeoip()) {
 			await downloadMmdb();
 		}
@@ -813,26 +761,6 @@ program
 				rprint(
 					"Use: version-build, repo/channel, or repo/channel/version-build",
 					"yellow",
-				);
-				return;
-			}
-
-			if (`${repoName}/stable` === PRO_CHANNEL) {
-				// Pro releases come from the Camoufox Pro API, not a synced repository.
-				const inst = findInstalled(`${repoName}/${spec}`);
-				if (!inst) {
-					fail(
-						`Camoufox Pro ${spec} is not installed. Run \`camoufox fetch pro ${spec}\`.`,
-					);
-				}
-				setPinned(
-					repoName,
-					"stable",
-					{
-						version: inst.version.version as string,
-						build: inst.version.build,
-					},
-					inst,
 				);
 				return;
 			}
@@ -1251,98 +1179,6 @@ program
 			process.once("SIGTERM", stop);
 		});
 		await server.close();
-	});
-
-/** The browser a launch would run: the option, CAMOUFOX_EXECUTABLE_PATH, then the active install. */
-function activeExecutable(executablePath?: string): string {
-	return (
-		executablePath ||
-		(process.env.CAMOUFOX_EXECUTABLE_PATH ?? "").trim() ||
-		launchPath(camoufoxPath())
-	);
-}
-
-program
-	.command("login")
-	.description(
-		"Sign in to Camoufox Pro on this machine (not launched yet: prints where to make an account)",
-	)
-	.action(async () => {
-		// The key is for the API the installed Pro build leases from.
-		const build = await activeProBuild();
-		if (build === null && !proApiSet(PRODUCT)) {
-			echo(
-				`Camoufox Pro has not launched yet. Make your account at ${earlyAccessUrl(PRODUCT)} ` +
-					"to be told the day it opens; Camoufox itself stays free.",
-			);
-			process.exitCode = 1;
-			return;
-		}
-		const { login } = await import("./pro.js");
-		const signedIn = await login(undefined, undefined, build);
-		rprint(
-			`Signed in to ${signedIn.account.name} as ${signedIn.user.github_login}. ` +
-				`The key is stored in ${signedIn.path}.`,
-			"green",
-		);
-	});
-
-program
-	.command("logout")
-	.description("Delete the Camoufox Pro key stored on this machine")
-	.action(async () => {
-		const { forgetKey } = await import("./pro.js");
-		const forgotten = forgetKey();
-		if (forgotten === null) {
-			rprint("No Camoufox Pro key is stored on this machine.", "yellow");
-			return;
-		}
-		rprint(
-			`Deleted ${forgotten} from this machine. It stays valid until you revoke it ` +
-				"in the Camoufox Pro dashboard.",
-			"green",
-		);
-	});
-
-program
-	.command("pro")
-	.description("Check Camoufox Pro on this machine")
-	.option(
-		"--activate",
-		"Mint a lease for the local Pro build, report what it grants, and release it.",
-	)
-	.option(
-		"--executable-path <path>",
-		"The Pro build's executable. Defaults to CAMOUFOX_EXECUTABLE_PATH, then the active install.",
-	)
-	.addOption(
-		new Option(
-			"--os <os>",
-			"The identity OS to lease for. Defaults to this machine's.",
-		).choices(["windows", "macos", "linux"]),
-	)
-	.action(async (opts, command: Command) => {
-		if (!opts.activate) {
-			command.help();
-		}
-		const pro = await import("./pro.js");
-		const { buildFile } = await import("./pkgman.js");
-		let executable: string;
-		try {
-			executable = activeExecutable(opts.executablePath);
-		} catch (error) {
-			console.log(`[FAIL] no Camoufox Pro build: ${(error as Error).message}`);
-			process.exitCode = 1;
-			return;
-		}
-		const osCode = Object.entries(pro.TARGET_OS).find(
-			([, name]) => name === (opts.os ?? pro.HOST_OS),
-		)?.[0] as string;
-		const verified = await pro.activate(
-			buildFile(executable, "pro-build.json"),
-			osCode,
-		);
-		if (!verified) process.exitCode = 1;
 	});
 
 // --------------------------------------------------------------------------

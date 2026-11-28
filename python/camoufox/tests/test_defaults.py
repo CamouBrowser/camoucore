@@ -13,9 +13,8 @@ from camoufox.__main__ import cli
 from camoufox.addons import DefaultAddons
 from camoufox.fingerprints import Screen
 
-# Launch arguments that are not defaults: a secret, an internal value, and the
-# Pro pool warmer's own.
-NOT_DEFAULTS = {'pro_key', 'virtual_display', 'pool_profile'}
+# Launch arguments that are not defaults: an internal value.
+NOT_DEFAULTS = {'virtual_display'}
 
 
 def entries():

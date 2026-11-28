@@ -41,10 +41,6 @@ FEATURE_BLOCKED_DEVICE = 4
 # What the launcher itself adds to the browser's environment; none of it
 # changes which device Firefox renders on.
 _LAUNCHER_ENV = ('CAMOU_', 'FONTCONFIG_FILE')
-# Except the Camoufox Pro lease (pro.LEASE_FILE_ENV), without which a Pro build
-# exits before it renders anything. It is not part of the cache key: a new
-# lease does not move the GPU.
-_LEASE_ENV = 'CAMOU_LEASE_FILE'
 
 Gpu = Tuple[str, str]
 
@@ -103,7 +99,6 @@ def host_gpu(
         bool(headless),
         tuple(sorted((k, str(v)) for k, v in env.items() if not k.startswith(_LAUNCHER_ENV))),
         tuple(sorted((k, prefs[k]) for k in GPU_PREFS if k in prefs)),
-        env.get(_LEASE_ENV),
     )
 
 
@@ -115,11 +110,10 @@ def _host_gpu(
     headless: bool,
     env: Tuple[Tuple[str, str], ...],
     prefs: Tuple[Tuple[str, Any], ...],
-    lease: Optional[str] = None,
 ) -> Optional[Gpu]:
     key = (executable_path, headless, env, prefs)
     if key not in _PROBED:
-        _PROBED[key] = _probe_host_gpu(executable_path, headless, env, prefs, lease)
+        _PROBED[key] = _probe_host_gpu(executable_path, headless, env, prefs)
     return _PROBED[key]
 
 
@@ -128,7 +122,6 @@ def _probe_host_gpu(
     headless: bool,
     env: Tuple[Tuple[str, str], ...],
     prefs: Tuple[Tuple[str, Any], ...],
-    lease: Optional[str],
 ) -> Optional[Gpu]:
     # The probe runs in its own interpreter: the sync API refuses to start
     # inside a running asyncio loop, which is where AsyncCamoufox calls
@@ -151,7 +144,7 @@ def _probe_host_gpu(
     request = json.dumps({
         'executable_path': executable_path,
         'headless': headless,
-        'env': {**dict(env), **({_LEASE_ENV: lease} if lease else {})},
+        'env': dict(env),
         'prefs': dict(prefs),
     })
     try:

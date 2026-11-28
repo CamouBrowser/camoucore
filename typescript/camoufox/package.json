@@ -45,11 +45,9 @@
   "//playwright-core": "Range mirrors python/pyproject.toml's `playwright = \"<1.63\"`: every Playwright minor is free to change Juggler, so the ceiling is bumped deliberately, with a run of `make -C browser tests`. The dev pin (1.62.0) is the version the Python venv resolves, so the goldens compare like with like.",
   "//@jwriter20/myuri": "Pinned to the release python/pyproject.toml pins, so a humanize seed plans the same input in both launchers.",
   "//camoucore": "The launcher code camoufox shares with the other CamouBrowser launchers.",
-  "//captchakraken": "Optional: the `captcha` launch option needs it, and asks for it when it is missing. Install it with CAPTCHA_KRAKEN_SKIP_PYTHON_SETUP=1 when only the hosted API is used.",
   "packageManager": "pnpm@10.33.4",
   "dependencies": {
     "@jwriter20/myuri": "5.1.0",
-    "@noble/ciphers": "2.4.0",
     "camoucore": "workspace:*",
     "cli-progress": "^3.12.0",
     "commander": "^14.0.0",
@@ -65,20 +63,13 @@
     "@types/cli-progress": "^3.11.6",
     "@types/node": "^24.0.0",
     "adm-zip": "^0.6.1",
-    "captchakraken": "5.2.1",
     "playwright-core": "1.62.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.8.3",
     "vitest": "^4.0.0"
   },
   "peerDependencies": {
-    "captchakraken": ">=5.2.1 <6",
     "playwright-core": "<1.63"
-  },
-  "peerDependenciesMeta": {
-    "captchakraken": {
-      "optional": true
-    }
   },
   "devEngines": {
     "packageManager": {

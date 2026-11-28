@@ -5,7 +5,6 @@ import os
 from urllib.parse import urlsplit
 import platform
 import shutil
-import threading
 from functools import wraps
 from inspect import Parameter, signature
 from os import environ
@@ -16,7 +15,6 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import orjson
-from camoucore.captcha import Captcha, CaptchaOption, resolve_captcha
 from camoucore.display import has_display, largest_display
 from camoucore.geolocation import ALLOW_GEOIP, geoip_allowed, get_geolocation
 from camoucore.ip import ExitGeo, Proxy, public_ip, valid_ipv4, valid_ipv6
@@ -25,9 +23,7 @@ from camoucore.virtdisplay import SCREEN_KEY, VirtualDisplay
 from typing_extensions import TypeAlias
 from ua_parser import user_agent_parser
 
-from camoucore.exceptions import CaptchaKeyMissing, ProNotLaunched
 from camoucore.passthrough import check_passthrough, warn_passthrough
-from camoucore.pro import check_pro_options, pro_api_set
 
 from . import driver_defaults
 from .defaults import with_defaults
@@ -40,11 +36,9 @@ from .exceptions import (
     UnknownIPLocation,
 )
 from .fingerprints import BASELINE_TASKBAR_HEIGHT, RECORDED_WINDOW_CHROME, Screen, draw_screen, place_window, screen_floor, platform_to_os, from_fpgen, from_preset, generate_fingerprint, get_random_preset, _generate_random_font_subset, font_unit_families, draw_voice_config, fix_navigator_arch, fix_hardware_concurrency, set_cpu_default, identity_salt, drop_audio_seed, identity_seed, follow_baseline_protection, clamp_screen_to_display, clamp_window_dimensions, clamp_window_position, fit_window_to_caller_screen, raise_screen_to_modern_floor, set_media_devices_defaults, set_host_ipv6_default, set_output_latency_default, set_windows_alias_load_default, set_location_setting_default, WINDOWS_11_MARKER_FONTS, OS_KEYS, OS_NAMES
-from . import coherence, pro
+from . import coherence
 from .humanize import HumanizeSetting, normalize as normalize_humanize
 from .ip import proxy_auth_env, proxy_auth_init_script, public_ipv6, socks5_auth
-from .managed import Managed, managed_request
-from .proxy_session import ProxySession
 import warnings
 
 from .product import PRODUCT
@@ -1364,72 +1358,6 @@ def attach_persistent_geometry(context: Any, from_options: Dict[str, Any]) -> An
     return context
 
 
-def captcha_of(option: CaptchaOption, pro_key: Optional[str] = None) -> Optional[Captcha]:
-    """
-    Where the `captcha` option's solves go, and with which key; None for no
-    solver. Raises CaptchaKeyMissing or CaptchaKrakenMissing.
-
-    One Camoufox key serves every service: captcha=True solves with the
-    launch's `pro_key` when it has one, then the environment camoucore reads
-    (CAMOUFOX_PRO_KEY first), then the key `camoufox login` stored.
-    """
-    if option is True and pro_key:
-        return resolve_captcha(PRODUCT, pro_key)
-    try:
-        return resolve_captcha(PRODUCT, option)
-    except CaptchaKeyMissing:
-        stored = pro.stored_key() if option is True else None
-        if not stored:
-            raise
-        return resolve_captcha(PRODUCT, stored)
-
-
-def captcha_solver(option: CaptchaOption, asynchronous: bool, pro_key: Optional[str] = None) -> Any:
-    """The captchakraken page solver the `captcha` option asks for, or None.
-    Made before the launch, so an unusable option fails before a browser starts."""
-    captcha = captcha_of(option, pro_key)
-    return captcha.page_solver(PRODUCT, asynchronous=asynchronous) if captcha else None
-
-
-def _launches_pro_build(executable_path: Optional[Union[str, Path]], browser: Optional[str]) -> bool:
-    """
-    Whether the build this launch would run is a Camoufox Pro build, read from
-    what is installed: nothing is downloaded or written to find out.
-    """
-    from .exceptions import CamoufoxNotInstalled, UnsupportedVersion
-    from .multiversion import get_active_path
-
-    try:
-        if browser and not executable_path:
-            executable = selected_launch_path(browser)
-        else:
-            executable = str(
-                executable_path
-                or environ.get('CAMOUFOX_EXECUTABLE_PATH', '').strip()
-                or launch_path(get_active_path() or INSTALL_DIR)
-            )
-    except (CamoufoxNotInstalled, UnsupportedVersion):
-        return False
-    return pro.read_build(build_file(executable, "pro-build.json")) is not None
-
-
-def check_pro_launch(
-    options: Dict[str, Any],
-    executable_path: Optional[Union[str, Path]] = None,
-    browser: Optional[str] = None,
-) -> None:
-    """
-    Raise ProNotLaunched for a Pro option before Camoufox Pro opens, unless the
-    launch runs a Pro build or this process names a Pro API (CAMOUFOX_PRO_API),
-    whose launches keep every Pro option.
-    """
-    try:
-        check_pro_options(PRODUCT, options)
-    except ProNotLaunched:
-        if not _launches_pro_build(executable_path, browser):
-            raise
-
-
 def attach_context_defaults(browser: Any, no_viewport_default: bool, geometry: Optional[Dict[str, Any]] = None) -> None:
     """Give every new_page()/new_context() of `browser` Camoufox's defaults."""
     attach_socks5_auth(browser)
@@ -1474,9 +1402,7 @@ def host_identity(from_options: Dict[str, Any], canvas_noise: Optional[bool]) ->
     keeps their contexts as they ask. Read before the launch, so a failed probe
     leaves no browser behind."""
     prefs = from_options.get('firefox_user_prefs', {})
-    # A farm-rendered browser draws there, not on this host.
-    env = from_options.get('env', {})
-    if canvas_noise is not None or has_canvas_placeholder(prefs) or pro.RENDER_FILE_ENV in env:
+    if canvas_noise is not None or has_canvas_placeholder(prefs):
         return None
     # Without the placeholder, the launch claimed the host's OS and no named GPU.
     host_os = _host_os_key()
@@ -1737,31 +1663,6 @@ def resolve_verstr(executable_path: Optional[Path] = None) -> str:
     raise ValueError(f'{ini} names no Version')
 
 
-# The Camoufox Pro lease or managed proxy session opened on this
-# thread, released if the rest of the build fails.
-_HELD = threading.local()
-
-
-def _release_lease_on_failure(build: Any) -> Any:
-    @wraps(build)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        _HELD.lease = None
-        _HELD.proxy = None
-        try:
-            return build(*args, **kwargs)
-        except BaseException:
-            if _HELD.lease is not None:
-                _HELD.lease.release("error")
-            if _HELD.proxy is not None:
-                _HELD.proxy.release("error")
-            raise
-        finally:
-            _HELD.lease = None
-            _HELD.proxy = None
-
-    return wrapper
-
-
 def _apply_defaults(build: Any) -> Any:
     """Fill the options the caller left unset from the defaults file."""
     names = [p.name for p in signature(build).parameters.values() if p.kind is Parameter.KEYWORD_ONLY]
@@ -1773,15 +1674,10 @@ def _apply_defaults(build: Any) -> Any:
     return wrapper
 
 
-_OS_CODE = {"windows": "win", "macos": "mac", "linux": "lin"}
-
-
 def _passthrough_options(
     *,
     browser_binary: str,
     executable_path: Optional[Path],
-    proxy_wire: Any,
-    pro_key: Optional[str],
     proxy: Optional[Dict[str, str]],
     proxy_dns: Optional[str],
     proxy_optimistic_data: Optional[bool],
@@ -1809,10 +1705,6 @@ def _passthrough_options(
     identity. The browser gets a config of switches only (addons, main world,
     addon tabs) and the host's own fontconfig, so every value a page reads is
     this machine's."""
-    if proxy_wire is not None:
-        if _HELD.proxy is None:
-            _HELD.proxy = ProxySession(proxy_wire, pro_key)
-        proxy = _HELD.proxy.proxy()
     warn_passthrough(PRODUCT, proxy, i_know_what_im_doing)
     if proxy and proxy_carries_no_udp(str(proxy.get('server', ''))):
         LeakWarning.warn(WARNINGS_DATA['proxy_http_no_udp'], i_know_what_im_doing)
@@ -1877,7 +1769,6 @@ def _firefox_version(executable_path: Path) -> str:
 
 
 @_apply_defaults
-@_release_lease_on_failure
 def launch_options(
     *,
     config: Optional[Dict[str, Any]] = None,
@@ -1918,15 +1809,8 @@ def launch_options(
     virtual_display: Optional[str] = None,
     pin_cpu_cores: Optional[bool] = None,
     canvas_noise: Optional[bool] = None,
-    pro_key: Optional[str] = None,
-    profile: Optional[str] = None,
-    warm_plan: Optional[Literal["none", "standard", "continuous"]] = None,
-    managed: Optional[Union[Managed, bool]] = None,
-    farm_gpu: Optional[Literal[False]] = None,
-    pool_profile: Optional[str] = None,
     display_profile: DisplayProfileOption = None,
     passthrough: Optional[bool] = None,
-    captcha: CaptchaOption = None,
     **launch_options: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
@@ -2037,38 +1921,6 @@ def launch_options(
             told. OFF by default -- it costs real CPU and serializes concurrent
             launches. Without it the host's own (snapped) count is reported,
             which is equally coherent, just less diverse.
-        pro_key (Optional[str]):
-            Camoufox Pro key (cfp_live_...) for a Pro build. Defaults to
-            CAMOUFOX_PRO_KEY, then the key `camoufox login` stored. A Pro build
-            is launched with a lease minted with it (see docs/pro.md); the lease
-            is released when the browser closes, or at exit when these options
-            are launched without NewBrowser/Camoufox.
-        profile (Optional[str]):
-            A Camoufox Pro profile's key (any name up to 64 characters). The
-            browser presents the profile's identity, the same on every launch,
-            and its state (cookies, storage, logins) is restored before the
-            launch and synced back when it closes. Needs `os`; the launch is a
-            persistent context. See docs/pro.md, "Profiles".
-        warm_plan (Optional[str]):
-            The warm plan a new `profile` is created with: "none" (the default
-            with your own `proxy`) is the only plan whose state syncs to this
-            machine; "standard" and "continuous" profiles are kept warm in the
-            cloud and launch with their identity only. Left out, the API decides.
-        managed (Optional[Union[Managed, bool]]):
-            A managed proxy, paid from the account's wallet: a Managed naming
-            the provider, type, network and country wanted, True for the
-            defaults, or False for none. Any build takes it with a Camoufox key
-            (`camoufox login`), pay-as-you-go included; CamouLink needs a Pro
-            plan. Left out, a `profile` gets the default and a launch without
-            one goes direct. With your own `proxy` there is none, and passing
-            both raises ValueError. See docs/pro.md, "Managed proxies".
-        farm_gpu (Optional[bool]):
-            False renders WebGL, WebGPU and canvas on this machine's GPU for a
-            Camoufox Pro Windows identity, instead of on a remote GPU.
-        pool_profile (Optional[str]):
-            Camoufox Pro's own pool warmer only: the pool profile ('prf_<uuid>')
-            this launch presents, so its lease draws on the GPU that profile is
-            pinned to. Any other account's mint is refused.
         display_profile (Optional[Union[bytes, str, Path, bool]]):
             The display's ICC colour profile, which ICC-tagged images are converted to
             (a page reads it from their decoded pixels): ICC bytes or a path, e.g. one
@@ -2080,8 +1932,7 @@ def launch_options(
             Launch the browser as this machine's own: no identity is drawn or sent,
             so pages read this machine's user agent, screen, GPU, fonts, timezone and
             languages. Behaviour options (proxy, headless, addons, humanize, block_*)
-            still apply; an option that sets an identity raises ValueError, and so
-            does a Camoufox Pro build, which launches with its lease's identity.
+            still apply; an option that sets an identity raises ValueError.
         webgl_config (Optional[Tuple[str, str]]):
             Use a specific WebGL vendor/renderer pair. Passed as a tuple of (vendor, renderer).
             The pair must be one fpgen has recorded from Firefox on `os`
@@ -2111,31 +1962,11 @@ def launch_options(
             renders with, uncovered; it is on whenever the identity claims
             another OS or another GPU (webgl_config, a preset's, or a host GPU
             fpgen never recorded), whose canvas would otherwise show the host.
-        captcha (Optional[Union[bool, str, Dict[str, Optional[str]]]]):
-            Solve captchas with CaptchaKraken (pip install "camoufox[captcha]"): a
-            Camoufox account key ("cfp_live_..."), the URL of a CaptchaKraken server
-            you host, a CaptchaKraken key ("ck_live_..."), {"endpoint": ..., "key": ...},
-            or True to read pro_key, CAMOUFOX_PRO_KEY, CAPTCHA_KRAKEN_API_KEY,
-            CAMOUFOX_CAPTCHA_URL, then the key `camoufox login` stored. The browser (or
-            persistent context) then has a `.captcha` solver. True with none of them
-            raises CaptchaKeyMissing. Applied by Camoufox()/NewBrowser(); only
-            validated here.
         **launch_options (Dict[str, Any]):
             Additional Firefox launch options.
-
-    Camoufox Pro has not launched yet: on a standard build, pro_key, profile,
-    warm_plan, a managed proxy and farm_gpu=True raise ProNotLaunched, which names
-    the page where an account is made, before anything is downloaded. A Pro build,
-    or CAMOUFOX_PRO_API set, launches them as docs/pro.md says.
     """
-    # Before anything is downloaded, written or leased.
-    check_pro_launch(
-        {'pro_key': pro_key, 'profile': profile, 'warm_plan': warm_plan, 'managed': managed, 'farm_gpu': farm_gpu},
-        executable_path, browser,
-    )
-    captcha_of(captcha, pro_key)
     if passthrough:
-        # Before anything is downloaded or leased: the caller asked for two launches at once.
+        # Before anything is downloaded: the caller asked for two launches at once.
         check_passthrough(PRODUCT, {
             'config': config, 'os': os, 'fingerprint': fingerprint, 'fingerprint_preset': fingerprint_preset,
             'webgl_config': webgl_config, 'cpu': cpu, 'screen': screen, 'window': window, 'fonts': fonts,
@@ -2190,87 +2021,8 @@ def launch_options(
 
     # Resolve the binary that will launch before reading its version:
     # launch_path() downloads the browser when none is installed, and the
-    # identity has to match the Firefox that actually runs. A Pro build is
-    # recognised by its files, so this comes before the lease too.
+    # identity has to match the Firefox that actually runs.
     browser_binary = str(executable_path) if executable_path else launch_path()
-
-    # A Pro build does not start without a lease. The caller's own lease file,
-    # if they hold one, wins, as every other variable in the environment does.
-    pro_build = pro.read_build(build_file(browser_binary, "pro-build.json"))
-    leased = pro_build is not None and pro.LEASE_FILE_ENV not in env
-    pro_request: Dict[str, Any] = {}
-    if profile is not None:
-        pro_request["profile"] = profile
-    if warm_plan is not None:
-        if profile is None:
-            raise ValueError("warm_plan applies to a profile: pass profile too.")
-        pro_request["warm_plan"] = warm_plan
-    wire = managed_request(managed, profile=profile, proxy=proxy)
-    # A Pro build's managed proxy is a section of its lease, and your own proxy tells the lease to add
-    # none. A standard build has no lease: it opens a proxy session of its own, below, and only when the
-    # launch asked for one, so nobody is put on a metered proxy they did not choose.
-    proxy_wire = None
-    if pro_build is None:
-        if wire not in (None, False):
-            proxy_wire = wire
-    elif wire is not None and (leased or managed is not None):
-        pro_request["managed"] = wire
-    # Rendering on this machine is what a standard build does: only a Pro build,
-    # or a launch against a Pro API, tells its lease so.
-    if farm_gpu is False and (pro_build is not None or pro_api_set(PRODUCT)):
-        pro_request["gpu"] = False
-    if pool_profile is not None:
-        if profile is not None:
-            raise ValueError("pool_profile and profile conflict: a warm launch presents a pool profile.")
-        pro_request["pool_profile"] = pool_profile
-    if pro_request and not leased:
-        raise ValueError(
-            "profile, warm_plan, managed and farm_gpu are lease options, and this launch carries its own "
-            f"{pro.LEASE_FILE_ENV}."
-            if pro_build
-            else "profile, warm_plan and farm_gpu need a Camoufox Pro build (see docs/pro.md)."
-        )
-    # What the lease adds to the environment, after every launch rule.
-    pro_env: Dict[str, str] = {}
-
-    profiled = profile is not None and pro_build is not None
-    if profiled:
-        if not isinstance(os, str):
-            raise ValueError("A profile launch needs `os`: the one OS its identity presents.")
-        check_valid_os(os)
-        if (
-            fingerprint is not None
-            or fingerprint_preset
-            or config
-            or "user_data_dir" in launch_options
-        ):
-            raise ValueError(
-                "A profile carries its own identity and browser state: pass no config, fingerprint, "
-                "fingerprint_preset or user_data_dir with it."
-            )
-    if leased:
-        # A newer release of the same target, when one is published, is the build that launches.
-        from .pro_update import newest
-
-        newer = newest(pro_build, browser_binary, pro_key)
-        if newer != browser_binary:
-            executable_path, browser_binary = Path(newer), newer
-            pro_build = pro.read_build(build_file(browser_binary, "pro-build.json"))
-    if profiled:
-        _HELD.lease = pro.acquire(pro_build, _OS_CODE[os], pro_key, pro_request)
-        from .pro_profile import open_profile
-
-        identity, user_data_dir = open_profile(_HELD.lease, _firefox_version(Path(browser_binary)))
-        # The identity is the bundle's, whole: nothing is drawn for it here.
-        config = identity["config"]
-        fingerprint = identity["fingerprint"]
-        os = identity["os"]
-        ff_version = identity["ff_version"]
-        exclude_addons = identity["exclude_addons"]
-        i_know_what_im_doing = True
-        firefox_user_prefs.update(identity["firefox_user_prefs"])
-        _user_pref_keys.update(identity["firefox_user_prefs"])
-        launch_options["user_data_dir"] = str(user_data_dir)
 
     # Handle virtual display
     if virtual_display:
@@ -2282,14 +2034,8 @@ def launch_options(
         env["MOZ_ENABLE_WAYLAND"] = "0"
 
     if passthrough:
-        if leased:
-            raise ValueError(
-                'passthrough=True needs a standard build: a Camoufox Pro build launches with the identity '
-                'its lease grants.'
-            )
         return _passthrough_options(
-            browser_binary=browser_binary, executable_path=executable_path, proxy_wire=proxy_wire,
-            pro_key=pro_key, proxy=proxy, proxy_dns=proxy_dns, proxy_optimistic_data=proxy_optimistic_data,
+            browser_binary=browser_binary, executable_path=executable_path, proxy=proxy, proxy_dns=proxy_dns, proxy_optimistic_data=proxy_optimistic_data,
             addons=addons, exclude_addons=exclude_addons, config=config, firefox_user_prefs=firefox_user_prefs,
             user_pref_keys=_user_pref_keys, env=env, args=args, headless=headless, humanize=humanize,
             main_world_eval=main_world_eval, allow_addon_new_tab=allow_addon_new_tab,
@@ -2453,62 +2199,6 @@ def launch_options(
     if fit_viewport and window is None:
         chrome_w, chrome_h = RECORDED_WINDOW_CHROME[target_os]
         place_window(config, launch_viewport[0] + chrome_w, launch_viewport[1] + chrome_h)
-
-    if leased and _HELD.lease is None and pro_request.get("gpu") is not False and not block_webgl:
-        # The farm draws only the GPUs it has, so the identity claims one of them, and the mint names
-        # it: the lease is drawn on that GPU, never on one the page's WebGL strings do not claim.
-        served = pro.served_gpus(pro_build, target_os, pro_key)
-        if served:
-            if not webgl_config and not (config.get('webGl:vendor') and config.get('webGl:renderer')):
-                drawn = sample_webgl_for_screen(
-                    target_os, config.get('screen.width'), config.get('screen.height'),
-                    seed=identity_seed(config, _identity_salt),
-                    cores=config.get('navigator.hardwareConcurrency'),
-                    cpu=config,
-                    renderers=served,
-                )
-                config['webGl:vendor'], config['webGl:renderer'] = drawn['webGl:vendor'], drawn['webGl:renderer']
-            # A caller's or a preset's pair the farm does not serve is refused by the mint, loudly.
-            pro_request["persona"] = list(webgl_config or (config['webGl:vendor'], config['webGl:renderer']))
-    if leased:
-        if _HELD.lease is None:
-            _HELD.lease = pro.acquire(pro_build, target_os, pro_key, pro_request)
-        lease = _HELD.lease
-        pro_env[pro.LEASE_FILE_ENV] = str(lease.path)
-        grants = lease.grants
-        if grants.get("egress"):
-            proxy = {
-                "server": grants["egress"]["server"],
-                "username": grants["egress"]["username"],
-                "password": grants["egress"]["password"],
-                # The managed proxy refuses local destinations, so they go direct.
-                "bypass": "localhost,127.0.0.1,::1,*.local",
-            }
-            if geoip is None:
-                geoip = grants["egress"].get("exit_ip") or True
-        # A profile's bundle leaves timezone and locale to the exit it runs behind.
-        if grants.get("profile") and geoip is None:
-            geoip = True
-        if grants.get("gpu"):
-            pro_env[pro.RENDER_FILE_ENV] = str(lease.render_path)
-            firefox_user_prefs.update(grants["gpu"]["prefs"])
-            _user_pref_keys.update(grants["gpu"]["prefs"])
-            # The farm draws the canvas on the identity's own OS, so there is nothing to cover.
-            if canvas_noise is None:
-                canvas_noise = False
-            # The farm is reached directly: the page's proxy is for the page, and one that cannot reach
-            # the render gateway leaves every farm call waiting on a route that never opens.
-            if proxy:
-                farm_host = urlsplit(grants["gpu"]["render"]["endpoint"]).hostname
-                bypass = [entry for entry in (proxy.get("bypass") or "").split(",") if entry]
-                proxy = {**proxy, "bypass": ",".join([*bypass, farm_host])}
-
-    if proxy_wire is not None:
-        if _HELD.proxy is None:
-            _HELD.proxy = ProxySession(proxy_wire, pro_key)
-        proxy = _HELD.proxy.proxy()
-        if geoip is None:
-            geoip = _HELD.proxy.egress.get("exit_ip") or True
 
     # A preset whose screen is a phone viewport is not a real desktop device;
     # the floor is normally skipped for presets, on the assumption that a preset
@@ -3009,13 +2699,7 @@ def launch_options(
         canvas_noise,
         bool(webgl_config or (config.get('webGl:vendor') and config.get('webGl:renderer'))),
         bool(block_webgl),
-        # With the lease this launch carries (minted above): a Pro build will not start without one.
-        lambda: host_gpu(
-            browser_binary,
-            headless,
-            {**env, **{k: v for k, v in pro_env.items() if k == pro.LEASE_FILE_ENV}},
-            firefox_user_prefs,
-        ),
+        lambda: host_gpu(browser_binary, headless, env, firefox_user_prefs),
     )
     if cover_canvas:
         add_canvas_placeholder(firefox_user_prefs)
@@ -3136,7 +2820,6 @@ def launch_options(
         **(proxy_auth_env(proxy_auth) if proxy_auth else {}),
         **env,
     }
-    env_vars.update(pro_env)
 
     result = {
         "executable_path": browser_binary,

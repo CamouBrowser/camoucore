@@ -9,7 +9,6 @@
  * launch lock (async_api), and virtual-display teardown.
  */
 
-import type { PageSolver } from "camoucore/captcha.js";
 import * as cpuAffinity from "camoucore/cpu_affinity.js";
 import { type ProxyConfig, ProxyHelper, proxyExitGeo } from "camoucore/ip.js";
 import { SELECTOR } from "camoucore/locales.js";
@@ -25,7 +24,6 @@ import { attach } from "./_humanize_playwright.js";
 import { attachDriverDefaults } from "./driver_defaults.js";
 import { generateContextFingerprint } from "./fingerprints.js";
 import { normalize } from "./humanize.js";
-import { attachLease, claim, launchFailed, type ProSession } from "./pro.js";
 import {
 	applyNoViewport,
 	attachDesktopOnlyWarning,
@@ -35,7 +33,6 @@ import {
 	attachStockMediaDefaults,
 	attachViewportFit,
 	attachVirtualDisplay,
-	captchaSolver,
 	contextIdentity,
 	contextScreenBound,
 	driverPid,
@@ -55,13 +52,6 @@ import {
 } from "./utils.js";
 
 export type { Headless } from "./utils.js";
-
-/** A launched browser or persistent context, with its captcha solver. */
-export type WithCaptcha<T> = T & {
-	/** The CaptchaKraken solver the `captcha` option asked for, or undefined
-	 * without one: `await browser.captcha.solve(page)`. */
-	captcha: PageSolver | undefined;
-};
 
 export interface NewBrowserOptions
 	extends Omit<LaunchOptions, "headless">,
@@ -84,15 +74,12 @@ export interface NewBrowserOptions
  * spawned, is torn down with it.
  */
 export async function Camoufox(
-	options: NewBrowserOptions &
-		({ persistent_context: true } | { profile: string }),
-): Promise<WithCaptcha<BrowserContext & { pro?: ProSession }>>;
-export async function Camoufox(
-	options?: NewBrowserOptions,
-): Promise<WithCaptcha<Browser & { pro?: ProSession }>>;
+	options: NewBrowserOptions & { persistent_context: true },
+): Promise<BrowserContext>;
+export async function Camoufox(options?: NewBrowserOptions): Promise<Browser>;
 export async function Camoufox(
 	options: NewBrowserOptions = {},
-): Promise<WithCaptcha<Browser | BrowserContext>> {
+): Promise<Browser | BrowserContext> {
 	return NewBrowser(firefox, options);
 }
 
@@ -105,13 +92,12 @@ export async function Camoufox(
  */
 export async function NewBrowser(
 	playwright: BrowserType,
-	options: NewBrowserOptions &
-		({ persistent_context: true } | { profile: string }),
-): Promise<WithCaptcha<BrowserContext & { pro?: ProSession }>>;
+	options: NewBrowserOptions & { persistent_context: true },
+): Promise<BrowserContext>;
 export async function NewBrowser(
 	playwright: BrowserType,
 	options?: NewBrowserOptions,
-): Promise<WithCaptcha<Browser & { pro?: ProSession }>>;
+): Promise<Browser>;
 export async function NewBrowser(
 	playwright: BrowserType,
 	{
@@ -121,13 +107,10 @@ export async function NewBrowser(
 		debug,
 		...kwargs
 	}: NewBrowserOptions = {},
-): Promise<WithCaptcha<Browser | BrowserContext>> {
+): Promise<Browser | BrowserContext> {
 	// humanize engines run in this process: checked before the launch,
 	// attached to the browser after it (also with from_options).
 	normalize(kwargs.humanize);
-	// The captcha solver is made before the launch, so an unusable option
-	// fails before a browser starts, and is the browser's `.captcha` after it.
-	const captcha = await captchaSolver(kwargs.captcha, kwargs.pro_key);
 	const [virtualDisplay, headlessBool] = await startVirtualDisplay(
 		headless,
 		debug,
@@ -138,7 +121,6 @@ export async function NewBrowser(
 	// Options the caller built leave its contexts to the caller
 	// (hostIdentity).
 	let canvasNoise: boolean | undefined = false;
-	let lease: Awaited<ReturnType<typeof claim>> = null;
 	try {
 		if (!fromOptions || !Object.keys(fromOptions).length) {
 			canvasNoise = kwargs.canvas_noise ?? undefined;
@@ -153,7 +135,6 @@ export async function NewBrowser(
 				debug,
 			});
 		}
-		lease = await claim(fromOptions, virtualDisplay);
 	} catch (error) {
 		// A failed launch must not leave the display behind.
 		virtualDisplay?.kill();
@@ -169,22 +150,18 @@ export async function NewBrowser(
 	// navigator.hardwareConcurrency; the driver gets its cores back afterwards.
 	const pinTo = pinnedCoreCount(fromOptions);
 	const launch = async () =>
-		Object.assign(
-			attach(
-				await launchWith(
-					playwright,
-					fromOptions as Record<string, any>,
-					Boolean(persistent_context),
-					noViewportDefault,
-					virtualDisplay,
-					canvasNoise,
-					lease,
-				),
-				kwargs.humanize,
-				launchOs(fromOptions as Record<string, any>),
-				kwargs.i_know_what_im_doing,
+		attach(
+			await launchWith(
+				playwright,
+				fromOptions as Record<string, any>,
+				Boolean(persistent_context),
+				noViewportDefault,
+				virtualDisplay,
+				canvasNoise,
 			),
-			{ captcha },
+			kwargs.humanize,
+			launchOs(fromOptions as Record<string, any>),
+			kwargs.i_know_what_im_doing,
 		);
 	try {
 		if (!pinTo) {
@@ -203,7 +180,6 @@ export async function NewBrowser(
 		});
 	} catch (error) {
 		virtualDisplay?.kill();
-		await launchFailed(lease, error);
 		throw error;
 	}
 }
@@ -215,7 +191,6 @@ async function launchWith(
 	noViewportDefault: boolean,
 	virtualDisplay: VirtualDisplay | null,
 	canvasNoise: boolean | undefined,
-	lease: Awaited<ReturnType<typeof claim>>,
 ): Promise<Browser | BrowserContext> {
 	// Persistent context. Python passes user_data_dir inside the options; the
 	// JS API takes it positionally. A user_data_dir alone also selects it.
@@ -243,7 +218,6 @@ async function launchWith(
 		);
 		attachDriverDefaults(context);
 		attachPersistentGeometry(context, fromOptions);
-		if (lease) attachLease(lease, context, "close");
 		return attachVirtualDisplay(context, virtualDisplay);
 	}
 
@@ -252,7 +226,6 @@ async function launchWith(
 	const browser = await playwright.launch(fromOptions);
 	attachSocks5Auth(browser);
 	attachViewportFit(browser, launchGeometry(fromOptions));
-	if (lease) attachLease(lease, browser, "disconnected");
 	if (noViewportDefault) {
 		attachNoViewportDefault(browser);
 	}
