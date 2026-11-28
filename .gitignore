@@ -3,3 +3,5 @@ __pycache__/
 .venv/
 dist/
 node_modules/
+# CI downloads and work files (the browser, the fpgen model)
+.ci-work/

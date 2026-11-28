@@ -1,0 +1,73 @@
+name: The newest browser release
+description: >-
+  Download and unpack a launcher's newest browser release (Linux x86_64) from
+  its Official repository's GitHub releases, cached by tag. The browser ships
+  first, then the driver: every driver change is tested against the browser a
+  user would get today. The download is rate-capped so a shared line keeps
+  headroom; nothing here builds a browser.
+
+inputs:
+  launcher:
+    description: The launcher, e.g. camouwolf
+    required: true
+  rate-limit:
+    description: curl --limit-rate for the download
+    required: false
+    default: 10M
+
+outputs:
+  tag:
+    description: The release tag, e.g. v158.0.8127.36-alpha.1
+    value: ${{ steps.resolve.outputs.tag }}
+  repo:
+    description: The repository it was released from
+    value: ${{ steps.resolve.outputs.repo }}
+  dir:
+    description: The unpacked browser
+    value: ${{ steps.locate.outputs.dir }}
+  executable:
+    description: The browser binary in it
+    value: ${{ steps.locate.outputs.executable }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: python3 scripts/browser-release.py resolve "${{ inputs.launcher }}" --github-output
+    - id: cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .ci-work/browser/${{ inputs.launcher }}
+        key: browser-${{ inputs.launcher }}-${{ steps.resolve.outputs.tag }}-lin.x86_64
+    - if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        URL: ${{ steps.resolve.outputs.url }}
+        SHA256_URL: ${{ steps.resolve.outputs.sha256_url }}
+        DEST: .ci-work/browser/${{ inputs.launcher }}
+        RATE: ${{ inputs.rate-limit }}
+      run: |
+        mkdir -p .ci-work/download
+        zip=.ci-work/download/browser.zip
+        echo "Downloading $URL at most $RATE/s"
+        curl --fail --location --silent --show-error --retry 3 --limit-rate "$RATE" -o "$zip" "$URL"
+        if [ -n "$SHA256_URL" ]; then
+          want=$(curl --fail --location --silent --show-error "$SHA256_URL" | awk '{print $1}')
+          echo "$want  $zip" | sha256sum --check --strict
+        fi
+        rm -rf "$DEST" && mkdir -p "$DEST"
+        unzip -q "$zip" -d "$DEST"
+        rm -f "$zip"
+    - id: locate
+      shell: bash
+      env:
+        DEST: .ci-work/browser/${{ inputs.launcher }}
+        NAME: ${{ steps.resolve.outputs.executable }}
+      run: |
+        exe=$(find "$PWD/$DEST" -maxdepth 2 -type f -name "$NAME" -perm -u+x | head -n1)
+        [ -n "$exe" ] || { echo "::error::no $NAME in the unpacked release"; exit 1; }
+        echo "dir=$(dirname "$exe")" >> "$GITHUB_OUTPUT"
+        echo "executable=$exe" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,2838 @@
+import ctypes.util
+import json
+import re
+import os
+from urllib.parse import urlsplit
+import platform
+import shutil
+from functools import wraps
+from inspect import Parameter, signature
+from os import environ
+from os.path import abspath
+from pathlib import Path
+from pprint import pprint
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+
+import numpy as np
+import orjson
+from camoucore.display import has_display, largest_display
+from camoucore.geolocation import ALLOW_GEOIP, geoip_allowed, get_geolocation
+from camoucore.ip import ExitGeo, Proxy, public_ip, valid_ipv4, valid_ipv6
+from camoucore.locales import SELECTOR, handle_locales
+from camoucore.virtdisplay import SCREEN_KEY, VirtualDisplay
+from typing_extensions import TypeAlias
+from ua_parser import user_agent_parser
+
+from camoucore.passthrough import check_passthrough, warn_passthrough
+
+from . import driver_defaults
+from .defaults import with_defaults
+from .addons import DefaultAddons, add_default_addons, confirm_paths
+from .display_profile import DisplayProfileOption, apply_display_profile
+from .exceptions import (
+    InvalidOS,
+    InvalidPropertyType,
+    NonFirefoxFingerprint,
+    UnknownIPLocation,
+)
+from .fingerprints import BASELINE_TASKBAR_HEIGHT, RECORDED_WINDOW_CHROME, Screen, draw_screen, place_window, screen_floor, platform_to_os, from_fpgen, from_preset, generate_fingerprint, get_random_preset, _generate_random_font_subset, font_unit_families, draw_voice_config, fix_navigator_arch, fix_hardware_concurrency, set_cpu_default, identity_salt, drop_audio_seed, identity_seed, follow_baseline_protection, clamp_screen_to_display, clamp_window_dimensions, clamp_window_position, fit_window_to_caller_screen, raise_screen_to_modern_floor, set_media_devices_defaults, set_host_ipv6_default, set_output_latency_default, set_windows_alias_load_default, set_location_setting_default, WINDOWS_11_MARKER_FONTS, OS_KEYS, OS_NAMES
+from . import coherence
+from .humanize import HumanizeSetting, normalize as normalize_humanize
+from .ip import proxy_auth_env, proxy_auth_init_script, public_ipv6, socks5_auth
+import warnings
+
+from .product import PRODUCT
+from .pkgman import (
+    INSTALL_DIR,
+    LAUNCHER_CONSTANTS,
+    OS_NAME,
+    Version,
+    build_file,
+    effective_version_min,
+    ensure_browser_profile_dir,
+    get_path,
+    installed_verstr,
+    launch_path,
+    selected_launch_path,
+    warn_if_package_outdated,
+)
+from .gpudisplay import GPU_PREFS, GpuDisplay, async_prove_gpu, prove_gpu, select_gpu
+from platformdirs import user_cache_dir
+from ._warnings import WARNINGS_DATA, FallbackWarning, LeakWarning, _warn_from_caller
+from .host_rendering import Gpu, add_canvas_placeholder, has_canvas_placeholder, host_gpu, set_webgpu
+from .webgl import firefox_gpus, sample_webgl_for_screen, webgl_for_gpu
+
+ListOrString: TypeAlias = Union[Tuple[str, ...], List[str], str]
+
+# Xvfb geometry for a passthrough launch on headless='virtual' (start_virtual_display).
+PASSTHROUGH_SCREEN = '1920x1080x24'
+
+# Camoufox preferences to cache previous pages and requests
+CACHE_PREFS: Dict[str, Any] = LAUNCHER_CONSTANTS['cachePrefs']
+
+# Behind a SOCKS5 proxy with proxy_dns='doh': names are resolved by DoH alone,
+# at the resolver Firefox's own DoH rollout uses (docs/proxy-dns.md).
+PROXY_DOH_PREFS: Dict[str, Any] = LAUNCHER_CONSTANTS['proxyDohPrefs']
+
+# System colours stock Firefox reports on Windows in the default (light) theme:
+# measured on 152.0.4 (2026-09-24) and checked, all 92 CSS system colours,
+# against 158.0 on Windows 11 (browser/tests/playwright/patches/assets/
+# system-colors-windows.json). The ones a Linux host's GTK theme would answer
+# otherwise are listed, plus -moz-oddtreerow; the rest are Gecko stand-ins,
+# identical on every OS. The -moz_menuhover* pair is Windows 11's non-native
+# menu colours (NS_RGBA(0, 0, 0, 30) and kNonNativeMenuText). AccentColor is
+# Firefox's own default (Photon blue 60), not the Windows accent, unless the
+# user opts into system accent colours.
+WINDOWS_UI_COLORS: Dict[str, str] = LAUNCHER_CONSTANTS['windowsUiColors']
+# Prefs whose default differs between Firefox's Windows and Linux builds (all.js,
+# firefox.js and StaticPrefList.yaml, checked on 158) and that a page or the
+# user can observe, set to the Windows default:
+#   - eat_space_to_next_word: double-click selects the trailing space too.
+#   - general.autoScroll, middlemouse.*: middle click autoscrolls. Linux instead pastes the
+#     X11 primary selection, firing a paste event no Windows browser sends.
+#   - full-screen-api.transition-duration.*: GTK builds have no transition.
+#   - ui.scrollToClick, slider.snapMultiplier, click_and_hold_track: a track
+#     click pages rather than jumps (GTK otherwise reads the desktop setting),
+#     a thumb dragged far off snaps back, and holding on the track stops at
+#     the pointer.
+#   - media.eme.enabled: Linux builds default EME off, so Widevine said "EME has
+#     been preffed off" where stock Windows grants it (the Widevine CDM a Linux
+#     build downloads answers the same configuration). PlayReady, which Windows
+#     has through Media Foundation, is the eme-playready-claimed-os patch.
+# Windows-only machinery (DirectComposition, ClearType, WMF) does nothing in a
+# Linux build and is left out.
+WINDOWS_BEHAVIOUR_PREFS: Dict[str, Any] = LAUNCHER_CONSTANTS['windowsBehaviourPrefs']
+
+
+def _physical_scale(config: Dict[str, Any], prefs: Optional[Dict[str, Any]] = None) -> float:
+    """Monitor pixels per CSS pixel of the window at the scale it renders at.
+
+    Linux reports the monitor in pixels at scale 1. On Windows and macOS the
+    host's own scaling is already in the bounds and is not known here, so 1.
+    """
+    if OS_NAME != 'lin':
+        return 1.0
+    pref = float((prefs or {}).get('layout.css.devPixelsPerPx') or -1)  # -1 is Firefox's "the system's"
+    return pref if pref > 0 else float(config.get('window.devicePixelRatio') or 1)
+
+
+def _host_os_key() -> Optional[str]:
+    """The host OS in fonts.json / target_os terms ('mac', 'win', 'lin')."""
+    return {'Darwin': 'mac', 'Windows': 'win', 'Linux': 'lin'}.get(platform.system())
+
+
+# navigator.storage.estimate().quota is not a constant: Gecko derives it from
+# the disk. GetTemporaryStorageLimit() (dom/quota/ActorsParent.cpp) takes
+# nsIFile::GetDiskCapacity() of the storage directory and halves it, then
+# QuotaManager::GetGroupLimitForLimit() reports min(that / 5, 10 GiB) to the
+# page -- so any disk of 100 GB or more reads back as exactly 10 GiB, and a
+# smaller one as its own capacity / 10.
+_QUOTA_FIXED_LIMIT_PREF = 'dom.quotaManager.temporaryStorage.fixedLimit'
+# The pref is a signed 32-bit int in KB. Any value above 50 GiB already reports
+# the 10 GiB group cap, so clamping a multi-terabyte disk changes nothing a page
+# can see.
+_INT32_MAX = 2**31 - 1
+
+
+def _stock_profile_disk_capacity_kb() -> Optional[int]:
+    """Half the capacity of the disk a stock Firefox profile would live on, in KB.
+
+    That is the number Gecko's own GetTemporaryStorageLimit() would compute on
+    this machine, and it is what `dom.quotaManager.temporaryStorage.fixedLimit`
+    takes. Capacity is always a multiple of the filesystem block size, so the
+    KB conversion is exact rather than a rounding of it.
+
+    The disk a stock profile lives on, not the one Playwright's throwaway
+    profile lands on: on a host whose temp directory is a tmpfs, that profile
+    sits on a RAM-sized volume no real Firefox profile would (measured here:
+    3 189 253 734 from a 29.7 GiB /tmp, where the same machine's own Firefox
+    reports 10 737 418 240).
+    """
+    home = Path.home()
+    if OS_NAME == 'win':
+        appdata = os.environ.get('APPDATA')
+        candidates = [Path(appdata) / 'Mozilla' if appdata else home, home]
+    elif OS_NAME == 'mac':
+        candidates = [home / 'Library' / 'Application Support' / 'Firefox', home]
+    else:
+        candidates = [home / '.mozilla', home]
+
+    for candidate in candidates:
+        # The directory only exists if Firefox has ever run here; walk up to
+        # the first path that does, which is on the same filesystem anyway.
+        probe = candidate
+        while not probe.exists() and probe != probe.parent:
+            probe = probe.parent
+        try:
+            total = shutil.disk_usage(probe).total
+        except OSError:
+            continue
+        if total > 0:
+            return min(total // 2 // 1024, _INT32_MAX)
+    return None
+
+
+def _stock_font_prefs(target_os: str, build_os: str = 'lin') -> Dict[str, Any]:
+    """The font.* prefs that make a build for `build_os` resolve fonts the way
+    stock Firefox does on `target_os` (font-prefs.json, from all.js by
+    browser/scripts/gen-font-prefs.py): the target's values where they differ,
+    and an empty list for name-lists only the build's platform sets."""
+    with open(os.path.join(os.path.dirname(__file__), 'font-prefs.json'), 'rb') as f:
+        table = orjson.loads(f.read())
+    target = table[OS_NAMES[target_os]]
+    build = table[OS_NAMES[build_os]]
+    prefs = {k: v for k, v in target.items() if build.get(k) != v}
+    for k, v in build.items():
+        if k not in target and isinstance(v, str):
+            prefs[k] = ''
+    return prefs
+
+
+def _generate_fontconfig(
+    fontconfig_path: str, path: Optional[Path] = None, os_dir: Optional[str] = None
+) -> str:
+    """
+    Generates a runtime fontconfig that resolves bundled font paths absolutely.
+    The bundled fonts.conf uses prefix="cwd" relative paths which break when
+    Playwright's working directory differs from the browser install directory.
+    Writes a patched copy to the platform cache dir (deterministic, only
+    regenerated when content changes). This must not live inside the versioned
+    browser bundle: the bundle is commonly baked into an image as root and run
+    as a non-root user, so it is read-only at launch time.
+    """
+    import hashlib
+
+    # Beside the caller's own binary when they supplied one; see get_env_vars.
+    fonts_dir = str(path.parent / "fonts") if path else get_path("fonts")
+
+    # Which directories this identity's OS may see.
+    #
+    # fontconfig scans <dir> RECURSIVELY, so the parent must never be named: it
+    # would make every other OS's files reachable by the renderer -- hidden by
+    # the allowlist for direct lookups, but still candidates for glyph fallback
+    # (an emoji or CJK glyph from Segoe UI Emoji / PingFang on a machine
+    # claiming Linux).
+    #
+    # The bundle stores each face ONCE, in a directory named for the set of
+    # OSes that use it (L, M, W, LM, LW, MW, LMW) -- see browser/bundle/fonts/groups.json
+    # and browser/scripts/gen-font-groups.py. Storing per-OS instead meant 41% of the
+    # bundle was byte-identical copies. An OS reads the four groups its letter
+    # appears in, so nothing has to be hidden after the fact: a face Windows
+    # must not see is simply not in a group Windows reads.
+    scan_dirs = []
+    groups_path = os.path.join(fonts_dir, "groups.json")
+    os_key = OS_KEYS.get(os_dir or '')
+    if os_key and os.path.exists(groups_path):
+        try:
+            with open(groups_path, 'rb') as fh:
+                read_by = json.loads(fh.read()).get('readBy', {}).get(os_key, [])
+            scan_dirs = [
+                os.path.join(fonts_dir, g)
+                for g in read_by
+                if os.path.isdir(os.path.join(fonts_dir, g))
+            ]
+        except (OSError, ValueError):
+            scan_dirs = []
+    if not scan_dirs:
+        # Older bundles ship fonts/<os>/ with each OS's set duplicated in full.
+        if os_dir and os.path.isdir(os.path.join(fonts_dir, os_dir)):
+            scan_dirs = [os.path.join(fonts_dir, os_dir)]
+        else:
+            scan_dirs = [fonts_dir]
+
+    fonts_conf_src = os.path.join(fontconfig_path, "fonts.conf")
+
+    with open(fonts_conf_src, 'r') as f:
+        conf_content = f.read()
+
+    conf_content = conf_content.replace(
+        '<dir prefix="cwd">fonts</dir>',
+        "\n\t".join(f'<dir>{d}</dir>' for d in scan_dirs),
+    )
+
+    # INSTALL_DIR is platformdirs' user_cache_dir("camoufox"); see pkgman.
+    cache_dir = str(INSTALL_DIR / 'fontconfig')
+    os.makedirs(cache_dir, exist_ok=True)
+
+    content_hash = hashlib.sha256(conf_content.encode()).hexdigest()[:12]
+    runtime_conf = os.path.join(cache_dir, f'fonts-{content_hash}.conf')
+    if not os.path.exists(runtime_conf):
+        with open(runtime_conf, 'w') as f:
+            f.write(conf_content)
+
+    return runtime_conf
+
+
+def warn_if_executable_predates_playwright(path: Optional[Path]) -> None:
+    """Warn when a caller's own binary is older than their Playwright needs.
+
+    A managed install below the floor is simply upgraded (pkgman resolves it),
+    but `executable_path` deliberately bypasses that -- the caller supplied the
+    binary, so we neither replace it nor download another. That leaves the one
+    pairing nothing checks: an old build driven by Playwright >= 1.61, which
+    sends viewport fields the older Juggler schema rejects.
+
+    This warns rather than raises, because the pairing is not always fatal.
+    Camoufox defaults to no_viewport when it spoofs window dimensions
+    (sync_api), and Playwright then never sends Browser.setDefaultViewport --
+    so the default path works on an old build. It breaks only when a viewport
+    is set explicitly, and then the error is a bare "Protocol error
+    (Browser.setDefaultViewport)" with nothing pointing at the real cause.
+    Refusing to launch would break setups that currently work.
+
+    A build with no version.json beside it -- an unpackaged objdir build, say --
+    tells us nothing, so it is left alone.
+    """
+    if path is None:
+        return
+    try:
+        installed = Version.from_path(Path(path).parent)
+    except (FileNotFoundError, KeyError, ValueError):
+        return
+
+    required = effective_version_min()
+    if installed >= required:
+        return
+
+    warnings.warn(
+        f"The Camoufox build at {path} is {installed.build}, but Playwright "
+        f"{_resolved_playwright_version_str()} needs at least {required.build}. "
+        "Contexts created with an explicit viewport will fail with "
+        '"Protocol error (Browser.setDefaultViewport)". Update the build, or pin '
+        "playwright<1.61.",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+
+
+def _resolved_playwright_version_str() -> str:
+    from importlib.metadata import version
+
+    try:
+        return version('playwright')
+    except Exception:
+        return 'the installed version'
+
+
+def get_pref_env_vars(prefs: Dict[str, Any]) -> Dict[str, str]:
+    """
+    Pass the launcher's Firefox prefs to browser/settings/camoufox.cfg, which applies them
+    at STARTUP (CAMOU_PREFS_1..N, chunked like CAMOU_CONFIG).
+
+    Playwright's non-persistent launch writes no user.js: firefox_user_prefs only
+    reach the browser at runtime, through juggler's Browser.enable, after startup.
+    Anything Gecko reads during startup therefore raced or never applied -- e.g.
+    intl.locale.requested lost the race against the parent's pre-created
+    dom.properties string bundles on Windows (fr-FR validation messages English
+    in 3 of 4 launches), and mirror-once prefs such as
+    gfx.bundled-fonts.activate were ignored outright.
+    """
+    if not prefs:
+        return {}
+    # ASCII only: on Windows autoconfig's getenv() reads the environment through
+    # the ANSI code page, which would mangle a raw UTF-8 pref value (\u escapes
+    # survive it and JSON.parse restores them).
+    data = json.dumps(prefs, ensure_ascii=True, separators=(',', ':'))
+    chunk_size = 2047 if OS_NAME == 'win' else 32767
+    return {
+        f"CAMOU_PREFS_{(i // chunk_size) + 1}": data[i : i + chunk_size]
+        for i in range(0, len(data), chunk_size)
+    }
+
+
+def get_env_vars(
+    config_map: Dict[str, str],
+    user_agent_os: str,
+    path: Optional[Path] = None,
+    fontconfig: bool = True,
+) -> Dict[str, Union[str, float, bool]]:
+    """
+    Gets a dictionary of environment variables for Camoufox.
+
+    `path` is the caller's own executable, when they supplied one. The bundled
+    fontconfig is read from beside that binary rather than from the managed
+    install, the same way _load_properties() already treats properties.json:
+    a caller running their own build should not be resolved against, or made
+    to download, a different one. `fontconfig=False` leaves the host's own
+    fontconfig, for a passthrough launch.
+    """
+    env_vars: Dict[str, Union[str, float, bool]] = {}
+    try:
+        config_str = orjson.dumps(config_map).decode('utf-8')
+    except orjson.JSONEncodeError as e:
+        raise InvalidPropertyType(f"The config cannot be serialized to JSON: {e}") from e
+
+    # Split the config into chunks
+    chunk_size = 2047 if OS_NAME == 'win' else 32767
+    for i in range(0, len(config_str), chunk_size):
+        env_vars[f"CAMOU_CONFIG_{(i // chunk_size) + 1}"] = config_str[i : i + chunk_size]
+
+    if OS_NAME == 'lin' and fontconfig:
+        # https://github.com/coryking/camoufox/commit/f21eeb2850a74cc104fb57e17e0a2fa27b7a2a28
+        # Thanks @coryking
+        # The fontconfig directories are named for the OS ('linux'), not its key ('lin').
+        os_dir = OS_NAMES.get(user_agent_os, user_agent_os)
+
+        # v150+ uses "fontconfig/"; older bundles shipped "fontconfigs/".
+        def _bundle_path(*parts: str) -> str:
+            if path:
+                return str(path.parent.joinpath(*parts))
+            return get_path(os.path.join(*parts))
+
+        fontconfig_path = _bundle_path("fontconfig", os_dir)
+        if not os.path.exists(os.path.join(fontconfig_path, "fonts.conf")):
+            fontconfig_path = _bundle_path("fontconfigs", os_dir)
+
+        if not os.path.exists(os.path.join(fontconfig_path, "fonts.conf")):
+            raise FileNotFoundError(
+                f"fonts.conf not found in {fontconfig_path}; the Camoufox bundle is incomplete."
+            )
+
+        env_vars['FONTCONFIG_FILE'] = _generate_fontconfig(fontconfig_path, path=path, os_dir=os_dir)
+
+    return env_vars
+
+
+def _load_properties(path: Optional[Path] = None) -> Dict[str, Dict[str, str]]:
+    """
+    Loads the properties.json file: property -> its entry. An entry with a
+    "removed" field is a key the browser no longer reads; it stays declared so
+    that older libraries, which reject undeclared keys, still launch.
+    """
+    prop_file = build_file(path, "properties.json") if path else get_path("properties.json")
+    with open(prop_file, "rb") as f:
+        prop_dict = orjson.loads(f.read())
+
+    return {prop['property']: prop for prop in prop_dict}
+
+
+def validate_config(config_map: Dict[str, Any], path: Optional[Path] = None) -> None:
+    """
+    Validates the config map against the build's properties.json, and lifts a
+    numeric value below its declared `min` up to it.
+    """
+    properties = _load_properties(path=path)
+
+    for key, value in config_map.items():
+        entry = properties.get(key)
+        if not entry:
+            if key == 'voices:speechd':
+                LeakWarning.warn(WARNINGS_DATA['voices_unread'])
+            print(f'Skipping unknown patch {key} : {value}')
+            continue  # Not supported by this browser version: reported, then skipped
+        if 'removed' in entry:
+            print(f'Skipping {key}: removed in {entry["removed"]}, it has no effect')
+            continue
+        expected_type = entry['type']
+        if not validate_type(value, expected_type):
+            raise InvalidPropertyType(
+                f"Invalid type for property {key}. Expected {expected_type}, got {type(value).__name__}"
+            )
+
+        if 'min' in entry and value < entry['min']:
+            config_map[key] = entry['min']
+
+        if key == 'voices':
+            validate_voices(value)
+        if key == 'voices:speechd':
+            validate_speechd_voices(value)
+
+
+def apply_launch_rules(
+    target_os: str,
+    config: Dict[str, Any],
+    firefox_user_prefs: Dict[str, Any],
+    user_pref_keys: set,
+    env: Dict[str, Union[str, float, bool]],
+    path: Optional[Path] = None,
+) -> None:
+    """
+    Applies the prefs and environment variables the build declares in its
+    launch.json. A build that needs a pref or variable set at launch for a
+    feature it compiles in says so there, so the launcher needs no knowledge of
+    any particular build. Most builds ship no launch.json.
+
+    Each rule may restrict itself to identity OSes (`target`) and host OSes
+    (`host`), both in 'win'/'mac'/'lin' terms. `env` sets variables verbatim,
+    `envPaths` to a file relative to the build's directory, which must exist,
+    `envPathsOptional` likewise but only when the file exists, and
+    `envFromConfig` to the value of a config key when the identity has one.
+    `config` sets config keys. `ldPreload` appends each build-relative
+    library that exists to LD_PRELOAD (appended, never replacing one the
+    caller has), and `envCacheDirs` points each variable at a per-user cache
+    directory of that name, created on demand. A pref or config key the
+    caller set, or a variable already in the environment, is never replaced.
+
+    An `exclusive` rule owns its variables: where it does not apply they are
+    removed from the environment, the caller's included, so a feature meant for
+    one target/host pairing cannot leak into another through an inherited
+    variable. A rule's `warn` is emitted as a RuntimeWarning when it applies.
+    """
+    launch_file = str(build_file(path, "launch.json") if path else get_path("launch.json"))
+    if not os.path.exists(launch_file):
+        return
+    with open(launch_file, "rb") as f:
+        rules = orjson.loads(f.read())['rules']
+
+    host_os = _host_os_key()
+
+    def applies(rule: Dict[str, Any]) -> bool:
+        return target_os in rule.get('target', [target_os]) and host_os in rule.get(
+            'host', [host_os]
+        )
+
+    def owned(rule: Dict[str, Any]) -> set:
+        return {
+            key
+            for field in ('env', 'envPaths', 'envPathsOptional', 'envFromConfig', 'envCacheDirs')
+            for key in rule.get(field, {})
+        }
+
+    matched = [rule for rule in rules if applies(rule)]
+    claimed = set().union(*(owned(rule) for rule in matched))
+    for rule in rules:
+        if rule.get('exclusive') and not applies(rule):
+            for key in owned(rule) - claimed:
+                env.pop(key, None)
+
+    for rule in matched:
+        if rule.get('warn'):
+            warnings.warn(str(rule['warn']), RuntimeWarning, stacklevel=3)
+        for key, value in rule.get('prefs', {}).items():
+            if key not in user_pref_keys:
+                firefox_user_prefs[key] = value
+        for key, value in rule.get('env', {}).items():
+            env.setdefault(key, value)
+        for key, relative in rule.get('envPaths', {}).items():
+            if key in env:
+                continue
+            resolved = os.path.normpath(os.path.join(os.path.dirname(launch_file), relative))
+            if not os.path.exists(resolved):
+                raise FileNotFoundError(
+                    f"{launch_file} needs {resolved} for {key}, and it does not exist."
+                )
+            env[key] = resolved
+        for key, relative in rule.get('envPathsOptional', {}).items():
+            resolved = os.path.normpath(os.path.join(os.path.dirname(launch_file), relative))
+            if key not in env and os.path.exists(resolved):
+                env[key] = resolved
+        for key, value in rule.get('config', {}).items():
+            config.setdefault(key, value)
+        # `env` is the caller's environment (a copy of os.environ by default)
+        # and is spread last into the launch environment, so appending here is
+        # what keeps an LD_PRELOAD someone already has.
+        for relative in rule.get('ldPreload', []):
+            resolved = os.path.normpath(os.path.join(os.path.dirname(launch_file), relative))
+            preload = str(env.get('LD_PRELOAD') or '')
+            if os.path.exists(resolved) and resolved not in preload.split(':'):
+                env['LD_PRELOAD'] = f'{preload}:{resolved}' if preload else resolved
+        for key, name in rule.get('envCacheDirs', {}).items():
+            if key not in env:
+                cache_dir = user_cache_dir(f'camoufox-{name}')
+                os.makedirs(cache_dir, exist_ok=True)
+                env[key] = cache_dir
+        for key, config_key in rule.get('envFromConfig', {}).items():
+            if config_key in config:
+                env.setdefault(key, str(config[config_key]))
+
+
+def validate_type(value: Any, expected_type: str) -> bool:
+    """
+    Validates the type of the value.
+    """
+    if expected_type == "str":
+        return isinstance(value, str)
+    elif expected_type == "int":
+        return isinstance(value, int) or (isinstance(value, float) and value.is_integer())
+    elif expected_type == "uint":
+        return (
+            isinstance(value, int) or (isinstance(value, float) and value.is_integer())
+        ) and value >= 0
+    elif expected_type == "double":
+        return isinstance(value, (float, int))
+    elif expected_type == "bool":
+        return isinstance(value, bool)
+    elif expected_type == "array":
+        return isinstance(value, list)
+    elif expected_type == "dict":
+        return isinstance(value, dict)
+    else:
+        return False
+
+
+# The five fields MaskConfig::MVoices() requires of every `voices` entry. It
+# skips anything missing one of them, so a bare "Name:lang:type" string or a
+# half-filled object registers nothing -- and a voice list that registers
+# nothing leaves the host's native voices exposed. Reject the bad shape here,
+# before launch, instead of letting it degrade silently in the browser (#731).
+VOICE_FIELDS: Tuple[str, ...] = ('lang', 'name', 'voiceUri', 'isDefault', 'isLocalService')
+
+
+def validate_voices(voices: Any) -> None:
+    """
+    Validates that every `voices` entry is a complete voice object.
+    """
+    if not isinstance(voices, list):
+        raise InvalidPropertyType(
+            f"Invalid type for property voices. Expected array, got {type(voices).__name__}"
+        )
+
+    for index, voice in enumerate(voices):
+        if not isinstance(voice, dict):
+            raise InvalidPropertyType(
+                f"Invalid voices[{index}]: expected an object with "
+                f"{{{', '.join(VOICE_FIELDS)}}}, got {type(voice).__name__} "
+                f"({voice!r}). Camoufox needs full voice objects, not names."
+            )
+        missing = [field for field in VOICE_FIELDS if field not in voice]
+        if missing:
+            raise InvalidPropertyType(
+                f"Invalid voices[{index}]: missing {', '.join(missing)}. "
+                f"Every voice needs {{{', '.join(VOICE_FIELDS)}}}."
+            )
+
+
+def validate_speechd_voices(grid: Any) -> None:
+    """
+    Validates a `voices:speechd` grid: {"languages": [[name, lang], ...],
+    "variants": [name, ...]}, the shape MaskConfig::MSpeechdVoices() expands.
+    """
+    languages = grid.get('languages') if isinstance(grid, dict) else None
+    variants = grid.get('variants') if isinstance(grid, dict) else None
+    if not (
+        isinstance(languages, list)
+        and all(
+            isinstance(entry, list) and len(entry) == 2 and all(isinstance(x, str) for x in entry)
+            for entry in languages
+        )
+        and isinstance(variants, list)
+        and all(isinstance(v, str) for v in variants)
+    ):
+        raise InvalidPropertyType(
+            'Invalid voices:speechd: expected {"languages": [[name, lang], ...], "variants": [name, ...]}'
+        )
+
+
+def get_target_os(config: Dict[str, Any]) -> Literal['mac', 'win', 'lin']:
+    """
+    Gets the OS from the config if the user agent is set,
+    otherwise returns the OS of the current system.
+    """
+    if config.get("navigator.userAgent"):
+        return determine_ua_os(config["navigator.userAgent"])
+    return OS_NAME
+
+
+def determine_ua_os(user_agent: str) -> Literal['mac', 'win', 'lin']:
+    """
+    Determines the OS from the user agent string.
+    """
+    parsed_ua = user_agent_parser.ParseOS(user_agent).get('family')
+    if not parsed_ua:
+        raise ValueError("Could not determine OS from user agent")
+    if parsed_ua.startswith("Mac"):
+        return "mac"
+    if parsed_ua.startswith("Windows"):
+        return "win"
+    return "lin"
+
+
+def get_screen_cons(headless: Optional[bool] = None) -> Optional[Screen]:
+    """
+    Determines a sane viewport size for Camoufox if being ran in headful mode.
+
+    Bounds are CSS pixels, the unit Firefox lays its windows out in -- see
+    camoucore.display for why that differs from the monitor's physical size.
+    """
+    if headless is True:
+        return None  # Skip if headless
+    display = largest_display()
+    if display is None:
+        return None  # Skip if the display can't be probed
+    return Screen(max_width=display.width, max_height=display.height)
+
+
+def update_fonts(config: Dict[str, Any], target_os: str) -> None:
+    """
+    Updates the fonts for the target OS.
+    """
+    with open(os.path.join(os.path.dirname(__file__), "fonts.json"), "rb") as f:
+        fonts = orjson.loads(f.read())[target_os]
+
+    # Merge with existing fonts
+    if 'fonts' in config:
+        config['fonts'] = np.unique(fonts + config['fonts']).tolist()
+    else:
+        config['fonts'] = fonts
+
+
+def check_custom_fingerprint(fingerprint: Dict[str, Any]) -> None:
+    """
+    Asserts that the passed fingerprint is a valid Firefox fingerprint,
+    and warns the user that passing their own fingerprint is not recommended.
+    """
+    # Check what the browser is
+    user_agent = (fingerprint.get('navigator') or {}).get('userAgent') or ''
+    browser_name = user_agent_parser.ParseUserAgent(user_agent).get('family', 'Non-Firefox')
+    if browser_name != 'Firefox':
+        raise NonFirefoxFingerprint(
+            f'"{browser_name}" fingerprints are not supported in Camoufox. '
+            'Using fingerprints from a browser other than Firefox WILL lead to detection. '
+            'If this is intentional, pass `i_know_what_im_doing=True`.'
+        )
+
+    LeakWarning.warn(WARNINGS_DATA['custom_fingerprint'], False)
+
+
+def cpu_identity_pref(config: Dict[str, Any]) -> int:
+    """general.cpu_identity for the identity's CPU: 0 compute as the host, 1
+    Intel x86, 2 AMD x86, 3 ARM64 (every ARM64 CPU computes alike)."""
+    arch, maker = config.get('cpu:arch'), config.get('cpu:manufacturer')
+    table = LAUNCHER_CONSTANTS['cpuIdentityPref']
+    if arch == 'arm':
+        return table['arm']
+    return table.get(f'x86/{maker}', 0) if arch in ('x86', None) else 0
+
+
+def vpx_realtime_only(config: Dict[str, Any], target_os: str) -> bool:
+    """media.libvpx.realtime_only: Firefox builds libvpx realtime-only for
+    Windows and Linux on ARM64 (not macOS), which changes the WebCodecs VP8/VP9
+    encoders' output and rejects quality-mode VP8 outright."""
+    return config.get('cpu:arch') == 'arm' and target_os in ('win', 'lin')
+
+
+_CPU_OS_NAMES = {'windows': 'win', 'macos': 'mac', 'linux': 'lin'}
+
+
+def _os_for_cpu(cpu: Any, os: Optional[ListOrString]) -> ListOrString:
+    """The OSes a machine with this CPU can run, among those asked for.
+
+    Raises ValueError when the CPU is malformed or none of them can. With no
+    OS asked for, only OSes with a GPU fpgen recorded beside such a CPU are
+    drawn: an ARM identity is a Mac, or Linux rendering with llvmpipe, until
+    Windows-on-ARM or Linux-on-ARM GPUs are recorded.
+    """
+    asked = [os] if isinstance(os, str) else list(os or _CPU_OS_NAMES)
+    check_valid_os(asked)
+    errors, fits = [], []
+    for name in asked:
+        try:
+            resolved = coherence.resolve_cpu(cpu, _CPU_OS_NAMES[name])
+        except ValueError as exc:
+            errors.append(str(exc))
+            continue
+        if os is None and not any(
+            coherence.gpu_fits_cpu(r, _CPU_OS_NAMES[name], resolved.get('cpu:arch'), resolved.get('cpu:manufacturer'))
+            for _, r in firefox_gpus(_CPU_OS_NAMES[name])
+        ):
+            errors.append(f'fpgen has recorded no {name} GPU beside that CPU')
+            continue
+        fits.append(name)
+    if not fits:
+        raise ValueError(f'cpu={cpu!r}: ' + '; '.join(dict.fromkeys(errors)))
+    return fits[0] if len(fits) == 1 else fits
+
+
+def check_valid_os(os: ListOrString) -> None:
+    """
+    Checks if the target OS is valid.
+    """
+    if not isinstance(os, str):
+        for os_name in os:
+            check_valid_os(os_name)
+        return
+    # Assert that the OS is lowercase
+    if not os.islower():
+        raise InvalidOS(f"OS values must be lowercase: '{os}'")
+    # Assert that the OS is supported by Camoufox
+    if os not in ('windows', 'macos', 'linux'):
+        raise InvalidOS(f"Camoufox does not support the OS: '{os}'")
+
+
+def merge_into(target: Dict[str, Any], source: Dict[str, Any]) -> None:
+    """
+    Merges new keys/values from the source dictionary into the target dictionary.
+    Given that the key does not exist in the target dictionary.
+    """
+    for key, value in source.items():
+        if key not in target:
+            target[key] = value
+
+
+def set_into(target: Dict[str, Any], key: str, value: Any) -> None:
+    """
+    Sets a new key/value into the target dictionary.
+    Given that the key does not exist in the target dictionary.
+    """
+    if key not in target:
+        target[key] = value
+
+
+def is_domain_set(
+    config: Dict[str, Any],
+    *properties: str,
+) -> bool:
+    """
+    Checks if a domain is set in the config.
+    """
+    for prop in properties:
+        # If the . prefix exists, check if the domain is a prefix of any key in the config
+        if prop[-1] in ('.', ':'):
+            if any(key.startswith(prop) for key in config):
+                return True
+        # Otherwise, check if the domain is a direct key in the config
+        else:
+            if prop in config:
+                return True
+    return False
+
+
+def socks5_host(proxy: Optional[Dict[str, Any]]) -> Optional[str]:
+    """The host of a SOCKS5 proxy, or None when `proxy` is not one."""
+    if not proxy:
+        return None
+    url = urlsplit(str(proxy.get('server', '')))
+    return url.hostname if url.scheme.lower() == 'socks5' else None
+
+
+def proxy_carries_no_udp(server: str) -> bool:
+    """Whether a Playwright proxy server is an HTTP(S) proxy (a bare host:port is one), which carries no UDP."""
+    scheme = server.split('://', 1)[0].lower() if '://' in server else 'http'
+    return scheme in ('http', 'https')
+
+
+def apply_proxy_dns(
+    proxy_dns: Optional[str],
+    proxy: Optional[Dict[str, Any]],
+    config: Dict[str, Any],
+    firefox_user_prefs: Dict[str, Any],
+    exit_looked_up: bool,
+) -> None:
+    """
+    Who resolves the names a proxied browser visits (docs/proxy-dns.md).
+
+    'doh', the default behind a SOCKS5 proxy: the browser, by DoH through the
+    proxy, as a Firefox at the exit resolves its own. It gets HTTPS records, so
+    it sends ECH and starts HTTP/3 where that Firefox does, and the proxy is
+    given addresses. 'exit': the proxy is given names. An HTTP proxy is always
+    given names.
+    """
+    if proxy_dns not in (None, 'doh', 'exit'):
+        raise ValueError(f"proxy_dns must be 'doh' or 'exit', not {proxy_dns!r}.")
+    host = socks5_host(proxy)
+    if host is None:
+        if proxy_dns == 'doh':
+            raise ValueError("proxy_dns='doh' needs a socks5:// proxy.")
+        return
+    if proxy_dns == 'exit':
+        return
+    merge_into(firefox_user_prefs, PROXY_DOH_PREFS)
+    # The proxy's own name cannot be asked through the proxy.
+    if not (valid_ipv4(host) or valid_ipv6(host)):
+        firefox_user_prefs.setdefault('network.trr.excluded-domains', host)
+    # The browser picks the address now, so it has to know whether the exit
+    # can reach an IPv6 one. Asked only of an exit the launch looks up (geoip).
+    if (
+        exit_looked_up
+        and 'network:ipv4Only' not in config
+        and 'webrtc:ipv6' not in config
+        and public_ipv6(Proxy(**proxy).as_string()) is None
+    ):
+        config['network:ipv4Only'] = True
+
+
+def apply_proxy_optimistic_data(
+    enabled: Optional[bool], proxy: Optional[Dict[str, Any]], firefox_user_prefs: Dict[str, Any]
+) -> None:
+    """
+    Send a connection's TLS ClientHello behind its SOCKS5 CONNECT request,
+    before the proxy's reply. Only for a proxy that forwards what it has
+    received once it has connected (docs/proxy-dns.md).
+    """
+    if not enabled:
+        return
+    if proxy is not None and socks5_host(proxy) is None:
+        raise ValueError("proxy_optimistic_data needs a socks5:// proxy.")
+    firefox_user_prefs['network.proxy.socks5_optimistic_data'] = True
+
+
+def _keeps_ipv6(
+    geo_config: Dict[str, Any], geoip_db: Optional[str], i_know_what_im_doing: bool
+) -> bool:
+    """Whether this host has a public IPv6 address that geolocates where the
+    IPv4 identity does. Warns when it has one that does not."""
+    ipv6 = public_ipv6()
+    if ipv6 is None:
+        return False
+    try:
+        ipv6_config = get_geolocation(ipv6, geoip_db=geoip_db).as_config()
+    except UnknownIPLocation:
+        ipv6_config = {}
+    if all(ipv6_config.get(key) == geo_config.get(key) for key in ('timezone', 'locale:region')):
+        return True
+    LeakWarning.warn(WARNINGS_DATA['ipv6_elsewhere'], i_know_what_im_doing)
+    return False
+
+
+def warn_kept_incoherent(violations: List[coherence.Violation]) -> None:
+    """
+    Warns for each coherence violation the launch left in place because the
+    caller set the values involved. Camoufox does not overwrite what the caller
+    passed, but an identity no real machine presents is detectable, and a
+    caller that records its identities needs to know that it holds one (#956).
+    """
+    for violation in violations:
+        if violation.kept:
+            _warn_from_caller(
+                WARNINGS_DATA['caller_value_incoherent'].format(keys=', '.join(violation.kept), detail=violation.detail),
+                LeakWarning,
+            )
+
+
+def warn_manual_config(config: Dict[str, Any]) -> None:
+    """
+    Warns the user if they are manually setting properties that Camoufox already sets internally.
+    """
+    # Manual locale setting
+    if is_domain_set(
+        config, 'navigator.language', 'headers.Accept-Language', 'locale:'
+    ):
+        LeakWarning.warn(WARNINGS_DATA['locale'], False)
+    # Manual geolocation and timezone setting
+    if is_domain_set(config, 'geolocation:', 'timezone'):
+        LeakWarning.warn(WARNINGS_DATA['geolocation'], False)
+    # Manual User-Agent setting
+    if is_domain_set(config, 'headers.User-Agent'):
+        LeakWarning.warn(WARNINGS_DATA['header-ua'], False)
+    # Manual navigator setting
+    if is_domain_set(config, 'navigator.'):
+        LeakWarning.warn(WARNINGS_DATA['navigator'], False)
+    # Touchscreen digitizer spoofing. Called out separately from the blanket
+    # navigator warning because the knock-on effects reach past navigator into
+    # CSS pointer media queries and the TouchEvent interfaces.
+    if is_domain_set(config, 'navigator.maxTouchPoints'):
+        LeakWarning.warn(WARNINGS_DATA['max_touch_points'], False)
+    if config.get('instantAnimations'):
+        LeakWarning.warn(WARNINGS_DATA['instant_animations'], False)
+    # Manual screen/window setting
+    if is_domain_set(config, 'screen.', 'window.', 'document.body.'):
+        LeakWarning.warn(WARNINGS_DATA['viewport'], False)
+
+
+def saved_pref(profile_dir: Optional[str], pref: str) -> Any:
+    """The value a persistent profile's prefs.js holds for pref, if any."""
+    if not profile_dir:
+        return None
+    try:
+        with open(os.path.join(profile_dir, 'prefs.js'), encoding='utf-8') as f:
+            text = f.read()
+    except OSError:
+        return None
+    m = re.search(r'user_pref\("' + re.escape(pref) + r'",\s*(.+?)\);', text)
+    if not m:
+        return None
+    try:
+        return json.loads(m.group(1))
+    except ValueError:
+        return m.group(1)
+
+
+def set_toggle_pref(prefs: Dict[str, Any], pref: str, on: bool, stock: Any, toggled: Any,
+                    profile_dir: Optional[str]) -> None:
+    """Write a toggle only when on, or to clear a persistent non-stock value."""
+    if on:
+        prefs.setdefault(pref, toggled)
+        return
+    saved = saved_pref(profile_dir, pref)
+    if saved is not None and saved != stock:
+        prefs.setdefault(pref, stock)
+
+
+_WINDOW_DIM_KEYS = (
+    'window.outerWidth',
+    'window.outerHeight',
+    'window.innerWidth',
+    'window.innerHeight',
+)
+
+
+def _camou_config_blob(from_options: Dict[str, Any]) -> str:
+    env = from_options.get('env') or {}
+    chunks = [(int(k.rsplit('_', 1)[1]), v) for k, v in env.items() if k.startswith('CAMOU_CONFIG_')]
+    return ''.join(v for _, v in sorted(chunks))
+
+
+def launch_os(from_options: Dict[str, Any]) -> str:
+    """The OS ('macos', 'windows' or 'linux') of the identity these launch
+    options claim, the host's when they claim no user agent."""
+    blob = _camou_config_blob(from_options)
+    return OS_NAMES[get_target_os(orjson.loads(blob) if blob else {})]
+
+
+def pinned_core_count(from_options: Dict[str, Any]) -> Optional[int]:
+    """The core count the browser must be pinned to for these launch options,
+    or None: the identity's navigator.hardwareConcurrency when this host can
+    honour it (see cpu_affinity), so a page measuring parallelism sees the
+    reported number."""
+    from camoucore.cpu_affinity import host_cores, supported
+
+    blob = _camou_config_blob(from_options)
+    if not blob or not supported():
+        return None
+    try:
+        value = orjson.loads(blob).get('navigator.hardwareConcurrency')
+    except (orjson.JSONDecodeError, AttributeError):
+        return None
+    cores = host_cores()
+    if isinstance(value, int) and cores and 1 <= value < len(cores):
+        return value
+    return None
+
+
+def driver_pid(playwright: Any) -> Optional[int]:
+    """PID of the Playwright driver that will spawn the browser (its children
+    inherit the CPU affinity we set on it)."""
+    try:
+        impl = getattr(playwright, '_impl_obj', playwright)
+        return int(impl._connection._transport._proc.pid)
+    except Exception:
+        return None
+
+
+def spoofs_window_dimensions(from_options: Dict[str, Any]) -> bool:
+    """
+    Whether the CAMOU_CONFIG in a set of launch options spoofs any window
+    dimension. The config is chunked across CAMOU_CONFIG_<n> env vars, so
+    reassemble it in index order before looking.
+    """
+    blob = _camou_config_blob(from_options)
+    return any(key in blob for key in _WINDOW_DIM_KEYS)
+
+
+# Playwright emulates four media features on every context it creates, whether
+# or not the caller asked: `colorScheme` defaults to "light" and reducedMotion /
+# forcedColors / contrast to their no-preference values. That is an override, not
+# a passthrough -- the page then reports it whatever the host is set to, so a
+# desktop in dark mode still reads `(prefers-color-scheme: light)`, where stock
+# Firefox on that machine reads dark (measured 2026-09-18, headed on a private
+# Xvfb with GTK_THEME=Adwaita:dark: stock dark, camoufox light, camoufox with
+# these defaults dark). "no-override" is Playwright's own opt-out: it sends no
+# emulation at all and the browser answers from the host.
+STOCK_MEDIA_DEFAULTS = {
+    'color_scheme': 'no-override',
+    'reduced_motion': 'no-override',
+    'forced_colors': 'no-override',
+    'contrast': 'no-override',
+}
+
+
+def _wrap_context_factories(target: Any, adjust: Any) -> Any:
+    """Run `adjust(kwargs)` before every new_page()/new_context() call on `target`."""
+    for name in ('new_page', 'new_context'):
+        original = getattr(target, name, None)
+        if original is None:
+            continue
+
+        def wrap(original: Any) -> Any:
+            @wraps(original)
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
+                adjust(kwargs)
+                # Works for both sync and async: async returns the coroutine
+                # unawaited, and the caller awaits it as usual.
+                return original(*args, **kwargs)
+
+            return wrapper
+
+        setattr(target, name, wrap(original))
+    return target
+
+
+def attach_stock_media_defaults(target: Any) -> Any:
+    """Default new_page()/new_context() to the host's own media features.
+
+    Explicit color_scheme= / reduced_motion= / forced_colors= / contrast= from
+    the caller always wins; this only replaces Playwright's silent defaults.
+    """
+
+    def adjust(kwargs: Dict[str, Any]) -> None:
+        for option, value in STOCK_MEDIA_DEFAULTS.items():
+            kwargs.setdefault(option, value)
+
+    return _wrap_context_factories(target, adjust)
+
+
+def attach_desktop_only_warning(target: Any) -> Any:
+    """Warn when new_page()/new_context() asks for is_mobile: Camoufox only has
+    desktop identities, and Juggler ignores the option (TargetRegistry.js)."""
+
+    def adjust(kwargs: Dict[str, Any]) -> None:
+        if kwargs.get('is_mobile'):
+            LeakWarning.warn(WARNINGS_DATA['is_mobile'])
+
+    return _wrap_context_factories(target, adjust)
+
+
+def attach_no_viewport_default(target: Any) -> Any:
+    """
+    Default new_page()/new_context() to no_viewport=True.
+
+    Playwright applies a 1280x720 viewport by default, which makes Juggler ask
+    the content window to become 1280x720 (TargetRegistry.updateViewportSize).
+    When Camoufox is pinning the window to a spoofed size, that request can
+    never be satisfied, and awaitViewportDimensions has no timeout -- so the
+    second new_page() hangs forever (daijro/camoufox#666).
+
+    With no_viewport, Juggler measures the window instead of resizing it, so the
+    handshake resolves immediately and the page reports the spoofed dimensions
+    exactly. Explicit viewport=/no_viewport= from the caller always wins.
+    """
+
+    def adjust(kwargs: Dict[str, Any]) -> None:
+        if 'viewport' not in kwargs and 'no_viewport' not in kwargs:
+            kwargs['no_viewport'] = True
+
+    return _wrap_context_factories(target, adjust)
+
+
+def persistent_context_options(from_options: Dict[str, Any], no_viewport_default: bool) -> Dict[str, Any]:
+    """Launch options for launch_persistent_context(). The launch itself creates
+    the context, so the defaults new_context() would get go into the options."""
+    if no_viewport_default and not ('viewport' in from_options or 'no_viewport' in from_options):
+        from_options = {**from_options, 'no_viewport': True}
+    return {
+        **{k: v for k, v in STOCK_MEDIA_DEFAULTS.items() if k not in from_options},
+        **from_options,
+    }
+
+
+def passthrough_context_options(
+    preset: Any, os: Any, ff_version: Any, webrtc_ip: Any,
+    proxy: Optional[Dict[str, str]], geolocation: Optional[Dict[str, float]], context_kwargs: Dict[str, Any],
+) -> Dict[str, Any]:
+    """NewContext()'s new_context() options on a passthrough browser, whose
+    contexts present this machine: no identity, and no exit lookup for a proxy."""
+    identity = [name for name, value in (
+        ('preset', preset), ('os', os), ('ff_version', ff_version), ('webrtc_ip', webrtc_ip)
+    ) if value is not None]
+    if identity:
+        raise ValueError(
+            f'This browser was launched with passthrough=True, so its contexts present this machine: '
+            f'pass no {", ".join(identity)}.'
+        )
+    extra = {name: value for name, value in (('proxy', proxy), ('geolocation', geolocation)) if value is not None}
+    return {**context_kwargs, **extra}
+
+
+def attach_socks5_auth(target: Any) -> Any:
+    """
+    Let new_context()/new_page() of `target` take a SOCKS5 proxy with a username
+    and password.
+
+    Playwright refuses one ("Browser does not support socks5 proxy
+    authentication"). The context is made with the proxy alone, and an init
+    script hands Juggler the credentials before new_context() returns
+    (socks5_auth, proxy_auth_init_script). The wrapper sits on Playwright's
+    own Browser object, under both the sync and the async API, where
+    new_page() makes its context too.
+    """
+    impl = getattr(target, '_impl_obj', target)
+    original = getattr(impl, 'new_context', None)
+    if original is None or getattr(original, '_camoufox_socks5_auth', False):
+        return target
+
+    @wraps(original)
+    async def new_context(*args: Any, **kwargs: Any) -> Any:
+        kwargs['proxy'], auth = socks5_auth(kwargs.get('proxy'))
+        context = await original(*args, **kwargs)
+        if auth:
+            await context.add_init_script(script=proxy_auth_init_script(auth))
+        return context
+
+    new_context._camoufox_socks5_auth = True  # type: ignore[attr-defined]
+    impl.new_context = new_context
+    return target
+
+
+# Where a browser, context or page keeps the geometry its pages claim
+# (launch_geometry), and where NewContext() leaves its identity's for the
+# new_context() it is about to make.
+_GEOMETRY = '_camoufox_geometry'
+_NEXT_CONTEXT = '_camoufox_next_context'
+
+# The viewport Playwright gives a context that asks for neither a viewport nor
+# none (Playwright's DEFAULT_VIEWPORT).
+PLAYWRIGHT_DEFAULT_VIEWPORT = {'width': 1280, 'height': 720}
+
+
+def launch_geometry(from_options: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """What a launch's identity claims around its pages, from the CAMOU_CONFIG
+    in the launch options: {'os', 'screen': (width, height), 'window': {x, y,
+    width, height} or None}. None when the identity claims no screen.
+
+    The window is where CamoufoxWindow.sys.mjs puts the browser's real window,
+    which every page reports in outerWidth/outerHeight: the identity's outer
+    size, or, where the identity sets the content area instead, that with the
+    recorded chrome around it.
+    """
+    blob = _camou_config_blob(from_options)
+    try:
+        config = json.loads(blob) if blob else {}
+    except ValueError:
+        return None
+    if not isinstance(config, dict):
+        return None
+    width, height = config.get('screen.width'), config.get('screen.height')
+    if not (width and height):
+        return None
+    os_key = get_target_os(config)
+    size = []
+    for axis, chrome in zip(('Width', 'Height'), RECORDED_WINDOW_CHROME[os_key]):
+        inner = config.get(f'window.inner{axis}')
+        size.append(inner + chrome if inner else config.get(f'window.outer{axis}'))
+    window = None
+    if all(size):
+        window = {
+            'x': config.get('window.screenX') or 0,
+            'y': config.get('window.screenY') or 0,
+            'width': size[0],
+            'height': size[1],
+        }
+    return {'os': os_key, 'screen': (width, height), 'window': window}
+
+
+def _geometry_of(owner: Any) -> Optional[Dict[str, Any]]:
+    """The geometry a browser or context keeps (attach_viewport_fit), if any."""
+    return getattr(owner, '__dict__', {}).get(_GEOMETRY)
+
+
+def _size(value: Any) -> Optional[Tuple[int, int]]:
+    if isinstance(value, dict) and value.get('width') and value.get('height'):
+        return int(value['width']), int(value['height'])
+    return None
+
+
+def _fmt(size: Any) -> str:
+    return f'{size[0]}x{size[1]}'
+
+
+def fit_context_screen(geometry: Dict[str, Any], options: Dict[str, Any]) -> Optional[Tuple[int, int]]:
+    """The screen a new context must claim so that its pages fit on it, or None
+    when the identity's own already holds them.
+
+    `geometry` is what the context's identity claims (launch_geometry, or a
+    NewContext() identity's), `options` Playwright's new_context() options
+    (camelCase, as the client's implementation takes them). A viewport sits in
+    a window the recorded chrome larger (screen_floor), and the pages report
+    the browser's window as theirs, so the screen holds both; one that does not
+    is replaced with a recorded screen that does (draw_screen). Playwright's
+    own `screen` option, which Juggler does not apply, is the screen the caller
+    chose: it is claimed as given. The caller's viewport is never changed, so
+    where no screen or no window can hold it, this warns.
+    """
+    os_key, screen, window = geometry['os'], geometry['screen'], geometry.get('window')
+    viewport = None
+    if not options.get('noViewport'):
+        viewport = _size(options.get('viewport')) or _size(PLAYWRIGHT_DEFAULT_VIEWPORT)
+    floor = screen_floor(os_key, viewport and {'width': viewport[0], 'height': viewport[1]}, window)
+
+    def holds(size: Tuple[int, int]) -> bool:
+        return size[0] >= floor[0] and size[1] >= floor[1]
+
+    def warn_screen(claimed: Tuple[int, int], reason: str) -> None:
+        LeakWarning.warn(WARNINGS_DATA['viewport_screen'].format(
+            viewport=_fmt(viewport or (window['width'], window['height'])),
+            screen=_fmt(claimed), os=OS_NAMES[os_key],
+            chrome=_fmt(RECORDED_WINDOW_CHROME[os_key]),
+            taskbar=BASELINE_TASKBAR_HEIGHT[os_key], reason=reason,
+        ))
+
+    claimed: Optional[Tuple[int, int]] = None
+    requested = _size(options.get('screen'))
+    if requested:
+        claimed = requested if requested != screen else None
+        if not holds(requested):
+            warn_screen(requested, 'this one is the screen= the context was given, so it is kept')
+    elif not holds(screen):
+        claimed = draw_screen(os_key, floor)
+        if claimed is None:
+            warn_screen(screen, f'no recorded {OS_NAMES[os_key]} screen is {_fmt(floor)} or larger')
+    if viewport and window and (viewport[0] > window['width'] or viewport[1] > window['height']):
+        LeakWarning.warn(WARNINGS_DATA['viewport_window'].format(viewport=_fmt(viewport), window=_fmt((window['width'], window['height']))))
+    return claimed
+
+
+def screen_init_script(width: int, height: int) -> str:
+    """The init script that makes a context claim a `width` x `height` screen
+    (screen-spoofing.patch; the available rect follows it)."""
+    return f'if (typeof window.setScreenDimensions === "function") window.setScreenDimensions({int(width)}, {int(height)});'
+
+
+def attach_viewport_fit(target: Any, geometry: Optional[Dict[str, Any]] = None) -> Any:
+    """Make every new_context()/new_page() of `target` claim a screen its pages fit on.
+
+    `geometry` is what the launch's identity claims (launch_geometry). A
+    context claims that, or the identity NewContext() hands over, with the
+    screen fit_context_screen() decides set through the per-context screen
+    setter. The context keeps what it claims, for set_viewport_size().
+    """
+    impl = getattr(target, '_impl_obj', target)
+    if geometry is not None:
+        setattr(impl, _GEOMETRY, geometry)
+    original = getattr(impl, 'new_context', None)
+    # Marked on the browser, not the method: one check per context, however
+    # many other wrappers sit around it.
+    if original is None or vars(impl).get('_camoufox_viewport_fit'):
+        return target
+    impl._camoufox_viewport_fit = True
+
+    @wraps(original)
+    async def new_context(*args: Any, **kwargs: Any) -> Any:
+        # Read before the first await: NewContext() set it just before this call.
+        claimed = vars(impl).pop(_NEXT_CONTEXT, None) or _geometry_of(impl)
+        screen = fit_context_screen(claimed, kwargs) if claimed else None
+        context = await original(*args, **kwargs)
+        if screen:
+            await context.add_init_script(script=screen_init_script(*screen))
+        if claimed:
+            setattr(context, _GEOMETRY, {**claimed, 'screen': screen or claimed['screen']})
+        return context
+
+    impl.new_context = new_context
+    _install_viewport_size_check()
+    return target
+
+
+_AFTER_LOAD = "set_viewport_size() comes after the context's pages have loaded, so the screen stays"
+
+
+def check_viewport_size(geometry: Optional[Dict[str, Any]], size: Any, reason: str = _AFTER_LOAD) -> None:
+    """Warn when page.set_viewport_size() asks for a page its context's screen
+    or window cannot hold. The screen setter is sealed once a page has loaded,
+    so a context keeps the screen it started with."""
+    viewport = _size(size)
+    if not (geometry and viewport):
+        return
+    os_key, screen, window = geometry['os'], geometry['screen'], geometry.get('window')
+    floor = screen_floor(os_key, {'width': viewport[0], 'height': viewport[1]})
+    if screen[0] < floor[0] or screen[1] < floor[1]:
+        LeakWarning.warn(WARNINGS_DATA['viewport_screen'].format(
+            viewport=_fmt(viewport), screen=_fmt(screen), os=OS_NAMES[os_key],
+            chrome=_fmt(RECORDED_WINDOW_CHROME[os_key]), taskbar=BASELINE_TASKBAR_HEIGHT[os_key],
+            reason=reason,
+        ))
+    if window and (viewport[0] > window['width'] or viewport[1] > window['height']):
+        LeakWarning.warn(WARNINGS_DATA['viewport_window'].format(viewport=_fmt(viewport), window=_fmt((window['width'], window['height']))))
+
+
+def _install_viewport_size_check() -> None:
+    from playwright._impl._page import Page
+
+    original = Page.set_viewport_size
+    if getattr(original, '_camoufox_viewport_fit', False):
+        return
+
+    @wraps(original)
+    async def set_viewport_size(self: Any, viewportSize: Any) -> None:
+        check_viewport_size(_geometry_of(self.context), viewportSize)
+        return await original(self, viewportSize)
+
+    set_viewport_size._camoufox_viewport_fit = True  # type: ignore[attr-defined]
+    Page.set_viewport_size = set_viewport_size
+
+
+def attach_persistent_geometry(context: Any, from_options: Dict[str, Any]) -> Any:
+    """A persistent context's pages claim the launch's identity: keep it for
+    set_viewport_size(), and warn when the launch's own viewport does not fit it.
+    launch_options() draws the identity around a viewport it is given, so this
+    only catches one the options were built without."""
+    geometry = launch_geometry(from_options)
+    impl = getattr(context, '_impl_obj', context)
+    if geometry:
+        setattr(impl, _GEOMETRY, geometry)
+        if not from_options.get('no_viewport'):
+            check_viewport_size(
+                geometry, from_options.get('viewport'),
+                'this persistent launch was given an identity drawn without the viewport',
+            )
+    _install_viewport_size_check()
+    return context
+
+
+def attach_context_defaults(browser: Any, no_viewport_default: bool, geometry: Optional[Dict[str, Any]] = None) -> None:
+    """Give every new_page()/new_context() of `browser` Camoufox's defaults."""
+    attach_socks5_auth(browser)
+    attach_viewport_fit(browser, geometry)
+    if no_viewport_default:
+        attach_no_viewport_default(browser)
+    attach_stock_media_defaults(browser)
+    attach_desktop_only_warning(browser)
+    driver_defaults.mark(browser)
+
+
+def plan_rendering(
+    target_os: str,
+    canvas_noise: Optional[bool],
+    named_gpu: bool,
+    webgl_disabled: bool,
+    probe: Callable[[], Optional[Gpu]],
+) -> Tuple[bool, Optional[Gpu]]:
+    """Whether the canvas is covered, and the host GPU the identity claims.
+
+    The canvas renders on the host, so the identity claims what Firefox reports
+    there when it can: on the host's OS, with no GPU named, a GPU or software
+    renderer fpgen has recorded there. With WebGL off no GPU is claimed. Any
+    other identity contradicts the pixels, so the canvas is covered unless the
+    caller chose canvas_noise=False.
+    """
+    if canvas_noise:
+        return True, None
+    if target_os == _host_os_key() and not named_gpu:
+        host = None if webgl_disabled else probe()
+        if host is None:
+            return False, None
+        if host in firefox_gpus(target_os):
+            return False, host
+    return canvas_noise is None, None
+
+
+def host_identity(from_options: Dict[str, Any], canvas_noise: Optional[bool]) -> Optional[Tuple[str, Optional[Gpu]]]:
+    """For a launch without the canvas placeholder, the machine its contexts must
+    claim: the host's OS, and the host GPU it claims (plan_rendering). Only for
+    the default canvas_noise=None; a caller who chose it, or built the options,
+    keeps their contexts as they ask. Read before the launch, so a failed probe
+    leaves no browser behind."""
+    prefs = from_options.get('firefox_user_prefs', {})
+    if canvas_noise is not None or has_canvas_placeholder(prefs):
+        return None
+    # Without the placeholder, the launch claimed the host's OS and no named GPU.
+    host_os = _host_os_key()
+    covered, gpu = plan_rendering(
+        host_os, None, False, bool(prefs.get('webgl.disabled')),
+        lambda: host_gpu(from_options['executable_path'], from_options['headless'], from_options['env'], prefs),
+    )
+    return None if covered else (host_os, gpu)
+
+
+def context_identity(
+    browser: Any, os: Optional[str], preset: Optional[Dict[str, Any]]
+) -> Tuple[Optional[str], Optional[Tuple[str, str]]]:
+    """The OS and GPU a new context on `browser` claims (None: drawn).
+
+    On a browser without the canvas placeholder they are the host's, since the
+    canvas renders there; asking for anything else raises.
+    """
+    host_identity = vars(browser).get('_camoufox_host_identity')
+    if host_identity is None:
+        return os, None
+    host_os, gpu = host_identity
+    host_name = OS_NAMES[host_os]
+    preset_os = platform_to_os(preset.get('navigator', {}).get('platform', '')) if preset else None
+    preset_gpu = preset.get('webgl', {}) if preset else {}
+    if (
+        (os or host_name) != host_name
+        or (preset_os or host_name) != host_name
+        or (gpu and preset and (preset_gpu.get('unmaskedVendor'), preset_gpu.get('unmaskedRenderer')) != gpu)
+    ):
+        raise ValueError(
+            f'This browser renders its canvas as this {host_name} machine, so its contexts claim it'
+            f'{" and its GPU " + repr(gpu) if gpu else ""}. Launch it with canvas_noise=True to give '
+            'a context another OS or GPU.'
+        )
+    return host_name, gpu
+
+
+def _os_keys(os: Optional[ListOrString]) -> List[str]:
+    """The OS keys an `os` launch option may draw: all of them when it names none."""
+    names = [os] if isinstance(os, str) else list(os or [])
+    return [OS_KEYS[name] for name in names if name in OS_KEYS] or list(OS_NAMES)
+
+
+def viewport_screen_bound(
+    viewport: Tuple[int, int],
+    os: Optional[ListOrString],
+    screen: Optional[Screen],
+    window: Optional[Tuple[int, int]],
+) -> Screen:
+    """The bound on a launch identity's screen that holds a `viewport` page in
+    its window (the caller's `window`, or one the recorded chrome larger),
+    for whichever OS the draw picks, within the caller's or the display's
+    `screen` bound."""
+    floors = []
+    for key in _os_keys(os):
+        chrome_w, chrome_h = RECORDED_WINDOW_CHROME[key]
+        outer = window or (viewport[0] + chrome_w, viewport[1] + chrome_h)
+        floors.append(screen_floor(key, {'width': viewport[0], 'height': viewport[1]},
+                                   {'width': outer[0], 'height': outer[1]}))
+    return Screen(
+        min_width=max([f[0] for f in floors] + [screen.min_width or 0 if screen else 0]),
+        max_width=screen.max_width if screen else None,
+        min_height=max([f[1] for f in floors] + [screen.min_height or 0 if screen else 0]),
+        max_height=screen.max_height if screen else None,
+    )
+
+
+def context_screen_bound(browser: Any, os: Optional[str], context_kwargs: Dict[str, Any]) -> Optional[Screen]:
+    """A bound on the screen a NewContext() identity draws, so that it holds
+    the context's pages: the viewport the caller asks for, with the recorded
+    chrome around it, and the browser's window, which the pages report as
+    theirs (screen_floor). Without a known OS, the bound holds them for any."""
+    geometry = _geometry_of(getattr(browser, '_impl_obj', browser))
+    window = geometry.get('window') if geometry else None
+    viewport = None if context_kwargs.get('no_viewport') else _size(context_kwargs.get('viewport'))
+    if not (viewport or window):
+        return None
+    os_keys = [OS_KEYS[os]] if os in OS_KEYS else [os] if os in OS_NAMES else list(OS_NAMES)
+    floors = [
+        screen_floor(key, viewport and {'width': viewport[0], 'height': viewport[1]}, window) for key in os_keys
+    ]
+    return Screen(min_width=max(f[0] for f in floors), min_height=max(f[1] for f in floors))
+
+
+def hand_over_context_geometry(browser: Any, fingerprint: Dict[str, Any]) -> None:
+    """Tell attach_viewport_fit() what the next context of `browser` claims: the
+    NewContext() identity in `fingerprint`, in the browser's window."""
+    impl = getattr(browser, '_impl_obj', browser)
+    config = fingerprint['config']
+    screen = fingerprint['preset'].get('screen') or {}
+    width = screen.get('width') or config.get('screen.width')
+    height = screen.get('height') or config.get('screen.height')
+    if not (width and height):
+        vars(impl).pop(_NEXT_CONTEXT, None)
+        return
+    geometry = _geometry_of(impl)
+    vars(impl)[_NEXT_CONTEXT] = {
+        'os': OS_KEYS[platform_to_os(config.get('navigator.platform') or '')],
+        'screen': (width, height),
+        'window': geometry.get('window') if geometry else None,
+    }
+
+
+def take_back_context_geometry(browser: Any) -> None:
+    """Drop a hand_over_context_geometry() that no new_context() took."""
+    vars(getattr(browser, '_impl_obj', browser)).pop(_NEXT_CONTEXT, None)
+
+
+def needs_exit_geo(
+    webrtc_ip: Optional[str],
+    geolocation: Optional[Dict[str, float]],
+    context_kwargs: Dict[str, Any],
+) -> bool:
+    """Whether a context behind a proxy needs to look up where it exits."""
+    return not (
+        webrtc_ip
+        and geolocation
+        and 'timezone_id' in context_kwargs
+        and 'locale' in context_kwargs
+    )
+
+
+def place_at_exit(
+    geo: ExitGeo,
+    webrtc_ip: Optional[str],
+    geolocation: Optional[Dict[str, float]],
+    context_kwargs: Dict[str, Any],
+) -> Tuple[str, Dict[str, float]]:
+    """Place a proxied context at the exit, keeping caller-provided values."""
+    context_kwargs.setdefault('timezone_id', geo.timezone)
+    if 'locale' not in context_kwargs:
+        context_kwargs['locale'] = SELECTOR.from_region(geo.country).as_string
+    return (
+        webrtc_ip or geo.ip,
+        geolocation or {'latitude': geo.latitude, 'longitude': geo.longitude},
+    )
+
+
+def new_context_options(
+    fingerprint: Dict[str, Any],
+    context_kwargs: Dict[str, Any],
+    proxy: Optional[Dict[str, str]],
+    geolocation: Optional[Dict[str, float]],
+) -> Dict[str, Any]:
+    """new_context() options for a generate_context_fingerprint() identity; the
+    caller's own options win."""
+    opts: Dict[str, Any] = {**fingerprint['context_options'], **context_kwargs}
+    # The identity's no_viewport is a default: a viewport the caller asks for wins.
+    if context_kwargs.get('viewport') and 'no_viewport' not in context_kwargs:
+        opts.pop('no_viewport', None)
+    if proxy:
+        opts['proxy'] = proxy
+    if geolocation:
+        opts['geolocation'] = geolocation
+        opts.setdefault('permissions', ['geolocation'])
+    return opts
+
+
+def start_virtual_display(
+    headless: Any, debug: Optional[bool], kwargs: Dict[str, Any]
+) -> Tuple[Optional[VirtualDisplay], Any]:
+    """Start the display headless='virtual' or 'virtual-gpu' asks for.
+
+    Pops the display's own options from `kwargs` and points the launch at the
+    display. Returns the display, or None, and the headless value to launch with.
+    """
+    gpu = kwargs.pop('gpu', None)
+    require_gpu = kwargs.pop('require_gpu', None)
+    if headless == 'virtual-gpu':
+        display: VirtualDisplay = GpuDisplay(
+            select_gpu(gpu), debug=bool(debug), require_gpu=require_gpu is not False
+        )
+        kwargs['firefox_user_prefs'] = {**GPU_PREFS, **(kwargs.get('firefox_user_prefs') or {})}
+    elif gpu is not None or require_gpu is not None:
+        raise ValueError("gpu and require_gpu apply to headless='virtual-gpu' only")
+    elif headless == 'virtual':
+        # A passthrough browser reports the display's own size, so its display is a
+        # common monitor rather than the 1x1 root an injected screen hides.
+        screen = PASSTHROUGH_SCREEN if kwargs.get('passthrough') and not PRODUCT.getenv(SCREEN_KEY) else None
+        display = VirtualDisplay(PRODUCT, debug=debug, screen=screen)
+    else:
+        return None, headless
+    kwargs['virtual_display'] = display.get()
+    return display, False
+
+
+async def async_attach_vd(
+    browser: Any, virtual_display: Optional[VirtualDisplay] = None
+) -> Any:  # type: ignore
+    """
+    Attaches the virtual display to the async browser cleanup, and on a GPU
+    display checks the browser renders on the GPU.
+    """
+    if not virtual_display:  # Skip if no virtual display is provided
+        return browser
+
+    _close = browser.close
+
+    async def new_close(*args: Any, **kwargs: Any):
+        try:
+            await _close(*args, **kwargs)
+        finally:
+            virtual_display.kill()
+
+    browser.close = new_close
+
+    if isinstance(virtual_display, GpuDisplay):
+        try:
+            await async_prove_gpu(browser, virtual_display)
+        except BaseException:
+            await browser.close()
+            raise
+
+    return browser
+
+
+def sync_attach_vd(
+    browser: Any, virtual_display: Optional[VirtualDisplay] = None
+) -> Any:  # type: ignore
+    """
+    Attaches the virtual display to the sync browser cleanup, and on a GPU
+    display checks the browser renders on the GPU.
+    """
+    if not virtual_display:  # Skip if no virtual display is provided
+        return browser
+
+    _close = browser.close
+
+    def new_close(*args: Any, **kwargs: Any):
+        try:
+            _close(*args, **kwargs)
+        finally:
+            virtual_display.kill()
+
+    browser.close = new_close
+
+    if isinstance(virtual_display, GpuDisplay):
+        try:
+            prove_gpu(browser, virtual_display)
+        except BaseException:
+            browser.close()
+            raise
+
+    return browser
+
+
+def resolve_verstr(executable_path: Optional[Path] = None) -> str:
+    """The Firefox version of the build about to launch: the named executable's
+    own application.ini, or the installed release. A named executable without
+    one raises, since claiming another build's version would leak in the UA."""
+    if not executable_path:
+        return installed_verstr()
+    ini = build_file(executable_path, 'application.ini')
+    for line in ini.read_text(encoding='utf-8').splitlines():
+        if line.startswith('Version='):
+            return line.split('=', 1)[1].strip()
+    raise ValueError(f'{ini} names no Version')
+
+
+def _apply_defaults(build: Any) -> Any:
+    """Fill the options the caller left unset from the defaults file."""
+    names = [p.name for p in signature(build).parameters.values() if p.kind is Parameter.KEYWORD_ONLY]
+
+    @wraps(build)
+    def wrapper(**kwargs: Any) -> Any:
+        return build(**with_defaults(kwargs, names))
+
+    return wrapper
+
+
+def _passthrough_options(
+    *,
+    browser_binary: str,
+    executable_path: Optional[Path],
+    proxy: Optional[Dict[str, str]],
+    proxy_dns: Optional[str],
+    proxy_optimistic_data: Optional[bool],
+    addons: List[str],
+    exclude_addons: Optional[List[DefaultAddons]],
+    config: Dict[str, Any],
+    firefox_user_prefs: Dict[str, Any],
+    user_pref_keys: set,
+    env: Dict[str, Union[str, float, bool]],
+    args: List[str],
+    headless: Any,
+    humanize: HumanizeSetting,
+    main_world_eval: Optional[bool],
+    allow_addon_new_tab: Optional[bool],
+    block_images: Optional[bool],
+    block_webrtc: Optional[bool],
+    block_webgl: Optional[bool],
+    disable_coop: Optional[bool],
+    enable_cache: Optional[bool],
+    i_know_what_im_doing: bool,
+    debug: Optional[bool],
+    launch_options: Dict[str, Any],
+) -> Dict[str, Any]:
+    """launch_options() for passthrough=True: the behaviour options, and no
+    identity. The browser gets a config of switches only (addons, main world,
+    addon tabs) and the host's own fontconfig, so every value a page reads is
+    this machine's."""
+    warn_passthrough(PRODUCT, proxy, i_know_what_im_doing)
+    if proxy and proxy_carries_no_udp(str(proxy.get('server', ''))):
+        LeakWarning.warn(WARNINGS_DATA['proxy_http_no_udp'], i_know_what_im_doing)
+    apply_proxy_dns(proxy_dns, proxy, config, firefox_user_prefs, exit_looked_up=False)
+    apply_proxy_optimistic_data(proxy_optimistic_data, proxy, firefox_user_prefs)
+
+    add_default_addons(addons, exclude_addons, browser_binary)
+    if addons:
+        confirm_paths(addons)
+        config['addons'] = addons
+    normalize_humanize(humanize)
+    if main_world_eval:
+        config['allowMainWorld'] = True
+    if allow_addon_new_tab:
+        config['allowAddonNewtab'] = True
+
+    if block_images:
+        LeakWarning.warn(WARNINGS_DATA['block_images'], i_know_what_im_doing)
+    if disable_coop:
+        LeakWarning.warn(WARNINGS_DATA['disable_coop'], i_know_what_im_doing)
+    for on, pref, stock, toggled in (
+        (block_images, 'permissions.default.image', 1, 2),
+        (block_webrtc, 'media.peerconnection.enabled', True, False),
+        (disable_coop, 'browser.tabs.remote.useCrossOriginOpenerPolicy', True, False),
+    ):
+        set_toggle_pref(firefox_user_prefs, pref, bool(on), stock, toggled, launch_options.get('user_data_dir'))
+    if block_webgl:
+        firefox_user_prefs['webgl.disabled'] = True
+        LeakWarning.warn(WARNINGS_DATA['block_webgl'], i_know_what_im_doing)
+    if enable_cache:
+        merge_into(firefox_user_prefs, CACHE_PREFS)
+    if debug:
+        print('[DEBUG] Config:')
+        pprint(config)
+
+    apply_launch_rules(OS_NAME, config, firefox_user_prefs, user_pref_keys, env, path=executable_path)
+    warn_if_executable_predates_playwright(executable_path)
+    validate_config(config, path=executable_path)
+
+    proxy, proxy_auth = socks5_auth(proxy)
+    result = {
+        "executable_path": browser_binary,
+        "args": args,
+        "env": {
+            **get_env_vars(config, OS_NAME, path=executable_path, fontconfig=False),
+            **get_pref_env_vars(firefox_user_prefs),
+            **(proxy_auth_env(proxy_auth) if proxy_auth else {}),
+            **env,
+        },
+        "firefox_user_prefs": firefox_user_prefs,
+        "headless": headless,
+        **launch_options,
+    }
+    if proxy is not None:
+        result["proxy"] = proxy
+    return result
+
+
+def _firefox_version(executable_path: Path) -> str:
+    """The Firefox version of the build at `executable_path`, without Camoufox's release suffix."""
+    return resolve_verstr(executable_path).split("-", 1)[0]
+
+
+@_apply_defaults
+def launch_options(
+    *,
+    config: Optional[Dict[str, Any]] = None,
+    os: Optional[ListOrString] = None,
+    block_images: Optional[bool] = None,
+    block_webrtc: Optional[bool] = None,
+    block_webgl: Optional[bool] = None,
+    disable_coop: Optional[bool] = None,
+    webgl_config: Optional[Tuple[str, str]] = None,
+    cpu: Optional[Dict[str, str]] = None,
+    geoip: Optional[Union[str, bool]] = None,
+    geoip_db: Optional[str] = None,
+    humanize: HumanizeSetting = None,
+    locale: Optional[Union[str, List[str]]] = None,
+    addons: Optional[List[str]] = None,
+    fonts: Optional[List[str]] = None,
+    custom_fonts_only: Optional[bool] = None,
+    exclude_addons: Optional[List[DefaultAddons]] = None,
+    screen: Optional[Screen] = None,
+    window: Optional[Tuple[int, int]] = None,
+    fingerprint: Optional[Dict[str, Any]] = None,
+    fingerprint_preset: Optional[Union[bool, Dict[str, Any]]] = None,
+    ff_version: Optional[int] = None,
+    headless: Optional[bool] = None,
+    main_world_eval: Optional[bool] = None,
+    allow_addon_new_tab: Optional[bool] = None,
+    executable_path: Optional[Union[str, Path]] = None,
+    browser: Optional[str] = None,
+    firefox_user_prefs: Optional[Dict[str, Any]] = None,
+    proxy: Optional[Dict[str, str]] = None,
+    proxy_dns: Optional[Literal["doh", "exit"]] = None,
+    proxy_optimistic_data: Optional[bool] = None,
+    enable_cache: Optional[bool] = None,
+    args: Optional[List[str]] = None,
+    env: Optional[Dict[str, Union[str, float, bool]]] = None,
+    i_know_what_im_doing: Optional[bool] = None,
+    debug: Optional[bool] = None,
+    virtual_display: Optional[str] = None,
+    pin_cpu_cores: Optional[bool] = None,
+    canvas_noise: Optional[bool] = None,
+    display_profile: DisplayProfileOption = None,
+    passthrough: Optional[bool] = None,
+    **launch_options: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Launches a new browser instance for Camoufox.
+    Accepts all Playwright Firefox launch options, along with the following:
+
+    Parameters:
+        config (Optional[Dict[str, Any]]):
+            Camoufox properties to use. (read https://github.com/daijro/camoufox/blob/main/README.md)
+        os (Optional[ListOrString]):
+            Operating system to use for the fingerprint generation.
+            Can be "windows", "macos", "linux", or a list to randomly choose from.
+            Default: ["windows", "macos", "linux"]
+        block_images (Optional[bool]):
+            Whether to block all images.
+        block_webrtc (Optional[bool]):
+            Whether to block WebRTC entirely.
+        block_webgl (Optional[bool]):
+            Whether to block WebGL. To prevent leaks, only use this for special cases.
+        disable_coop (Optional[bool]):
+            Disables the Cross-Origin-Opener-Policy, allowing elements in cross-origin iframes,
+            such as the Turnstile checkbox, to be clicked.
+        geoip (Optional[Union[str, bool]]):
+            Calculate longitude, latitude, timezone, country, & locale based on the IP address.
+            Pass the target IP address to use, or `True` to find the IP address automatically.
+        geoip_db (Optional[str]):
+            Name of the GeoIP database to use (e.g., "GeoIP AIO by daijro").
+            If not specified, uses the one chosen with `camoufox set --geoip`, or the default.
+        humanize (Optional[Union[bool, dict]]):
+            Driver-side humanization. True is `myuri()` on every channel; a dict takes
+            `myuri()` or `raw()` from `camoufox.humanize` per channel (an omitted channel is
+            `myuri()`), e.g. `{"mouse": myuri(move=my_move), "scroll": raw(), "seed": 1234}`;
+            `myuri(**parts)` replaces parts of myuri's with your functions.
+            The browser never humanizes input itself; each Playwright call is one event.
+        locale (Optional[Union[str, List[str]]]):
+            Locale(s) to use in Camoufox. The first listed locale will be used for the Intl API.
+        addons (Optional[List[str]]):
+            List of Firefox addons to use.
+        fonts (Optional[List[str]]):
+            Fonts to load into Camoufox (in addition to the default fonts for the target `os`).
+            Takes a list of font family names that are installed on the system.
+        custom_fonts_only (Optional[bool]):
+            If enabled, OS-specific system fonts will be not be passed to Camoufox.
+        exclude_addons (Optional[List[DefaultAddons]]):
+            Default addons to exclude. Passed as a list of camoufox.DefaultAddons enums.
+        screen (Optional[Screen]):
+            Constrains the screen dimensions of the generated fingerprint.
+            Takes a camoufox.fingerprints.Screen instance.
+        window (Optional[Tuple[int, int]]):
+            Set a fixed window size instead of generating a random one
+        fingerprint (Optional[Fingerprint]):
+            Use a custom fpgen fingerprint. Note: Not all values will be implemented.
+            If not provided, a random fingerprint will be generated based on the provided
+            `os` & `screen` constraints.
+        fingerprint_preset (Optional[Union[bool, Dict[str, Any]]]):
+            Opt into using real fingerprint presets instead of fpgen.
+            Pass `True` to use a random bundled preset, or pass a preset dict directly.
+            By default (None), fpgen generates a unique fingerprint.
+        ff_version (Optional[int]):
+            Firefox version to use. Defaults to the current Camoufox version.
+            To prevent leaks, only use this for special cases.
+        headless (Optional[bool]):
+            Whether to run the browser in headless mode. Defaults to False.
+            Note: If you are running linux, passing headless='virtual' to Camoufox, AsyncCamoufox
+            or launch_server will use Xvfb, and headless='virtual-gpu' a headless Xorg
+            server bound to one GPU.
+        main_world_eval (Optional[bool]):
+            Whether to enable running scripts in the main world.
+            To use this, prepend "mw:" to the script: page.evaluate("mw:" + script).
+        allow_addon_new_tab (Optional[bool]):
+            Whether to allow addon open new tabs. Defaults to False.
+        executable_path (Optional[Union[str, Path]]):
+            Custom Camoufox browser executable path.
+        browser (Optional[str]):
+            Select a specific installed browser version. Can be:
+            - Repo/build like "official/beta.20"
+            - Build alone like "beta.20"
+            - Full version like "134.0.2-beta.20"
+            The build must be installed; it is never downloaded.
+            If not specified, uses the paired build. Raises ValueError with
+            executable_path or CAMOUFOX_EXECUTABLE_PATH.
+        firefox_user_prefs (Optional[Dict[str, Any]]):
+            Firefox user preferences to set.
+        proxy (Optional[Dict[str, str]]):
+            Proxy to use for the browser.
+            Note: If geoip is True, a request will be sent through this proxy to find the target IP.
+        proxy_dns (Optional[Literal["doh", "exit"]]):
+            Who resolves names behind a SOCKS5 proxy: 'doh' (default), the browser, by DoH
+            through the proxy; 'exit', the proxy. See docs/proxy-dns.md.
+        proxy_optimistic_data (Optional[bool]):
+            Send the TLS ClientHello behind the SOCKS5 CONNECT request, before the proxy's
+            reply. Only for a proxy that forwards those bytes; behind one that discards
+            them every HTTPS connection hangs. See docs/proxy-dns.md.
+        enable_cache (Optional[bool]):
+            Cache previous pages, requests, etc (uses more memory).
+        args (Optional[List[str]]):
+            Arguments to pass to the browser.
+        env (Optional[Dict[str, Union[str, float, bool]]]):
+            Environment variables to set.
+        debug (Optional[bool]):
+            Prints the config being sent to Camoufox.
+        virtual_display (Optional[str]):
+            Virtual display number. Ex: ':99'. This is handled by Camoufox, AsyncCamoufox and launch_server.
+        pin_cpu_cores (Optional[bool]):
+            Pin the browser to navigator.hardwareConcurrency cores
+            (Linux/Windows) so the fingerprint's own core count can be kept:
+            a page timing N parallel workers then measures the number it was
+            told. OFF by default -- it costs real CPU and serializes concurrent
+            launches. Without it the host's own (snapped) count is reported,
+            which is equally coherent, just less diverse.
+        display_profile (Optional[Union[bytes, str, Path, bool]]):
+            The display's ICC colour profile, which ICC-tagged images are converted to
+            (a page reads it from their decoded pixels): ICC bytes or a path, e.g. one
+            recorded with GetICMProfileW on the machine the identity presents. False
+            keeps the browser's own (built-in sRGB on a host without one). Default: an
+            identity of another OS draws one from display-profiles.json for its OS and
+            screen; an identity of the host's OS uses the host display's, as stock does.
+        passthrough (Optional[bool]):
+            Launch the browser as this machine's own: no identity is drawn or sent,
+            so pages read this machine's user agent, screen, GPU, fonts, timezone and
+            languages. Behaviour options (proxy, headless, addons, humanize, block_*)
+            still apply; an option that sets an identity raises ValueError.
+        webgl_config (Optional[Tuple[str, str]]):
+            Use a specific WebGL vendor/renderer pair. Passed as a tuple of (vendor, renderer).
+            The pair must be one fpgen has recorded from Firefox on `os`
+            (camoufox.webgl.firefox_gpus); any other raises ValueError.
+        cpu (Optional[Dict[str, str]]):
+            The CPU the identity computes as: {'arch': 'x86' or 'arm',
+            'manufacturer': ...}, either key optional (a manufacturer implies
+            its arch). Firefox never reports it, but canvas pixels, Web Audio
+            samples, encoded Opus, relaxed-SIMD wasm and NaN signs differ
+            between x86-64 and ARM64, and canvas and Opus between Intel and AMD;
+            the browser computes them as the claimed CPU does. Manufacturers per
+            OS: macos x86 intel, arm apple; windows x86 intel or amd, arm
+            qualcomm; linux x86 intel or amd, arm apple, qualcomm, broadcom,
+            nvidia, ampere, rockchip, mediatek, amlogic or allwinner. A pair no
+            machine on the OS has (an AMD Mac, an Apple x86 CPU), or one the
+            GPU contradicts (an Apple GPU on x86, an Intel iGPU on AMD), raises
+            ValueError. Without `os`, the OS is drawn among those with a
+            recorded GPU for the CPU. By default the CPU follows the GPU (Apple
+            GPU: Apple ARM; Intel iGPU or Intel Mac: Intel; Radeon iGPU: AMD)
+            and a core count only Intel ships, otherwise x86 drawn 81% Intel,
+            as among Firefox's x86 users.
+        canvas_noise (Optional[bool]):
+            Replace canvas and WebGL readback with random data, as
+            privacy.resistFingerprinting does in LibreWolf, Tor Browser and
+            Mullvad Browser. Stock Firefox does not, so it warns. By default
+            (None) the identity on the host's OS claims the GPU the host
+            renders with, uncovered; it is on whenever the identity claims
+            another OS or another GPU (webgl_config, a preset's, or a host GPU
+            fpgen never recorded), whose canvas would otherwise show the host.
+        **launch_options (Dict[str, Any]):
+            Additional Firefox launch options.
+    """
+    if passthrough:
+        # Before anything is downloaded: the caller asked for two launches at once.
+        check_passthrough(PRODUCT, {
+            'config': config, 'os': os, 'fingerprint': fingerprint, 'fingerprint_preset': fingerprint_preset,
+            'webgl_config': webgl_config, 'cpu': cpu, 'screen': screen, 'window': window, 'fonts': fonts,
+            'custom_fonts_only': custom_fonts_only, 'locale': locale, 'geoip': geoip,
+            'canvas_noise': canvas_noise, 'pin_cpu_cores': pin_cpu_cores, 'ff_version': ff_version,
+        })
+        if display_profile not in (None, False):
+            raise ValueError('passthrough=True keeps the display\'s own colour profile: pass no display_profile.')
+    ensure_browser_profile_dir(env)
+
+    # The launch fills these in, so it works on copies: a caller's mapping
+    # reused for a second launch would otherwise carry the first identity's
+    # values in, as if the caller had set them.
+    config = dict(config or {})
+    addons = list(addons or [])
+    args = list(args or [])
+    firefox_user_prefs = dict(firefox_user_prefs or {})
+
+    # Set default values for optional arguments
+    if headless is None:
+        headless = False
+    # The caller's own prefs, before the launcher adds any: a pref the build
+    # declares in launch.json never replaces one of these.
+    _user_pref_keys = set(firefox_user_prefs)
+    if custom_fonts_only is None:
+        custom_fonts_only = False
+    if i_know_what_im_doing is None:
+        i_know_what_im_doing = False
+    # Keep per-launch overrides isolated from the process environment and from
+    # mappings supplied by callers. In particular, DISPLAY must not outlive the
+    # virtual display that owns it.
+    env = dict(environ) if env is None else dict(env)
+    # CAMOUFOX_EXECUTABLE_PATH points every launch at a specific build without
+    # threading the path through each call site; the CI runners set it for the
+    # browser/tests/playwright/patches guards, which construct AsyncCamoufox directly.
+    _env_executable = environ.get('CAMOUFOX_EXECUTABLE_PATH', '').strip()
+    if browser:
+        if executable_path or _env_executable:
+            raise ValueError(
+                f'browser={browser!r} selects an installed build, but '
+                f'{"executable_path" if executable_path else "CAMOUFOX_EXECUTABLE_PATH"} '
+                'names a binary too. Pass one of them.'
+            )
+        # A selected build is launched like a caller's own binary: its files
+        # are read from beside it, and the paired build is neither used nor fetched.
+        executable_path = selected_launch_path(browser)
+    elif executable_path is None and _env_executable:
+        executable_path = _env_executable
+    if isinstance(executable_path, str):
+        # Convert executable path to a Path object
+        executable_path = Path(abspath(executable_path))
+
+    # Resolve the binary that will launch before reading its version:
+    # launch_path() downloads the browser when none is installed, and the
+    # identity has to match the Firefox that actually runs.
+    browser_binary = str(executable_path) if executable_path else launch_path()
+
+    # Handle virtual display
+    if virtual_display:
+        env['DISPLAY'] = virtual_display
+        # Virtual display uses Xvfb (X11). If the host session forces Wayland via env vars,
+        # GTK/Firefox may try Wayland and ignore DISPLAY, breaking Xvfb usage.
+        env['GDK_BACKEND'] = 'x11'
+        env.pop('WAYLAND_DISPLAY', None)
+        env["MOZ_ENABLE_WAYLAND"] = "0"
+
+    if passthrough:
+        return _passthrough_options(
+            browser_binary=browser_binary, executable_path=executable_path, proxy=proxy, proxy_dns=proxy_dns, proxy_optimistic_data=proxy_optimistic_data,
+            addons=addons, exclude_addons=exclude_addons, config=config, firefox_user_prefs=firefox_user_prefs,
+            user_pref_keys=_user_pref_keys, env=env, args=args, headless=headless, humanize=humanize,
+            main_world_eval=main_world_eval, allow_addon_new_tab=allow_addon_new_tab,
+            block_images=block_images, block_webrtc=block_webrtc, block_webgl=block_webgl,
+            disable_coop=disable_coop, enable_cache=enable_cache, i_know_what_im_doing=i_know_what_im_doing,
+            debug=debug, launch_options=launch_options,
+        )
+
+    # Warn the user for manual config settings
+    if not i_know_what_im_doing:
+        warn_manual_config(config)
+    if cpu is not None:
+        os = _os_for_cpu(cpu, os)
+    _caller_keys = frozenset(config)
+
+    # Snapshot which domains the USER set before fingerprint generation fills in
+    # the rest. The post-generation fix-ups below must
+    # only touch generated values, never override what the user passed.
+    _user_set_navigator = is_domain_set(config, 'navigator.')
+    _user_set_arch = is_domain_set(config, 'navigator.platform', 'navigator.oscpu')
+    _user_set_screen_window = is_domain_set(config, 'screen.', 'window.')
+    _user_window_position = {k for k in ('window.screenX', 'window.screenY') if k in config}
+    _user_set_window_size = is_domain_set(
+        config, 'window.outerWidth', 'window.outerHeight', 'window.innerWidth', 'window.innerHeight'
+    )
+    _user_set_media_devices = is_domain_set(config, 'mediaDevices:')
+    _user_set_fonts = bool(fonts) or is_domain_set(config, 'fonts')
+    _user_set_voices = is_domain_set(config, 'voices', 'voices:speechd')
+    _user_set_dnt = 'navigator.doNotTrack' in config
+    _user_set_gpc = 'navigator.globalPrivacyControl' in config
+    _user_set_accept_encoding = 'headers.Accept-Encoding' in config
+    drop_audio_seed(config)
+
+    # The salt that makes every seeded draw belong to this identity (see
+    # fingerprints.identity_salt): stable when the caller pinned the identity
+    # -- a Fingerprint, a preset dict, or their own config naming the UA --
+    # and fresh otherwise.
+    if fingerprint is not None:
+        _identity_salt = identity_salt(fingerprint)
+    elif isinstance(fingerprint_preset, dict):
+        _identity_salt = identity_salt(fingerprint_preset)
+    elif 'navigator.userAgent' in config:
+        _identity_salt = identity_salt(dict(config))
+    else:
+        _identity_salt = identity_salt()
+
+    # Assert the target OS is valid
+    if os:
+        check_valid_os(os)
+
+    # webgl_config requires OS to be set
+    elif webgl_config:
+        raise ValueError('OS must be set when using webgl_config')
+
+    # Resolve the binary that will launch before reading its version:
+    # launch_path() downloads the browser when none is installed, and the
+    # identity has to match the Firefox that actually runs.
+    browser_binary = str(executable_path) if executable_path else launch_path()
+    warn_if_package_outdated()
+
+    # The default addons are the ones that build bundles, beside its binary
+    add_default_addons(addons, exclude_addons, browser_binary)
+
+    # Confirm all addon paths are valid
+    if addons:
+        confirm_paths(addons)
+        config['addons'] = addons
+
+    # Get the Firefox version
+    if ff_version:
+        ff_version_str = str(ff_version)
+        LeakWarning.warn(WARNINGS_DATA['ff_version'], i_know_what_im_doing)
+    else:
+        ff_version_str = resolve_verstr(executable_path).split('.', 1)[0]
+
+    # Generate a fingerprint
+    _used_preset = False
+    if fingerprint is not None:
+        # User passed a custom fingerprint
+        if not i_know_what_im_doing:
+            check_custom_fingerprint(fingerprint)
+    elif fingerprint_preset:
+        # User opted into real fingerprint presets
+        if isinstance(fingerprint_preset, dict):
+            preset = fingerprint_preset
+        else:
+            preset = get_random_preset(os=os, ff_version=ff_version_str)
+        if preset:
+            merge_into(config, from_preset(preset, ff_version_str, salt=_identity_salt))
+            _used_preset = True
+
+    # Bound the geometry to the real display. The generator drops the bound when
+    # nothing fits it, so it is re-applied after generation as well.
+    # `headless` and "is there a display to probe" are separate questions: passing
+    # `headless or has_display(env)` made a headful run on a real display look like a
+    # headless one to get_screen_cons(), which then skipped the bound entirely.
+    screen_cons = screen or (get_screen_cons(headless) if has_display(env) else None)
+
+    # launch_persistent_context(viewport=) shows its pages at that size from the
+    # first one, so a drawn identity is drawn around it: a window the recorded
+    # chrome larger than the viewport, on a screen that holds that window.
+    launch_viewport = None if launch_options.get('no_viewport') else _size(launch_options.get('viewport'))
+    fit_viewport = bool(launch_viewport) and not _user_set_screen_window and not _used_preset and fingerprint is None
+    if fit_viewport:
+        screen_cons = viewport_screen_bound(launch_viewport, os, screen_cons, window)
+
+    if not _used_preset and fingerprint is None:
+        # Default: synthetic generation via fpgen (infinite unique fingerprints)
+        fingerprint = generate_fingerprint(
+            screen=screen_cons,
+            window=window,
+            os=os,
+        )
+
+    if not _used_preset and fingerprint is not None:
+        # Inject the generated fingerprint into the config
+        merge_into(
+            config,
+            from_fpgen(fingerprint, ff_version_str),
+        )
+
+    target_os = get_target_os(config)
+    if cpu is not None:
+        config.update(coherence.resolve_cpu(cpu, target_os))
+
+    # fpgen.yml leaves devicePixelRatio unmapped, so the page reports the
+    # rendering scale while the screen keeps fpgen's CSS sizes. A drawn ratio
+    # no display offers is a browser zoom that shrank those sizes (1760x990 at
+    # 1.0909 is a 1920x1080 monitor at 110%): it moves to the display's scale
+    # with the geometry rescaled, so the screen is the display it was recorded
+    # on. Here, before the display clamp and the available area are derived
+    # from it. A caller's layout.css.devPixelsPerPx is the scale the page
+    # renders at, so the ratio moves to that instead: otherwise the page reports
+    # one devicePixelRatio and matches another in matchMedia('(resolution)').
+    if not _used_preset and isinstance(fingerprint, dict) and not _user_set_screen_window:
+        drawn_dpr = (fingerprint.get('window') or {}).get('devicePixelRatio')
+        if 'window.devicePixelRatio' not in config and coherence.is_zoomed_ratio(drawn_dpr, target_os):
+            try:
+                caller_scale = float(firefox_user_prefs.get('layout.css.devPixelsPerPx') or -1)
+            except (TypeError, ValueError):
+                caller_scale = -1.0
+            config['window.devicePixelRatio'] = drawn_dpr
+            scale = caller_scale if caller_scale > 0 else None
+            if fit_viewport and scale is None:
+                # The screen was drawn to hold the viewport's window at the drawn ratio, and a
+                # larger one shrinks it: the nearest display mode at which it still does.
+                floor = screen_floor(
+                    target_os, {'width': launch_viewport[0], 'height': launch_viewport[1]},
+                    window and {'width': window[0], 'height': window[1]},
+                )
+                holding = [
+                    step for step in coherence.PLAUSIBLE_DPR[target_os]
+                    if all(round(config[f'screen.{axis}'] * drawn_dpr / step) >= least
+                           for axis, least in zip(('width', 'height'), floor))
+                ]
+                scale = min(holding, key=lambda step: abs(step - drawn_dpr), default=None)
+            coherence.repair_device_pixel_ratio(config, target_os, scale)
+
+    # After the ratio moved, which rescales every CSS size: the viewport is in
+    # the pixels the page reports, so its window is placed in them too.
+    if fit_viewport and window is None:
+        chrome_w, chrome_h = RECORDED_WINDOW_CHROME[target_os]
+        place_window(config, launch_viewport[0] + chrome_w, launch_viewport[1] + chrome_h)
+
+    # A preset whose screen is a phone viewport is not a real desktop device;
+    # the floor is normally skipped for presets, on the assumption that a preset
+    # IS a real machine, which 736x414 disproves.
+    if not _user_set_screen_window and coherence.screen_is_implausible(config):
+        coherence.repair_screen_orientation(config)
+        raise_screen_to_modern_floor(config)
+
+    # Correct fingerprint inconsistencies that leak as headless /
+    # impossible-geometry tells, unless the user is driving these themselves.
+    if not _user_set_arch:
+        fix_navigator_arch(config, target_os)
+    if not _user_set_navigator:
+        fix_hardware_concurrency(config, can_pin=bool(pin_cpu_cores))
+    if not _user_set_screen_window:
+        # Lift netbook-era geometry to something current hardware reports,
+        # before the display clamp below so a genuinely small real monitor
+        # still wins (#729). Synthetic draws only: a preset is a real device,
+        # internally consistent by construction, and two of the bundled v150
+        # presets genuinely report sub-netbook screens (736x414, 960x540).
+        # Rewriting those to 1366x768 would break the very coherence #729 is
+        # about, and _user_set_screen_window is read before the preset merges
+        # in, so it does not cover this.
+        if not _used_preset:
+            raise_screen_to_modern_floor(config)
+        # Headful on a real monitor only: this bound exists so the window fits
+        # the screen it is drawn on. headless has no window to overflow, and
+        # headless='virtual' reaches here as headless=False (see async_api) with
+        # a 1x1 Xvfb (virtdisplay.py) that is not a real screen.
+        if headless is False and not virtual_display and screen_cons:
+            fit = _physical_scale(config)
+            clamp_screen_to_display(config, screen_cons.max_width and int(screen_cons.max_width / fit),
+                                    screen_cons.max_height and int(screen_cons.max_height / fit))
+        follow_baseline_protection(config, target_os)
+        clamp_window_dimensions(config)
+        clamp_window_position(config)
+    else:
+        # A caller's screen without a caller's window: the drawn window is fitted to it, as a real
+        # window fits its monitor.
+        if not _user_set_window_size:
+            fit_window_to_caller_screen(config, target_os, {'window.screenX', 'window.screenY'} - _user_window_position)
+        # The caller drove the screen or the window, not always where the window sits: a position
+        # drawn against the generated screen is moved onto the caller's (window 1280 wide at
+        # x=206 on a 1382 screen), or every new context drew another screen to hold it.
+        clamp_window_position(config, {'window.screenX', 'window.screenY'} - _user_window_position)
+
+    # Deliberately NOT setting window.history.length. It used to be pinned to a
+    # random 1-5 because browser.sessionhistory.max_entries=0 left the real
+    # session history empty, so the honest value was 0 -- an impossible number,
+    # since the HTML spec guarantees a browsing context always keeps its current
+    # entry. browser/settings/camoufox.cfg now runs Firefox's stock max_entries, so the
+    # real value starts at 1 and grows with each navigation.
+    #
+    # Pinning it on top of that is strictly worse than leaving it alone: the
+    # value would no longer move across navigations, and a fresh tab would claim
+    # a depth of, say, 4 while history.back() -- which reads the real session
+    # history -- does nothing. Any page can check that pair. A build that
+    # implements the key declares it in its own properties.json, with the floor
+    # it needs, and callers set it by hand.
+
+    # Update fonts list
+    if fonts:
+        config['fonts'] = fonts
+
+    if custom_fonts_only:
+        firefox_user_prefs['gfx.bundled-fonts.activate'] = 0
+        if fonts:
+            LeakWarning.warn(WARNINGS_DATA['custom_fonts_only'], i_know_what_im_doing)
+        else:
+            raise ValueError('No custom fonts were passed, but `custom_fonts_only` is enabled.')
+    elif not _user_set_fonts or not config.get('fonts'):
+        # Draw the font subset HERE, after every identity fix-up above, so the
+        # seed sees the final UA/screen/cores/GPU: the same presented identity
+        # always gets the same font list (#442/#765). A draw the fingerprint
+        # generator made earlier from a partial config is replaced.
+        os_name = OS_NAMES.get(target_os, 'macos')
+        try:
+            config['fonts'] = _generate_random_font_subset(
+                os_name,
+                seed=identity_seed(config, _identity_salt),
+                # host's own OS on macOS/Windows: the real system fonts are used
+                # (font-hijacker.patch keeps the bundle inactive), so only the
+                # OS base is claimed
+                native=(target_os in ('mac', 'win') and _host_os_key() == target_os),
+            )
+        except (OSError, ValueError) as e:
+            FallbackWarning.warn(
+                'Drawing the font list', f"every font fonts.json lists for {target_os}", e,
+                config.get('navigator.userAgent'),
+            )
+            update_fonts(config, target_os)
+
+    # After the draw, so a drawn list and a list the caller passes (a captured
+    # enumeration, a profile's bundle) expand alike.
+    if target_os == 'win':
+        # Windows enumerates DirectWrite's families ("Arial", "Rockwell", "Sitka Text"), and once
+        # its deferred font-info loader has landed a page can also ask for the nameID 1/16 names
+        # of their faces (Arial Black, Rockwell Extra Bold, the bare Sitka). The allowlist has to
+        # hold those names or it blocks them for good: windowsLegacyFontFamilies maps each
+        # family to them. Arial and Franklin Gothic ship with Windows, but Arial Narrow and
+        # Franklin Gothic Demi/Heavy are faces Office adds to them, so
+        # windowsOfficeLegacyFontFamilies applies only to a list that holds an Office family.
+        expanded = list(config.get('fonts', []))
+        presented = set(expanded)
+        tables = [LAUNCHER_CONSTANTS['windowsLegacyFontFamilies']]
+        if presented & font_unit_families('win', 'office'):
+            tables.append(LAUNCHER_CONSTANTS['windowsOfficeLegacyFontFamilies'])
+        for table in tables:
+            for canonical, aliases in table.items():
+                if canonical in presented:
+                    for alias in aliases:
+                        if alias not in presented:
+                            expanded.append(alias)
+                            presented.add(alias)
+        config['fonts'] = expanded
+
+    # Draw the identity's media devices (counts + OS-style labels/groups from
+    # media-devices.json, seeded by the identity) unless the caller set any
+    # mediaDevices: key. An empty enumerateDevices() list is a headless tell;
+    # a wrong label after a grant is a spoof tell.
+    if not _user_set_media_devices:
+        set_media_devices_defaults(config, _identity_salt)
+
+    # The output device's AudioContext.outputLatency, for an identity of
+    # another OS (audio-output-latency.json).
+    set_output_latency_default(config, _identity_salt, target_os, _host_os_key())
+
+    # The display's ICC profile, which tagged images are converted to
+    # (display_profile.py; display-profiles.json).
+    apply_display_profile(firefox_user_prefs, _user_pref_keys, display_profile, config,
+                          identity_seed(config, _identity_salt), target_os, _host_os_key())
+
+    # When the Windows legacy styled-family aliases land (fonts.detect timing).
+    set_windows_alias_load_default(config, target_os, _host_os_key())
+
+    # Scrollbars: a stock Firefox on a GNOME/KDE desktop and on macOS draws
+    # overlay scrollbars (no layout gutter, scrollbar-width "auto"). On Windows it
+    # follows the OS: Windows 11's default ("Always show scrollbars" off) is
+    # overlay -- stock 152.0.4 on a Win11 laptop measures 0 px -- while Windows 10
+    # draws classic 17 px ones. Headless Firefox reports the classic kind, and
+    # upstream Playwright hid them outright, which a page can read back. Pin the
+    # look-and-feel to the claimed OS so headless == headed == stock, and for
+    # Windows to the version the identity's font draw presents
+    # (WINDOWS_11_MARKER_FONTS): Win11 fonts with classic scrollbars
+    # is a pair no real machine produces.
+    if target_os == 'win':
+        presented_fonts = config.get('fonts') or []
+        windows_11 = not presented_fonts or any(
+            font in presented_fonts for font in WINDOWS_11_MARKER_FONTS
+        )
+        firefox_user_prefs.setdefault('ui.useOverlayScrollbars', 1 if windows_11 else 0)
+    else:
+        firefox_user_prefs.setdefault('ui.useOverlayScrollbars', 1)
+
+    # Colour scheme: on its own OS the browser follows the desktop like stock
+    # Firefox. An identity of another OS has no desktop to follow -- a window
+    # reads the host's theme and headless reads none, so the two modes disagree
+    # on a dark desktop -- so it gets the claimed OS's out-of-the-box setting,
+    # light on Windows, macOS and GNOME alike. color_scheme= or the pref
+    # overrides it.
+    if target_os != _host_os_key():
+        firefox_user_prefs.setdefault('ui.systemUsesDarkTheme', 0)
+
+    # Stock doubles a wheel's lines on Windows and Linux and never on macOS, and
+    # a page reads the result in deltaY (docs/input-dispatch.md).
+    firefox_user_prefs.setdefault('mousewheel.system_scroll_override.enabled', target_os != 'mac')
+
+    # A Windows identity on another host: answers that come from the host
+    # build's platform code are set to what stock Windows Firefox gives. A
+    # Windows host already gives them, so nothing is set there.
+    if target_os == 'win' and _host_os_key() != 'win':
+        # Math.sin/cos/tan/pow: the last bit differs between glibc (or
+        # fdlibm) and the Windows CRT, so one call identifies the host OS.
+        # windows-crt-math.patch computes them as the CRT does, and its
+        # guard compares them with stock Firefox on Windows.
+        firefox_user_prefs.setdefault('javascript.options.use_ucrt_math', True)
+
+        # Keyboard: Windows' shortcut tables instead of GTK's text bindings
+        # (Ctrl+Up/Down to line start/end, Alt+Backspace undo, Shift+Delete
+        # with no selection deletes), AltGr as keyCode 18 rather than 225,
+        # and Ctrl+Backspace/Delete in rich text deleting a word from a
+        # selection's start (windows-keyboard.patch).
+        config.setdefault('input:windowsKeyboard', True)
+
+        for pref, value in WINDOWS_BEHAVIOUR_PREFS.items():
+            firefox_user_prefs.setdefault(pref, value)
+
+        # WebCodecs H.264 encoding: Windows Firefox always has Media
+        # Foundation's encoder; Linux Firefox only the system FFmpeg's
+        # (libavcodec with libx264), so on a host without it
+        # VideoEncoder.isConfigSupported('avc1...') is false, which no
+        # Windows machine answers. It is not faked: an encoder that says yes
+        # and cannot encode is worse.
+        if _host_os_key() == 'lin' and not ctypes.util.find_library('avcodec'):
+            LeakWarning.warn(WARNINGS_DATA['no_h264_encoder'], i_know_what_im_doing)
+
+        # The scrollbars pinned above are drawn by the host build's theme: on
+        # a Linux host a Windows 10 identity's classic scrollbars measured
+        # 12 px (GTK's) where stock Firefox on Windows draws 17. Draw Windows'
+        # own (widget.non-native-theme.scrollbar.style: 4 Windows 10, 5
+        # Windows 11), 17 px: only Windows' build reads a system metric.
+        overlay = firefox_user_prefs.get('ui.useOverlayScrollbars')
+        firefox_user_prefs.setdefault('widget.non-native-theme.scrollbar.style', 5 if overlay else 4)
+
+    # Per-character font fallback, LINUX ONLY. Gecko's GlobalFontFallback walks
+    # the shared font list for a family whose charmap covers the character; in a
+    # content process with async fallback on it hits the
+    # `!family.IsFullyInitialized()` branch, schedules a cmap load and SKIPS the
+    # family, so the first measurement of a character only one bundled family
+    # provides returns the primary family's .notdef. Linux takes that path for
+    # every fallback (gfxPlatformGtk::UseCmapsDuringSystemFallback is true), so
+    # the font-hijacker fix that restored this on macOS cannot reach it here.
+    # Measured 2026-09-15, 32px canvas `serif`, U+0870: .notdef 19.0 with async
+    # on, a real glyph (9.25) with it off; stock Firefox resolves it.
+    # macOS must NOT get this: it uses the platform (CoreText) fallback, where
+    # forcing the synchronous scan changed the face picked for U+1E9E in Futura
+    # (21.733 stock -> 27.267) -- measured on a stock Mac mini, 1/14 families
+    # regressed. Windows is untested until a Windows build exists.
+    # The skip belongs to the Linux platform code, not to the claimed OS, so
+    # a Windows or macOS identity on a Linux host needs it off too: with
+    # Windows' font prefs applied (below) and async on, Korean, Tamil and
+    # Myanmar rendered as .notdef (153.9 px for all three) on a Windows identity.
+    if target_os == 'lin' or _host_os_key() == 'lin':
+        firefox_user_prefs.setdefault('gfx.font_rendering.fallback.async', False)
+
+    # Per-language and generic fonts: the build only has its own platform's
+    # font.name-list defaults, so a Windows identity drew Thai through
+    # fontconfig's 'serif' where Windows names Tahoma, and emoji with Noto
+    # Color Emoji where Windows names Segoe UI Emoji. With stock Windows'
+    # values (plus fallback-fonts-claimed-os.patch for the per-script table
+    # and default font, and slight hinting in the bundled fonts.conf), 162 of
+    # 168 per-script widths match stock 158.0 on Windows 11, against 75
+    # (font-fallback-windows.py).
+    #
+    # These and the settings below replace answers that come from the Linux
+    # build's platform code (gfxPlatformGtk, FreeType, the GTK theme). Only a
+    # Linux build has that code, so on a macOS or Windows host nothing is set.
+    # A macOS identity gets the font defaults only: the glyph-position and
+    # colour values below were measured against stock Windows alone, and the
+    # codec spoof also answers decodingInfo(), whose macOS powerEfficient
+    # values nothing in the repo records.
+    renders_another_os = _host_os_key() == 'lin' and target_os in ('win', 'mac')
+    if renders_another_os:
+        for pref, value in _stock_font_prefs(target_os).items():
+            firefox_user_prefs.setdefault(pref, value)
+
+    if renders_another_os and target_os == 'win':
+        # Line boxes: DirectWrite takes ascent/descent from OS/2 usWin* and
+        # keeps the em height fractional, FreeType takes pixel-rounded hhea
+        # values -- the same font file gives different heights (Arial 16px:
+        # 17/18 px on Windows, 19/19 on a Linux host; all 26 fonts measured
+        # differed). font-metrics-windows.patch lays text out with
+        # DirectWrite's metrics.
+        config.setdefault('fonts:metrics', 'windows')
+
+        # canPlayType()/isTypeSupported() list the host's decoders: a Linux
+        # container answers "" for H.264 and HEVC (#558). With the spoof and
+        # no system decoders, all 131 MIME strings fpgen records answer as
+        # its most common Windows record does, and decodingInfo() follows
+        # them as stock Firefox 158 on Windows 11 answers.
+        config.setdefault('media:spoof_codecs', True)
+
+        # Highlight, SelectedItem, AccentColor and the -moz-dialog pair come
+        # from the host's theme otherwise.
+        for pref, value in WINDOWS_UI_COLORS.items():
+            firefox_user_prefs.setdefault(pref, value)
+
+    # Storage quota, from the host's own disk. A page reads the group limit
+    # through navigator.storage.estimate().quota; see
+    # _stock_profile_disk_capacity_kb for how Gecko derives it. Playwright's
+    # profile is a throwaway directory under the system temp dir, which on a
+    # tmpfs /tmp is a RAM-sized volume, so leaving Gecko to measure it reports a
+    # disk this machine does not have. Pinning the limit instead -- camoufox.cfg
+    # used to set 50 GiB, which is exactly nsRFPService::GetSpoofedStorageLimit()
+    # -- reports 10 GiB on every host, including hosts whose real disk is far
+    # smaller and whose stock Firefox therefore reports capacity / 10.
+    _quota_limit_kb = _stock_profile_disk_capacity_kb()
+    if _quota_limit_kb:
+        firefox_user_prefs.setdefault(_QUOTA_FIXED_LIMIT_PREF, _quota_limit_kb)
+
+    # Bundled fonts: on macOS and Windows the package's font bundle is
+    # registered on top of the system fonts, and a bundled face of a family
+    # the system also has (Papyrus, Helvetica, ...) wins the lookup with
+    # metrics that differ from the real one (measured 2026-09-14 on a stock
+    # Mac mini: bundled Papyrus 224.3 px vs the system's 247.3 px). When the
+    # identity is the host's own OS the real system fonts ARE the right ones.
+    # `gfx.bundled-fonts.activate` cannot do it from here (a `once` pref the
+    # font list reads before profile prefs apply), so font-hijacker.patch
+    # skips the activation itself whenever navigator.platform is the host's;
+    # the font draw above claims only the OS base in that case (`native`).
+
+    # navigator.doNotTrack and navigator.globalPrivacyControl are pref-backed: the
+    # getters, the worker getters and the DNT / Sec-GPC headers all read the same
+    # pref, so they are applied as prefs (daijro/camoufox#760). Stock Firefox 152
+    # reports "unspecified" and false, so a generated value is dropped unless the
+    # caller set it.
+    #
+    # screen.colorDepth is left as drawn: real macOS reports 30 and Windows /
+    # Linux 24, and the CSS `color` feature follows the spoofed depth
+    # (screen-spoofing.patch), so pinning it would only misreport macOS.
+
+    if not _user_set_dnt:
+        config.pop('navigator.doNotTrack', None)
+    if not _user_set_gpc:
+        config.pop('navigator.globalPrivacyControl', None)
+    dnt = config.get('navigator.doNotTrack')
+    firefox_user_prefs['privacy.donottrackheader.enabled'] = dnt is not None and str(dnt) == '1'
+    gpc = config.get('navigator.globalPrivacyControl')
+    firefox_user_prefs['privacy.globalprivacycontrol.enabled'] = bool(gpc) if gpc is not None else False
+
+    # Accept-Encoding: stock Firefox advertises "gzip, deflate, br, zstd" over
+    # https and only "gzip, deflate" over http; a forced header value is sent
+    # on both (measured 2026-09-14: br/zstd on a plain-http echo). Firefox's
+    # own value is already what the identity claims, so the generated header
+    # is dropped unless the caller set it.
+    if not _user_set_accept_encoding:
+        config.pop('headers.Accept-Encoding', None)
+
+    # A proxied identity is a machine at the exit: its position, timezone and
+    # locale are the exit's. Without geoip a page that is allowed location gets
+    # no position there (or, where Firefox can locate, this host's), so a real
+    # proxy resolves the exit through itself whenever the geoip extra is
+    # installed; the caller's geoip=False or own coordinates win.
+    if (
+        geoip is None
+        and ALLOW_GEOIP
+        and proxy
+        and 'localhost' not in proxy.get('server', '')
+        and not is_domain_set(config, 'geolocation')
+    ):
+        geoip = True
+
+    # Set geolocation
+    if geoip:
+        geoip_allowed()  # Assert that geoip is allowed
+
+        if geoip is True:
+            # Find the user's IP address
+            if proxy:
+                geoip = public_ip(Proxy(**proxy).as_string())
+            else:
+                geoip = public_ip()
+
+        # Spoof WebRTC if not blocked
+        if not block_webrtc:
+            if valid_ipv4(geoip):
+                set_into(config, 'webrtc:ipv4', geoip)
+            elif valid_ipv6(geoip):
+                set_into(config, 'webrtc:ipv6', geoip)
+
+        geolocation = get_geolocation(geoip, geoip_db=geoip_db)
+        geo_config = geolocation.as_config()
+        for key, value in geo_config.items():
+            if key in ('timezone', 'locale:language', 'locale:region', 'locale:script'):
+                config.setdefault(key, value)
+            else:
+                config[key] = value
+
+        # Without a proxy, a site that has an IPv6 address sees this host's,
+        # not the IPv4 address the identity was drawn from. Keep IPv6 only when
+        # it places the host where the identity does; otherwise the browser
+        # behaves as on an IPv4-only network.
+        if not proxy and valid_ipv4(geoip) and not _keeps_ipv6(
+            geo_config, geoip_db, i_know_what_im_doing
+        ):
+            config['network:ipv4Only'] = True
+
+    # Geolocation asks as stock Firefox does: a site never granted reads
+    # permissions.query 'prompt' and getCurrentPosition shows the prompt; the
+    # identity's coordinates are what a granted site receives. (No
+    # allow-by-default pref: a first visit reading 'granted' is the tell.)
+
+    # Raise a warning when a proxy is being used without spoofing geolocation.
+    # This is a very bad idea; the warning cannot be ignored with i_know_what_im_doing.
+    if (
+        proxy
+        and 'localhost' not in proxy.get('server', '')
+        and not is_domain_set(config, 'geolocation')
+    ):
+        LeakWarning.warn(WARNINGS_DATA['proxy_without_geoip'])
+
+    # An HTTP proxy carries no UDP: WebRTC and HTTP/3 then act as on a machine whose firewall drops every
+    # datagram, which few people's does. A SOCKS5 proxy with UDP ASSOCIATE sends them from the exit.
+    if proxy and proxy_carries_no_udp(str(proxy.get('server', ''))):
+        LeakWarning.warn(WARNINGS_DATA['proxy_http_no_udp'], i_know_what_im_doing)
+
+    apply_proxy_dns(proxy_dns, proxy, config, firefox_user_prefs, exit_looked_up=bool(geoip))
+    apply_proxy_optimistic_data(proxy_optimistic_data, proxy, firefox_user_prefs)
+
+    # After geoip, which decides whether the machine has IPv6 at all.
+    set_host_ipv6_default(config, _identity_salt)
+
+    # After geoip too: an identity given coordinates has location on.
+    set_location_setting_default(config, _identity_salt, target_os, _host_os_key())
+
+    # Set locale
+    if locale:
+        handle_locales(locale, config)
+
+    # Select the browser's UI locale to match the Intl locale. Every
+    # package bakes in Firefox's language packs as packaged locales
+    # (browser/scripts/inject-locales.py); without this pref the browser stays en-US, so
+    # a spoofed fr-FR localizes Intl/number/date formatting while
+    # input.validationMessage and XML parse errors stay English -- a mix no real
+    # Firefox produces (a Mozilla fr build localizes both). Gecko negotiates the
+    # value against the packaged locales exactly as a localized build does
+    # (fr-FR -> fr, pt-BR -> pt-BR), falling back to en-US. Always set: an EMPTY
+    # value would follow the host OS locale now that more than en-US is packaged.
+    if config.get('locale:language'):
+        requested = '-'.join(
+            part
+            for part in (
+                config['locale:language'],
+                config.get('locale:script'),
+                config.get('locale:region'),
+            )
+            if part
+        )
+    else:
+        requested = 'en-US'
+    firefox_user_prefs.setdefault('intl.locale.requested', requested)
+
+    # Spoof the speech-synthesis voice list.
+    #
+    # This has to fail CLOSED. Firefox registers the host's speech-dispatcher /
+    # SAPI / NSSpeech voices unless something stops it, and nsSynthVoiceRegistry
+    # only stops it when Camoufox owns the list. Leaving `voices` unset -- which
+    # the old `except Exception: pass` did on any generation failure -- exposed
+    # every native voice on the box (14805 espeak-ng entries on a stock Linux
+    # install) under a fingerprint claiming macOS or Windows: it both leaks the
+    # real host OS and contradicts the rest of the profile (#731).
+    #
+    # Drawn after the locale is resolved (locale= or geoip): the Windows voice
+    # list is the display language's pack, so an fr-FR identity has French
+    # voices, not the en-US ones.
+    if not _user_set_voices or ('voices' not in config and 'voices:speechd' not in config):
+        os_name_v = OS_NAMES.get(target_os, 'macos')
+        voice_locale = config.get('navigator.language')
+        if config.get('locale:language'):
+            voice_locale = '-'.join(
+                part for part in (config['locale:language'], config.get('locale:region')) if part
+            )
+        try:
+            config.update(draw_voice_config(
+                os_name_v, voice_locale, seed=identity_seed(config, _identity_salt)
+            ))
+        except (OSError, ValueError, KeyError) as e:
+            # An empty list still blocks the host's voices (see below), so a
+            # generation failure degrades to "no voices" rather than "all of
+            # the host's".
+            FallbackWarning.warn(
+                'Drawing the speech voices', 'no speech voices', e, config.get('navigator.userAgent')
+            )
+            config['voices'] = []
+
+    # Pin the block explicitly instead of relying on a non-empty list to imply
+    # it, so an empty list -- or one whose entries the browser rejects as
+    # malformed -- cannot fall through to the host's native voices. set_into
+    # leaves an explicit caller value alone.
+    set_into(config, 'voices:blockIfNotDefined', True)
+
+    # humanize runs in the driver (camoufox._humanize_playwright): checked here,
+    # and nothing of it reaches the browser's config.
+    normalize_humanize(humanize)
+
+    # Enable the main world context creation
+    if main_world_eval:
+        set_into(config, 'allowMainWorld', True)
+
+    # Allow addon open new tabs
+    if allow_addon_new_tab:
+        set_into(config, 'allowAddonNewtab', True)
+
+    # Fresh profiles get a toggle's pref only when on. A persistent profile
+    # may need the stock value written once to clear an earlier toggled value.
+    if block_images:
+        LeakWarning.warn(WARNINGS_DATA['block_images'], i_know_what_im_doing)
+    if disable_coop:
+        LeakWarning.warn(WARNINGS_DATA['disable_coop'], i_know_what_im_doing)
+    for on, pref, stock, toggled in (
+        (block_images, 'permissions.default.image', 1, 2),
+        (block_webrtc, 'media.peerconnection.enabled', True, False),
+        (disable_coop, 'browser.tabs.remote.useCrossOriginOpenerPolicy', True, False),
+    ):
+        set_toggle_pref(firefox_user_prefs, pref, bool(on), stock, toggled, launch_options.get('user_data_dir'))
+    # A persistent context takes its context options here.
+    if launch_options.get('is_mobile'):
+        LeakWarning.warn(WARNINGS_DATA['is_mobile'], i_know_what_im_doing)
+
+    # Drop values the source supplied that this identity cannot keep, before the
+    # WebGL pool below defers to them (a preset's own GPU pair wins over
+    # sampling). Here, not earlier, because the check reads the core count and
+    # the screen, which the host core count and the display clamp replace.
+    warn_kept_incoherent(coherence.drop_incoherent_source_values(config, target_os, _caller_keys))
+
+    cover_canvas, host = plan_rendering(
+        target_os,
+        canvas_noise,
+        bool(webgl_config or (config.get('webGl:vendor') and config.get('webGl:renderer'))),
+        bool(block_webgl),
+        lambda: host_gpu(browser_binary, headless, env, firefox_user_prefs),
+    )
+    if cover_canvas:
+        add_canvas_placeholder(firefox_user_prefs)
+        LeakWarning.warn(WARNINGS_DATA['canvas_noise'], i_know_what_im_doing)
+
+    if block_webgl:
+        firefox_user_prefs['webgl.disabled'] = True
+        LeakWarning.warn(WARNINGS_DATA['block_webgl'], i_know_what_im_doing)
+    else:
+        # A pair the caller named, or the preset's own GPU, keeps its name and
+        # gets that device's recorded parameters. webgl_for_gpu raises for a GPU
+        # fpgen has never seen: the caller asked for something that does not exist.
+        if webgl_config:
+            webgl_fp = webgl_for_gpu(target_os, *webgl_config, seed=identity_seed(config, _identity_salt))
+        elif config.get('webGl:vendor') and config.get('webGl:renderer'):
+            webgl_fp = webgl_for_gpu(
+                target_os, config['webGl:vendor'], config['webGl:renderer'],
+                seed=identity_seed(config, _identity_salt),
+            )
+        elif host:
+            # Claim the GPU the canvas really renders on.
+            webgl_fp = webgl_for_gpu(target_os, *host, seed=identity_seed(config, _identity_salt))
+        else:
+            # Synthetic path: keep the GPU coherent with the screen fpgen
+            # already picked. Sampling the two independently yields pairs no
+            # real machine ships -- a discrete desktop GPU behind a 1024x600
+            # panel -- which consistency checks read as masking (#729).
+            webgl_fp = sample_webgl_for_screen(
+                target_os, config.get('screen.width'), config.get('screen.height'),
+                seed=identity_seed(config, _identity_salt),
+                cores=config.get('navigator.hardwareConcurrency'),
+                cpu=config,
+            )
+        enable_webgl2 = webgl_fp.pop('webGl2Enabled')
+
+        # Merge the WebGL fingerprint into the config
+        merge_into(config, webgl_fp)
+        # Set the WebGL preferences
+        merge_into(
+            firefox_user_prefs,
+            {
+                'webgl.enable-webgl2': enable_webgl2,
+                'webgl.force-enabled': True,
+            },
+        )
+
+    # The CPU follows the GPU, so it is drawn once the GPU is final. A CPU the
+    # caller named that the GPU contradicts (a preset's, webgl_config's, the
+    # host's) is no machine at all.
+    if cpu is not None:
+        _conflict = coherence.cpu_conflict(config, target_os)
+        if _conflict:
+            raise ValueError(f'cpu={cpu!r}: {_conflict}')
+    set_cpu_default(config, target_os, _identity_salt)
+
+    # Every identity passes the whole-identity checks, whatever built it: a
+    # generated fingerprint, a bundled preset, or a config the caller wrote.
+    # The pools are sampled independently -- navigator and screen from the
+    # generator, GPU from fpgen's WebGL records, fonts and voices from their own
+    # catalogues -- so a machine that never existed can be assembled from parts
+    # that are each fine on their own. See coherence.py.
+    _incoherent = coherence.apply(config, target_os, _caller_keys)
+    warn_kept_incoherent(_incoherent)
+    if _incoherent and debug:
+        for _violation in _incoherent:
+            print(f'Incoherent identity ({_violation.rule}): {_violation.detail}')
+
+    # The browser computes canvas, audio, Opus, wasm and NaNs as the claimed
+    # CPU does (cpu-identity.patch). A build without the patch ignores the pref
+    # and computes as the host does.
+    _cpu_pref = cpu_identity_pref(config)
+    if _cpu_pref:
+        firefox_user_prefs.setdefault('general.cpu_identity', _cpu_pref)
+    if vpx_realtime_only(config, target_os):
+        firefox_user_prefs.setdefault('media.libvpx.realtime_only', True)
+
+    # Render at the claimed display scale, so (resolution) and the CSS geometry
+    # agree with devicePixelRatio as on the real machine (#933). That includes 1:
+    # on a HiDPI host the host's own scale would otherwise reach (resolution).
+    if config.get('window.devicePixelRatio'):
+        firefox_user_prefs.setdefault('layout.css.devPixelsPerPx', f"{float(config['window.devicePixelRatio']):g}")
+    if headless is False and not virtual_display and screen_cons:
+        fit = _physical_scale(config, firefox_user_prefs)
+        for axis, cap in (('Width', screen_cons.max_width), ('Height', screen_cons.max_height)):
+            size = config.get(f'window.outer{axis}')
+            if cap and size and size * fit > cap:
+                raise ValueError(
+                    f'window.outer{axis} {size} at display scale {fit:g} needs {size * fit:g} pixels, '
+                    f'but this monitor has {cap}. Pass a smaller screen and window, or run headless.'
+                )
+
+    set_webgpu(firefox_user_prefs, target_os, (config.get('webGl:vendor'), config.get('webGl:renderer')), host)
+
+    # Cache previous pages, requests, etc (uses more memory)
+    if enable_cache:
+        merge_into(firefox_user_prefs, CACHE_PREFS)
+
+    # Print the config if debug is enabled
+    if debug:
+        print('[DEBUG] Config:')
+        pprint(config)
+
+    apply_launch_rules(
+        target_os, config, firefox_user_prefs, _user_pref_keys, env, path=executable_path
+    )
+    # Validate the config
+    warn_if_executable_predates_playwright(executable_path)
+    validate_config(config, path=executable_path)
+
+    # A SOCKS5 proxy's credentials go to Juggler, not through Playwright, which
+    # refuses them (socks5_auth).
+    proxy, proxy_auth = socks5_auth(proxy)
+
+    # Prepare environment variables to pass to Camoufox
+    env_vars = {
+        **get_env_vars(config, target_os, path=executable_path),
+        **get_pref_env_vars(firefox_user_prefs),
+        **(proxy_auth_env(proxy_auth) if proxy_auth else {}),
+        **env,
+    }
+
+    result = {
+        "executable_path": browser_binary,
+        "args": args,
+        "env": env_vars,
+        "firefox_user_prefs": firefox_user_prefs,
+        "headless": headless,
+        **(launch_options if launch_options is not None else {}),
+    }
+    # Only include proxy if it's not None (Playwright 1.55+ validates this)
+    # https://github.com/coryking/camoufox/commit/1336e8e509e8c12a896a09d9ee51f131f739f106
+    # Thanks @coryking
+    if proxy is not None:
+        result["proxy"] = proxy
+
+    return result
