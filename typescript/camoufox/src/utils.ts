@@ -48,7 +48,6 @@ import {
 	drawScreen,
 	drawVoiceConfig,
 	dropAudioSeed,
-	fitWindowToCallerScreen,
 	fixHardwareConcurrency,
 	fixNavigatorArch,
 	followBaselineProtection,
@@ -370,7 +369,6 @@ export const utilsDeps = {
 	followBaselineProtection,
 	clampScreenToDisplay,
 	clampWindowDimensions,
-	fitWindowToCallerScreen,
 	clampWindowPosition,
 	raiseScreenToModernFloor,
 	generateRandomFontSubset,
@@ -1936,6 +1934,25 @@ export function attachDesktopOnlyWarning<T>(target: T): T {
 	return target;
 }
 
+/**
+ * Warn when a browser launched without a proxy gets a context proxy: the
+ * browser's own traffic (the push connection every context shares) then takes
+ * the first proxied context's proxy for the browser's life
+ * (TargetRegistry.getProxyInfo).
+ */
+export function attachSharedTrafficWarning<T>(target: T): T {
+	for (const name of ["newPage", "newContext"] as const) {
+		const original = (target as any)[name];
+		if (typeof original !== "function") continue;
+		(target as any)[name] = (options?: Record<string, any>, ...rest: any[]) => {
+			if (options?.proxy)
+				LeakWarning.warn(loadWarnings().context_proxy_without_launch_proxy);
+			return original.call(target, options, ...rest);
+		};
+	}
+	return target;
+}
+
 /** The machine a browser's contexts must claim: its OS and, if hardware, its GPU. */
 export type HostIdentity = [TargetOS | null, Gpu | null];
 
@@ -2482,13 +2499,6 @@ async function buildLaunchOptions({
 	const userWindowPosition = new Set(
 		["window.screenX", "window.screenY"].filter((k) => k in config),
 	);
-	const userSetWindowSize = isDomainSet(
-		config,
-		"window.outerWidth",
-		"window.outerHeight",
-		"window.innerWidth",
-		"window.innerHeight",
-	);
 	const userSetMediaDevices = isDomainSet(config, "mediaDevices:");
 	const userSetFonts = Boolean(fonts?.length) || isDomainSet(config, "fonts");
 	const userSetVoices = isDomainSet(config, "voices", "voices:speechd");
@@ -2692,7 +2702,12 @@ async function buildLaunchOptions({
 	// impossible-geometry tells, unless the user is driving these themselves.
 	if (!userSetArch) utilsDeps.fixNavigatorArch(config, targetOs);
 	if (!userSetNavigator)
-		utilsDeps.fixHardwareConcurrency(config, Boolean(pin_cpu_cores));
+		utilsDeps.fixHardwareConcurrency(
+			config,
+			Boolean(pin_cpu_cores),
+			{},
+			targetOs,
+		);
 	if (!userSetScreenWindow) {
 		// Lift netbook-era geometry to something current hardware reports,
 		// before the display clamp below so a genuinely small real monitor still
@@ -2713,36 +2728,25 @@ async function buildLaunchOptions({
 					Math.trunc(screenCons.maxHeight / fit)) as number,
 			);
 		}
-		utilsDeps.followBaselineProtection(config, targetOs);
-		utilsDeps.clampWindowDimensions(config);
-		utilsDeps.clampWindowPosition(config);
-	} else {
-		// A caller's screen without a caller's window: the drawn window is fitted
-		// to it, as a real window fits its monitor.
-		if (!userSetWindowSize) {
-			utilsDeps.fitWindowToCallerScreen(
-				config,
-				targetOs,
-				new Set(
-					["window.screenX", "window.screenY"].filter(
-						(k) => !userWindowPosition.has(k),
-					),
-				),
-			);
-		}
-		// The caller drove the screen or the window, not always where the window
-		// sits: a position drawn against the generated screen is moved onto the
-		// caller's (window 1280 wide at x=206 on a 1382 screen), or every new
-		// context drew another screen to hold it.
-		utilsDeps.clampWindowPosition(
-			config,
-			new Set(
-				["window.screenX", "window.screenY"].filter(
-					(k) => !userWindowPosition.has(k),
-				),
-			),
-		);
 	}
+
+	// Every launch, a caller's screen and window included: the config claims the
+	// avail rect the browser reports (baseline protection takes the taskbar out
+	// of the screen whatever availHeight says), and the window is fitted inside
+	// it, since the browser grows the screen to hold a window that does not fit
+	// (2560x1408 against a caller's 1920x1080 read back as 7680x2160). Only a
+	// position the caller did not set is moved: one drawn against the generated
+	// screen is moved onto the caller's, or every new context drew another screen.
+	utilsDeps.followBaselineProtection(config, targetOs);
+	utilsDeps.clampWindowDimensions(config);
+	utilsDeps.clampWindowPosition(
+		config,
+		new Set(
+			["window.screenX", "window.screenY"].filter(
+				(k) => !userWindowPosition.has(k),
+			),
+		),
+	);
 
 	// Deliberately NOT setting window.history.length: browser/settings/camoufox.cfg runs
 	// Firefox's stock max_entries, so the real value starts at 1 and grows with
@@ -3104,6 +3108,17 @@ async function buildLaunchOptions({
 		requested = "en-US";
 	}
 	setInto(firefox_user_prefs, "intl.locale.requested", requested);
+
+	// Stock learns its home region from a network lookup this launch turns
+	// off, and writes it here. Without it the search service offers the
+	// region-less engine list and the DoH rollout never decides.
+	if (pyTruthy(config["locale:region"])) {
+		setInto(
+			firefox_user_prefs,
+			"browser.search.region",
+			config["locale:region"],
+		);
+	}
 
 	// Spoof the speech-synthesis voice list. This has to fail CLOSED: leaving
 	// `voices` unset exposes every native voice on the box (#731). Drawn after

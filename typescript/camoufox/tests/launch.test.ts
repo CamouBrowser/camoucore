@@ -480,6 +480,27 @@ describe("test_launch_environment: prefs", () => {
 		});
 	});
 
+	describe("search region follows the locale region", () => {
+		const PREF = "browser.search.region";
+		it("a locale with a region sets it", async () => {
+			expect((await prefsFor({ ...ua(LINUX_UA), locale: "de-DE" }))[PREF]).toBe(
+				"DE",
+			);
+		});
+		it("no region sets nothing", async () => {
+			const config = { "locale:language": "en" };
+			expect(PREF in (await prefsFor(ua(LINUX_UA, config)))).toBe(false);
+		});
+		it("the caller's pref wins", async () => {
+			const prefs = await prefsFor({
+				...ua(LINUX_UA),
+				locale: "de-DE",
+				firefox_user_prefs: { [PREF]: "AT" },
+			});
+			expect(prefs[PREF]).toBe("AT");
+		});
+	});
+
 	describe("prefs reach startup (CAMOU_PREFS_<n>)", () => {
 		it("passes the prefs as env", async () => {
 			const opts = await launch({
@@ -863,6 +884,26 @@ describe("test_launch_environment: stock media defaults", () => {
 		}
 		const { warnings: none } = await warnings.recordWarnings(async () =>
 			browser.newContext({ isMobile: false }),
+		);
+		expect(none).toEqual([]);
+	});
+
+	it("a context proxy on a browser launched without one warns", async () => {
+		const browser = utils.attachSharedTrafficWarning(new FakeBrowser());
+		for (const create of ["newPage", "newContext"] as const) {
+			const { warnings: caught } = await warnings.recordWarnings(async () =>
+				browser[create]({ proxy: { server: "http://127.0.0.1:8080" } }),
+			);
+			expect(
+				caught.some(
+					(w) =>
+						w.category === "LeakWarning" &&
+						w.message.includes("launch-level `proxy`"),
+				),
+			).toBe(true);
+		}
+		const { warnings: none } = await warnings.recordWarnings(async () =>
+			browser.newContext(),
 		);
 		expect(none).toEqual([]);
 	});
@@ -1450,6 +1491,37 @@ describe.skipIf(!MODEL.ok)(
 			expect(config["screen.width"]).toBe(Math.round(1760 * drawn));
 		});
 
+		it.each([
+			["windows", 48],
+			["macos", 76],
+			["linux", 0],
+		])("a caller-set screen claims the avail the browser reports (%s)", async (target, taskbar) => {
+			// Window placement is computed from the config's avail, so it must be
+			// baseline protection's rect, and a window that no longer fits is
+			// clamped like any other (test_launch_geometry.py).
+			const config = await launchConfig({
+				headless: true,
+				os: target,
+				config: {
+					"screen.width": 1920,
+					"screen.height": 1080,
+					"screen.availWidth": 1900,
+					"screen.availHeight": 1000,
+					"window.outerWidth": 1900,
+					"window.outerHeight": 1070,
+					"window.innerWidth": 1900,
+					"window.innerHeight": 1000,
+				},
+			});
+			expect(config["screen.availWidth"]).toBe(1920);
+			expect(config["screen.availHeight"]).toBe(1080 - taskbar);
+			expect(config["window.outerWidth"]).toBe(1900);
+			expect(config["window.outerHeight"]).toBe(Math.min(1070, 1080 - taskbar));
+			expect(config["window.innerHeight"]).toBeLessThanOrEqual(
+				config["window.outerHeight"],
+			);
+		});
+
 		it("a real display scale from fpgen stays unmapped", async () => {
 			withDisplay({ maxWidth: 1920, maxHeight: 1080 });
 			const config = await launchConfig({
@@ -1660,9 +1732,12 @@ describe.skipIf(!MODEL.ok)(
 			]);
 		});
 
-		it("a preset GPU is checked against the host core count (test_coherence.py)", async () => {
+		it("a preset GPU survives a host core count no Mac with it reports (test_coherence.py)", async () => {
 			// The launch replaces the preset's cores with the host's after the
-			// preset's GPU is read: the GPU has to fit the count that ships.
+			// preset's GPU is read. On a host whose count no Intel iGPU Mac
+			// reports, the count is the value that yields (16 is the most such a
+			// Mac claims), not the GPU -- the old order dropped the GPU and redrew
+			// it from the generic pool (daijro/camoufox#1090).
 			const base = fingerprints.loadPresets("152")?.presets.macos[0];
 			const preset = {
 				...base,
@@ -1680,14 +1755,19 @@ describe.skipIf(!MODEL.ok)(
 					unmaskedRenderer: "Intel(R) HD Graphics 400, or similar",
 				},
 			};
-			deps.fixHardwareConcurrency = (config, canPin) =>
-				fingerprints.fixHardwareConcurrency(config, canPin, { cpuCount: 20 });
+			deps.fixHardwareConcurrency = (config, canPin, _host, targetOs) =>
+				fingerprints.fixHardwareConcurrency(
+					config,
+					canPin,
+					{ cpuCount: 20 },
+					targetOs,
+				);
 			const config = await launchConfig({
 				os: "macos",
 				fingerprint_preset: preset,
 			});
-			expect(config["navigator.hardwareConcurrency"]).toBe(20);
-			expect(config["webGl:renderer"]).not.toContain("Intel");
+			expect(config["navigator.hardwareConcurrency"]).toBe(16);
+			expect(config["webGl:renderer"]).toBe(preset.webgl.unmaskedRenderer);
 		});
 
 		it("a preset GPU fpgen has never seen raises", async () => {
@@ -1793,25 +1873,43 @@ describe.skipIf(!MODEL.ok)(
 		])("every bundled %s preset launches with its own GPU", async (osName) => {
 			const presets = fingerprints.loadPresets("150")?.presets[osName] ?? [];
 			expect(presets.length).toBeGreaterThan(0);
-			// hardwareConcurrency follows the host, and the GPU must fit it (no
-			// Intel Mac reports 20 or 24 cores beside its IGP), so a many-core CI
-			// host would redraw a preset's GPU. 8 cores fit every preset's machine.
-			const fix = deps.fixHardwareConcurrency;
-			deps.fixHardwareConcurrency = (config, canPin) =>
-				fix(config, canPin, { cpuCount: 8 });
-			try {
-				for (const [i, preset] of presets.entries()) {
-					const config = await launchConfig({
-						os: osName,
-						fingerprint_preset: preset,
-					});
-					expect(config["webGl:parameters"], `${osName} ${i}`).toBeTruthy();
-					expect(config["webGl:renderer"], `${osName} ${i}`).toBe(
-						preset.webgl.unmaskedRenderer,
-					);
-				}
-			} finally {
-				deps.fixHardwareConcurrency = fix;
+			for (const [i, preset] of presets.entries()) {
+				const config = await launchConfig({
+					os: osName,
+					fingerprint_preset: preset,
+				});
+				expect(config["webGl:parameters"], `${osName} ${i}`).toBeTruthy();
+				expect(config["webGl:renderer"], `${osName} ${i}`).toBe(
+					preset.webgl.unmaskedRenderer,
+				);
+			}
+		}, 120_000);
+
+		it.each([
+			12, 32,
+		])("every bundled macos preset keeps its GPU on a %i-core host", async (cores) => {
+			// The launch replaces the preset's core count with the host's; on a
+			// host whose count no Intel-iGPU Mac reports, that used to cost the
+			// preset its GPU, redrawn from the generic pool
+			// (daijro/camoufox#1090). The host count is pinned so the guard
+			// holds on runners of any size (test_identity_salt.py).
+			deps.fixHardwareConcurrency = (config, canPin, _host, targetOs) =>
+				fingerprints.fixHardwareConcurrency(
+					config,
+					canPin,
+					{ cpuCount: cores },
+					targetOs,
+				);
+			const presets = fingerprints.loadPresets("150")?.presets.macos ?? [];
+			expect(presets.length).toBeGreaterThan(0);
+			for (const [i, preset] of presets.entries()) {
+				const config = await launchConfig({
+					os: "macos",
+					fingerprint_preset: preset,
+				});
+				expect(config["webGl:renderer"], `${cores} ${i}`).toBe(
+					preset.webgl.unmaskedRenderer,
+				);
 			}
 		}, 120_000);
 	},

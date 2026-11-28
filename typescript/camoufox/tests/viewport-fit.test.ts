@@ -382,9 +382,10 @@ describe("setViewportSize", () => {
 // replaced that screen but kept the window (2560x1408 in three of eight draws).
 // The browser grows the screen to hold its window, so the page reported 7680x2160
 // instead of the caller's screen (CamoufoxPro's smoke check). The room is what the
-// browser reports as well as what the caller claimed: baseline protection takes
-// the taskbar out of the screen (1080 - 48 on Windows) whatever the caller's
-// availHeight, and a 1040-tall window grew it to 2560x1440.
+// browser reports, not what the caller claimed: baseline protection takes the
+// taskbar out of the screen (1080 - 48 on Windows) whatever the caller's
+// availHeight, and a 1040-tall window grew it to 2560x1440. The config claims
+// that rect too, so it and the page agree (daijro/camoufox#1131).
 describe.skipIf(!MODEL.ok)("a caller's screen holds the drawn window", () => {
 	beforeEach(() => stubHost());
 	const CALLER_SCREEN = {
@@ -400,10 +401,7 @@ describe.skipIf(!MODEL.ok)("a caller's screen holds the drawn window", () => {
 	] as const)(
 		"%s: the window fits the screen the browser reports",
 		async (os, key) => {
-			const roomH = Math.min(
-				1040,
-				1080 - fingerprints.BASELINE_TASKBAR_HEIGHT[key],
-			);
+			const roomH = 1080 - fingerprints.BASELINE_TASKBAR_HEIGHT[key];
 			for (let i = 0; i < 40; i++) {
 				const config = configOf(
 					await quietly(() =>
@@ -417,7 +415,12 @@ describe.skipIf(!MODEL.ok)("a caller's screen holds the drawn window", () => {
 						} as any),
 					),
 				);
-				expect(config).toMatchObject(CALLER_SCREEN);
+				expect(config).toMatchObject({
+					"screen.width": 1920,
+					"screen.height": 1080,
+					"screen.availWidth": 1920,
+					"screen.availHeight": roomH,
+				});
 				const x = config["window.screenX"] ?? 0;
 				const y = config["window.screenY"] ?? 0;
 				expect(x).toBeGreaterThanOrEqual(0);
@@ -428,8 +431,8 @@ describe.skipIf(!MODEL.ok)("a caller's screen holds the drawn window", () => {
 		},
 		60_000,
 	);
-	it("keeps a caller's window size", async () => {
-		const config = configOf(
+	const launchWindow = async (outerWidth: number, outerHeight: number) =>
+		configOf(
 			await quietly(() =>
 				utils.launchOptions({
 					env: { HOME },
@@ -439,14 +442,24 @@ describe.skipIf(!MODEL.ok)("a caller's screen holds the drawn window", () => {
 					os: "windows",
 					config: {
 						...CALLER_SCREEN,
-						"window.outerWidth": 2000,
-						"window.outerHeight": 1100,
+						"window.outerWidth": outerWidth,
+						"window.outerHeight": outerHeight,
 					},
 				} as any),
 			),
 		);
+	it("keeps a caller's window that fits", async () => {
+		const config = await launchWindow(1600, 900);
 		expect([config["window.outerWidth"], config["window.outerHeight"]]).toEqual(
-			[2000, 1100],
+			[1600, 900],
+		);
+	});
+	it("fits a caller's window that overflows", async () => {
+		// The browser grows the screen to hold the window, so a 2000x1100 window
+		// left as it was made the page report a screen other than the caller's.
+		const config = await launchWindow(2000, 1100);
+		expect([config["window.outerWidth"], config["window.outerHeight"]]).toEqual(
+			[1920, 1080 - fingerprints.BASELINE_TASKBAR_HEIGHT.win],
 		);
 	});
 });

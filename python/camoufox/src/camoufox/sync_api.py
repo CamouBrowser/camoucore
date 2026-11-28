@@ -199,7 +199,9 @@ def _launch(
 
         identity = host_identity(from_options, canvas_noise)
         browser = playwright.firefox.launch(**from_options)
-        attach_context_defaults(browser, no_viewport_default, launch_geometry(from_options))
+        attach_context_defaults(
+            browser, no_viewport_default, launch_geometry(from_options), launch_proxy=bool(from_options.get('proxy'))
+        )
         browser._camoufox_host_identity = identity
         browser._camoufox_passthrough = passthrough
         telemetry.attach(browser, telemetry.start(from_options, telemetry_setting, passthrough), is_async=False)
