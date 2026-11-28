@@ -11,7 +11,7 @@ from unittest import mock
 
 import orjson
 import pytest
-from camoucore.camoufox.fingerprints import BASELINE_TASKBAR_HEIGHT, Screen
+from camoucore.camoufox.fingerprints import Screen
 
 from camoucore.camoufox import utils
 
@@ -196,76 +196,3 @@ def test_a_zoomed_fpgen_ratio_follows_the_caller_s_render_scale():
     assert config["window.devicePixelRatio"] == 1
     assert opts["firefox_user_prefs"]["layout.css.devPixelsPerPx"] == "1"
     assert config["screen.width"] == round(1760 * drawn)
-
-
-class TestCallerScreenHoldsTheDrawnWindow:
-    """A caller who sets the screen but not the window still gets a window that fits it.
-
-    fpgen draws the window from its own screen, and a caller's 1920x1080 screen
-    replaced that screen but kept the window: 2147x1173, 2560x1408 and 2560x1390
-    in three of eight draws. The browser grows the screen to hold its window, so
-    the page then reported a 7680x2160 or 3638x1919 screen instead of the caller's
-    (CamoufoxPro's smoke check, "screen spoofed with stock Windows available rect").
-    The room is what the browser reports, not what the caller claimed: baseline
-    protection takes the taskbar out of the screen (1080 - 48 on Windows) whatever
-    the caller's availHeight, and a 1040-tall window grew it to 2560x1440. The
-    config claims that rect too, so it and the page agree (daijro/camoufox#1131).
-    """
-
-    CALLER_SCREEN = {
-        "screen.width": 1920, "screen.height": 1080,
-        "screen.availWidth": 1920, "screen.availHeight": 1040,
-    }
-
-    @pytest.mark.parametrize("os_name,os_key", [("windows", "win"), ("macos", "mac"), ("linux", "lin")])
-    def test_the_window_fits_the_screen_the_browser_reports(self, os_name, os_key):
-        room_h = 1080 - BASELINE_TASKBAR_HEIGHT[os_key]
-        for _ in range(40):
-            config = launch(os=os_name, headless=True, config=dict(self.CALLER_SCREEN))
-
-            assert (config["screen.width"], config["screen.height"]) == (1920, 1080)
-            assert (config["screen.availWidth"], config["screen.availHeight"]) == (1920, room_h)
-            assert config["window.outerWidth"] <= 1920, config["window.outerWidth"]
-            assert config["window.outerHeight"] <= room_h, (config["window.outerHeight"], room_h)
-            assert 0 <= config.get("window.screenX", 0) <= 1920 - config["window.outerWidth"]
-            assert 0 <= config.get("window.screenY", 0) <= room_h - config["window.outerHeight"]
-
-    def test_a_caller_s_window_that_fits_is_kept(self):
-        config = launch(headless=True, config={**self.CALLER_SCREEN, "window.outerWidth": 1600, "window.outerHeight": 900})
-
-        assert (config["window.outerWidth"], config["window.outerHeight"]) == (1600, 900)
-
-    def test_a_caller_s_window_that_overflows_is_fitted(self):
-        # The browser grows the screen to hold the window, so a 2000x1100 window
-        # left as it was made the page report a screen other than the caller's.
-        config = launch(headless=True, config={**self.CALLER_SCREEN, "window.outerWidth": 2000, "window.outerHeight": 1100})
-
-        assert (config["window.outerWidth"], config["window.outerHeight"]) == (1920, 1080 - BASELINE_TASKBAR_HEIGHT["win"])
-
-
-@pytest.mark.parametrize("target,taskbar", [("windows", 48), ("macos", 76), ("linux", 0)])
-def test_a_caller_set_screen_claims_the_avail_the_browser_reports(target, taskbar):
-    # The config's avail is what window placement is computed from, so it must
-    # be the rect baseline protection reports, not the caller's raw one; a
-    # caller's window that no longer fits is clamped like any other
-    # (cross-os-canvas-is-the-rfp-placeholder in the browser's tribal rules).
-    with host(None):
-        config = launch(
-            headless=True,
-            os=target,
-            config={
-                "screen.width": 1920,
-                "screen.height": 1080,
-                "screen.availWidth": 1900,
-                "screen.availHeight": 1000,
-                "window.outerWidth": 1900,
-                "window.outerHeight": 1070,
-                "window.innerWidth": 1900,
-                "window.innerHeight": 1000,
-            },
-        )
-    assert config["screen.availWidth"] == 1920
-    assert config["screen.availHeight"] == 1080 - taskbar
-    assert config["window.outerWidth"] == 1900
-    assert config["window.outerHeight"] == min(1070, 1080 - taskbar)
-    assert config["window.innerHeight"] <= config["window.outerHeight"]

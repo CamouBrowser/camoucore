@@ -1660,7 +1660,6 @@ def launch_options(
     _user_set_navigator = is_domain_set(config, 'navigator.')
     _user_set_arch = is_domain_set(config, 'navigator.platform', 'navigator.oscpu')
     _user_set_screen_window = is_domain_set(config, 'screen.', 'window.')
-    _user_window_position = {k for k in ('window.screenX', 'window.screenY') if k in config}
     _user_set_media_devices = is_domain_set(config, 'mediaDevices:')
     _user_set_fonts = bool(fonts) or is_domain_set(config, 'fonts')
     _user_set_voices = is_domain_set(config, 'voices', 'voices:speechd')
@@ -1804,17 +1803,9 @@ def launch_options(
             fit = _physical_scale(config)
             clamp_screen_to_display(config, screen_cons.max_width and int(screen_cons.max_width / fit),
                                     screen_cons.max_height and int(screen_cons.max_height / fit))
-
-    # Every launch, a caller's screen and window included: the config claims the
-    # avail rect the browser reports (baseline protection takes the taskbar out of
-    # the screen whatever availHeight says), and the window is fitted inside it,
-    # since the browser grows the screen to hold a window that does not fit
-    # (2560x1408 against a caller's 1920x1080 read back as 7680x2160). Only a
-    # position the caller did not set is moved: one drawn against the generated
-    # screen is moved onto the caller's, or every new context drew another screen.
-    follow_baseline_protection(config, target_os)
-    clamp_window_dimensions(config)
-    clamp_window_position(config, {'window.screenX', 'window.screenY'} - _user_window_position)
+        follow_baseline_protection(config, target_os)
+        clamp_window_dimensions(config)
+        clamp_window_position(config)
 
     # Deliberately NOT setting window.history.length. It used to be pinned to a
     # random 1-5 because browser.sessionhistory.max_entries=0 left the real
