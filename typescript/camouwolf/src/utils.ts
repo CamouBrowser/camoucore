@@ -21,7 +21,6 @@ import {
 } from "camoucore/ip.js";
 import { handleLocales } from "camoucore/locales.js";
 import { checkPassthrough, warnPassthrough } from "camoucore/passthrough.js";
-import { checkProOptions } from "camoucore/pro.js";
 import { applyDefaults, loadDefaults } from "camoucore/settings.js";
 import { Telemetry, telemetryEnabled } from "camoucore/telemetry.js";
 import { VirtualDisplay } from "camoucore/virtdisplay.js";
@@ -1414,8 +1413,6 @@ export function startTelemetry(
 		const telemetry = new Telemetry(PRODUCT, {
 			version: LIBRARY_VERSION,
 			browserVersion: resolveVersion(fromOptions.executablePath),
-			// Camouwolf has no Pro build.
-			pro: false,
 			crossOs:
 				!passthrough && launchOs(fromOptions) !== OS_NAMES[utilsDeps.osName()],
 			passthrough,
@@ -2046,17 +2043,6 @@ export interface LaunchOptions {
 	 * README). Applied by Camouwolf()/NewBrowser(); CAMOUWOLF_TELEMETRY=0 or
 	 * DO_NOT_TRACK=1 turns it off too. */
 	telemetry?: boolean;
-	/**
-	 * Camouwolf Pro options: a Pro key, a stored profile, its warm plan, a
-	 * managed proxy, and remote GPU rendering. Pro has not launched yet, so a
-	 * value that asks for one throws ProNotLaunched with the page where an
-	 * account is made (earlyAccessUrl(PRODUCT) from camoucore/pro.js).
-	 */
-	pro_key?: string | null;
-	profile?: string | null;
-	warm_plan?: "none" | "standard" | "continuous" | null;
-	managed?: boolean | null;
-	farm_gpu?: boolean | null;
 	/** Additional Playwright Chromium launch options. */
 	[key: string]: any;
 }
@@ -2457,15 +2443,8 @@ async function buildLaunchOptions({
 	allow_os_mismatch,
 	passthrough,
 	telemetry: _telemetry,
-	pro_key,
-	profile,
-	warm_plan,
-	managed,
-	farm_gpu,
 	...playwrightOptions
 }: LaunchOptions): Promise<Record<string, any>> {
-	// Before anything is written or downloaded.
-	checkProOptions(PRODUCT, { pro_key, profile, warm_plan, managed, farm_gpu });
 	if (passthrough) {
 		checkPassthrough(PRODUCT, {
 			config,

@@ -14,7 +14,7 @@ os.environ['PYTHONPATH'] = os.pathsep.join(
 )
 
 # A launcher for the tests to be: camoucore code never names a real one.
-PRODUCT = Product('camoutest', 'Camoutest', CHROMIUM, package=TESTS_DIR / 'launcher', site='https://accounts.example')
+PRODUCT = Product('camoutest', 'Camoutest', CHROMIUM, package=TESTS_DIR / 'launcher')
 
 
 @pytest.fixture(autouse=True)

@@ -110,22 +110,3 @@ export class VirtualDisplayNotSupported extends VirtualDisplayError {
 		this.name = "VirtualDisplayNotSupported";
 	}
 }
-
-/**
- * A Pro launch option, before Pro opens. The message names the page where an
- * account is made and the waitlist joined.
- */
-export class ProNotLaunched extends Error {
-	constructor(
-		readonly option: string,
-		title: string,
-		readonly url: string,
-	) {
-		super(
-			`${option} is a ${title} Pro option, and ${title} Pro has not launched yet. ` +
-				`Make your account at ${url} to join the waitlist and be told the day ` +
-				`it opens; ${title} itself stays free.`,
-		);
-		this.name = "ProNotLaunched";
-	}
-}

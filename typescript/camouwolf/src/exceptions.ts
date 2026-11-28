@@ -17,7 +17,6 @@ export {
 	InvalidProxy,
 	LocaleError,
 	NotInstalledGeoIPExtra,
-	ProNotLaunched,
 	UnknownIPLocation,
 	UnknownLanguage,
 	UnknownTerritory,

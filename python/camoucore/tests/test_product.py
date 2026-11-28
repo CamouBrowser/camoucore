@@ -10,8 +10,8 @@ from camoucore._warnings import _warn_from_caller
 from camoucore.exceptions import VirtualDisplayNotSupported
 from camoucore.virtdisplay import VirtualDisplay
 
-FOX = Product('camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'), site='https://accounts.example')
-WOLF = Product('camouwolf', 'Camouwolf', CHROMIUM, package=Path('/nonexistent/camouwolf'), site='https://accounts.example')
+FOX = Product('camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'))
+WOLF = Product('camouwolf', 'Camouwolf', CHROMIUM, package=Path('/nonexistent/camouwolf'))
 
 
 @pytest.fixture(autouse=True)
@@ -46,7 +46,7 @@ def test_a_warning_skips_a_registered_launchers_frames(tmp_path):
     """A warning raised from inside a launcher points at the user's call."""
     package = tmp_path / 'launcher'
     package.mkdir()
-    Product('inner', 'Inner', CHROMIUM, package=package, site='https://accounts.example')
+    Product('inner', 'Inner', CHROMIUM, package=package)
     inner = package / 'inner.py'
     inner.write_text('from camoucore._warnings import _warn_from_caller\n'
                      'def go():\n    _warn_from_caller("leak", RuntimeWarning)\n')

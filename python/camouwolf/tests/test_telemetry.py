@@ -95,7 +95,6 @@ def test_every_context_and_page_is_watched(options, made):
     assert telemetry.watched == [context, page.context]
     assert browser.handlers['disconnected']
     assert telemetry.dimensions['product'] == 'camouwolf'
-    assert telemetry.dimensions['pro'] is False
     assert telemetry.dimensions['passthrough'] is False
     assert telemetry.dimensions['proxy_provider'] == 'none'
 

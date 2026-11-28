@@ -58,7 +58,6 @@ from .humanize import normalize as normalize_humanize
 from camoucore.ip import Proxy, public_ip, public_ipv6, valid_ipv4
 from camoucore.locales import handle_locales
 from camoucore.passthrough import IDENTITY_OPTIONS, check_passthrough, warn_passthrough
-from camoucore.pro import check_pro_options
 from camoucore.settings import apply_defaults, load_defaults
 from camoucore.telemetry import Telemetry, telemetry_enabled
 from .product import PRODUCT
@@ -996,8 +995,6 @@ def start_telemetry(target: Any, from_options: Dict[str, Any], setting: Optional
             PRODUCT,
             version=package_version('camoucore-camouwolf'),
             browser_version=resolve_version(from_options['executable_path']),
-            # Camouwolf has no Pro build.
-            pro=False,
             cross_os=not passthrough and launch_os(from_options) != OS_NAMES[OS_NAME],
             passthrough=passthrough,
             proxy=from_options.get('proxy'),
@@ -1627,11 +1624,6 @@ def launch_options(
     allow_os_mismatch: Optional[bool] = None,
     passthrough: Optional[bool] = None,
     telemetry: Optional[bool] = None,
-    pro_key: Optional[str] = None,
-    profile: Optional[str] = None,
-    warm_plan: Optional[Literal['none', 'standard', 'continuous']] = None,
-    managed: Optional[bool] = None,
-    farm_gpu: Optional[bool] = None,
     **launch_options: Any,
 ) -> Dict[str, Any]:
     """
@@ -1791,19 +1783,9 @@ def launch_options(
             Report anonymous anti-bot outcome counts per proxy provider (see the
             README). Applied by Camouwolf()/NewBrowser(); CAMOUWOLF_TELEMETRY=0
             or DO_NOT_TRACK=1 turns it off too.
-        pro_key, profile, warm_plan, managed, farm_gpu:
-            Camouwolf Pro options: a Pro key, a stored profile, its warm plan, a
-            managed proxy, and remote GPU rendering. Pro has not launched yet, so
-            a value that asks for one raises ProNotLaunched with the page where
-            an account is made (camoucore.pro.early_access_url(PRODUCT)).
         **launch_options (Dict[str, Any]):
             Additional Playwright Chromium launch options.
     """
-    # Before anything is written or downloaded.
-    check_pro_options(PRODUCT, {
-        'pro_key': pro_key, 'profile': profile, 'warm_plan': warm_plan, 'managed': managed, 'farm_gpu': farm_gpu,
-    })
-
     if passthrough:
         options = locals()
         check_passthrough(PRODUCT, {name: options[name] for name in IDENTITY_OPTIONS})

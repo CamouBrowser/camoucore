@@ -22,7 +22,6 @@ import {
 	saveGeoipConfig,
 	warnIfDeprecated,
 } from "camoucore/geolocation.js";
-import { earlyAccessUrl } from "camoucore/pro.js";
 import { writeUserDefaults } from "camoucore/settings.js";
 import { Argument, Command, Option } from "commander";
 import { ensureModel } from "fpgen-js";
@@ -1457,19 +1456,6 @@ program
 	)
 	.action(() => {
 		echo(writeUserDefaults(PRODUCT, DEFAULTS_FILE));
-	});
-
-program
-	.command("login")
-	.description(
-		"Sign in to Camouwolf Pro (not launched yet: prints where to make an account)",
-	)
-	.action(() => {
-		echo(
-			`Camouwolf Pro has not launched yet. Make your account at ${earlyAccessUrl(PRODUCT)} ` +
-				"to be told the day it opens; Camouwolf itself stays free.",
-		);
-		process.exitCode = 1;
 	});
 
 program

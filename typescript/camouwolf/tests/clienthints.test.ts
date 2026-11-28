@@ -63,7 +63,7 @@ describe("client hints", () => {
 	});
 
 	it("leaves the brand list to Chromium", () => {
-		// The public build claims Chromium; "Google Chrome" is a Pro feature.
+		// Camouwolf claims Chromium, whose own brand list never names "Google Chrome".
 		const config: Record<string, any> = {};
 		ch.fillClientHints(config, "win", "158.0.8127.36");
 		expect(config).not.toHaveProperty(["userAgentData.brands"]);

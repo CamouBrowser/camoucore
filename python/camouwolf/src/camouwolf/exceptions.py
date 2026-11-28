@@ -14,7 +14,6 @@ from camoucore.exceptions import (  # noqa: F401 -- part of this package's API
     CannotExecuteXvfb,
     VirtualDisplayNotSupported,
     FpgenModelError,
-    ProNotLaunched,
 )
 
 

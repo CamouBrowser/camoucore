@@ -151,25 +151,17 @@ alongside it, and a proxy warns, since the host's timezone and languages then
 disagree with the exit. Contexts keep the host's identity; `NewContext()`
 raises.
 
-### Pro options
-
-`pro_key`, `profile`, `warm_plan`, `managed` and `farm_gpu` are Camouwolf Pro's.
-Pro has not launched: any of them raises `ProNotLaunched`, before anything is
-downloaded, naming <https://camoufox.com/early-access/>, where an account is made
-and the waitlist joined. Values that ask for nothing (`managed=False`,
-`farm_gpu=False`) launch. Camouwolf itself stays free.
-
 ### Telemetry
 
 Camouwolf sends anonymous counts of how pages behind anti-bot systems treated
 each launch, to publish proxy providers' success rates (against no proxy, by
-release, Pro or not, cross-OS or not) on the Camoufox website.
+release, cross-OS or not) on the Camoufox website.
 
 - **Collected:** per anti-bot provider (Cloudflare, Turnstile, DataDome,
   Akamai, PerimeterX, Kasada, Imperva, AWS WAF, hCaptcha, reCAPTCHA, Arkose
   Labs, Queue-it, Shape, ThreatMetrix, Google BotGuard), how many encounters
   ended in success, challenge, block or unknown; and the launcher and its
-  version, the browser version, whether the launch is Pro, cross-OS (an
+  version, the browser version, whether the launch is cross-OS (an
   identity OS other than the host's) or passthrough, and the proxy provider's
   domain (`none` without a proxy).
 - **Never collected:** URLs, sites, page content, cookies, IP addresses, the
@@ -203,7 +195,6 @@ camouwolf fetch [version]     install the browser, fpgen model, GeoIP data, defa
 camouwolf sync                refresh the list of available releases
 camouwolf set [specifier]     choose a channel or pin a build (--geoip for the GeoIP source)
 camouwolf defaults            copy camouwolf.defaults.json to edit your own defaults; print its path
-camouwolf login               Pro sign-in: not launched yet, prints where to make an account
 camouwolf active | list | remove | version | path
 camouwolf test [url]          open a browser with the Playwright inspector
 camouwolf server              launch a Playwright server and print its endpoint

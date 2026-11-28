@@ -128,18 +128,3 @@ class FpgenModelError(RuntimeError):
     ...
 
 
-class ProNotLaunched(ValueError):
-    """
-    Raised for a Pro launch option before Pro opens. The message names the page
-    where an account is made and the waitlist joined.
-    """
-
-    def __init__(self, option: str, title: str, early_access_url: str) -> None:
-        self.option = option
-        self.url = early_access_url
-        super().__init__(
-            f'{option} is a {title} Pro option, and {title} Pro has not launched yet. '
-            f'Make your account at {early_access_url} to join the waitlist and be told the day '
-            f'it opens; {title} itself stays free.'
-        )
-

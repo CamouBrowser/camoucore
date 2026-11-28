@@ -91,7 +91,7 @@ def test_its_dimensions(sent, monkeypatch):
     reporter = telemetry.start(OPTIONS, None, passthrough=False)
     assert reporter.dimensions == {
         'product': 'camoufox', 'version': package_version('camoucore-camoufox'), 'browser_version': '150.0.2',
-        'pro': False, 'cross_os': True, 'passthrough': False, 'proxy_provider': 'example.co.uk',
+        'cross_os': True, 'passthrough': False, 'proxy_provider': 'example.co.uk',
     }
     reporter.close()
 
