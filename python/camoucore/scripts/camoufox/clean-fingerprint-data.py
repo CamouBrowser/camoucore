@@ -19,11 +19,11 @@ What it covers:
       into a file whose entire purpose is being real.
 
 Usage:
-    python3 python/camoufox/scripts/clean-fingerprint-data.py            # report only
-    python3 python/camoufox/scripts/clean-fingerprint-data.py --write    # rewrite the files
+    python3 python/camoucore/scripts/camoufox/clean-fingerprint-data.py            # report only
+    python3 python/camoucore/scripts/camoufox/clean-fingerprint-data.py --write    # rewrite the files
 
 `--check` exits non-zero when anything would be dropped;
-python/camoufox/tests/test_shipped_data.py asserts the same thing, so a data refresh that
+python/camoucore/tests/camoufox/test_shipped_data.py asserts the same thing, so a data refresh that
 reintroduces a bad row fails CI rather than shipping.
 """
 
@@ -33,16 +33,16 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-PYTHON_SRC = Path(__file__).resolve().parents[1] / 'src'
+PYTHON_SRC = Path(__file__).resolve().parents[2] / 'src'
 sys.path.insert(0, str(PYTHON_SRC))
 
-from camoufox import coherence  # noqa: E402
-from camoufox.fingerprints import from_preset  # noqa: E402
-from camoufox.webgl import firefox_gpus  # noqa: E402
+from camoucore.camoufox import coherence  # noqa: E402
+from camoucore.camoufox.fingerprints import from_preset  # noqa: E402
+from camoucore.camoufox.webgl import firefox_gpus  # noqa: E402
 
 PRESET_FILES = (
-    PYTHON_SRC / 'camoufox' / 'fingerprint-presets.json',
-    PYTHON_SRC / 'camoufox' / 'fingerprint-presets-v150.json',
+    PYTHON_SRC / 'camoucore' / 'camoufox' / 'fingerprint-presets.json',
+    PYTHON_SRC / 'camoucore' / 'camoufox' / 'fingerprint-presets-v150.json',
 )
 OS_KEY = {'macos': 'mac', 'windows': 'win', 'linux': 'lin'}
 # The Firefox version only decides the UA rewrite, which no rule reads.

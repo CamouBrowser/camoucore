@@ -58,3 +58,17 @@ def test_every_preset_gpu_has_webgl_data(filename):
                 f"{filename} {os_name}[{index}]: {gpu[1]!r} has no WebGL data"
                 " -- run python/camoucore/scripts/camoufox/clean-fingerprint-data.py --write"
             )
+
+
+def test_the_cleaning_script_runs_on_the_shipped_files():
+    # The remedy the tests above name has to work from where it lives: after
+    # the move into camoucore it still imported `camoufox` and read the old
+    # data directory, so it failed before cleaning anything.
+    import subprocess
+    import sys
+
+    script = Path(__file__).resolve().parents[2] / "scripts" / "camoufox" / "clean-fingerprint-data.py"
+    result = subprocess.run([sys.executable, "-I", str(script)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    for filename in PRESET_FILES:
+        assert f"{filename}: 0 dropped" in result.stdout
