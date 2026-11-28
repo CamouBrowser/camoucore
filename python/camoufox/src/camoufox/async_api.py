@@ -257,7 +257,9 @@ async def _launch_browser(
 
     identity = await asyncio.get_running_loop().run_in_executor(None, host_identity, from_options, canvas_noise)
     browser = await playwright.firefox.launch(**from_options)
-    attach_context_defaults(browser, no_viewport_default, launch_geometry(from_options))
+    attach_context_defaults(
+        browser, no_viewport_default, launch_geometry(from_options), launch_proxy=bool(from_options.get('proxy'))
+    )
     browser._camoufox_host_identity = identity
     browser._camoufox_passthrough = passthrough
     telemetry.attach(browser, reporter, is_async=True)
