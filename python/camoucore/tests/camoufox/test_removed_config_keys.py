@@ -13,7 +13,9 @@ import json
 
 import pytest
 
+from camoucore.camoufox import utils
 from camoucore.camoufox._warnings import LeakWarning
+from camoucore.camoufox.exceptions import UnknownProperty
 from camoucore.camoufox.utils import validate_config
 
 
@@ -39,8 +41,61 @@ def test_a_removed_key_is_not_type_checked(tmp_path):
     validate_config({"navigator.languages": "not-an-array"}, path=binary)
 
 
-def test_a_build_without_the_voice_grid_warns_and_launches(tmp_path):
+def test_a_build_without_the_voice_grid_warns_and_launches(tmp_path, monkeypatch):
     """A new library launches an older build (#835), but a Linux identity there reports no voices."""
+    monkeypatch.delenv("CAMOUFOX_STRICT_CONFIG")
     binary = _browser_with(tmp_path, [{"property": "navigator.userAgent", "type": "str"}])
     with pytest.warns(LeakWarning, match="voices:speechd"):
         validate_config({"voices:speechd": {"languages": [], "variants": []}}, path=binary)
+
+
+def test_an_unknown_key_is_skipped_by_default(tmp_path, monkeypatch, capsys):
+    """Users keep launching an older build: the key is reported, never fatal."""
+    monkeypatch.delenv("CAMOUFOX_STRICT_CONFIG")
+    binary = _browser_with(tmp_path, [{"property": "navigator.userAgent", "type": "str"}])
+    validate_config({"fonts:metrics": "windows", "navigator.userAgent": "x"}, path=binary)
+    assert "Skipping unknown patch fonts:metrics" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("value", ["1", "true", "yes"])
+def test_strict_mode_rejects_an_unknown_key(tmp_path, monkeypatch, value):
+    """CI's integration job sets CAMOUFOX_STRICT_CONFIG against the newest release,
+    so the launcher cannot ship a writer for a key no released browser reads."""
+    monkeypatch.setenv("CAMOUFOX_STRICT_CONFIG", value)
+    binary = _browser_with(tmp_path, [{"property": "navigator.userAgent", "type": "str"}])
+    with pytest.raises(UnknownProperty, match="fonts:metrics"):
+        validate_config({"fonts:metrics": "windows", "navigator.userAgent": "x"}, path=binary)
+    assert issubclass(UnknownProperty, KeyError)
+
+
+@pytest.mark.parametrize("value", ["", "0", "false"])
+def test_strict_mode_off_values(tmp_path, monkeypatch, value):
+    monkeypatch.setenv("CAMOUFOX_STRICT_CONFIG", value)
+    binary = _browser_with(tmp_path, [{"property": "navigator.userAgent", "type": "str"}])
+    validate_config({"fonts:metrics": "windows"}, path=binary)
+
+
+# The keys 0.6.0 wrote that v159.0-beta.43, the newest release, does not read.
+UNRELEASED_KEYS = (
+    "AudioContext:outputLatencyDelayMs", "fonts:metrics", "fonts:windowsAliasLoadMs",
+    "fonts:windowsCmapLoadMs", "geolocation:systemPermission", "media:hwCodecs",
+    "mediaDevices:microphoneChannels", "mediaDevices:webcamMaxFrameRates",
+    "mediaDevices:webcamMaxHeights", "mediaDevices:webcamMaxWidths", "webrtc:hostipv6",
+)
+
+
+@pytest.mark.parametrize("os_name", ["windows", "macos", "linux"])
+@pytest.mark.parametrize("host", ["lin", "win", "mac"])
+def test_no_launch_writes_a_key_the_release_lacks(monkeypatch, os_name, host):
+    """Real draws on every host, validated strictly (conftest sets
+    CAMOUFOX_STRICT_CONFIG) against the release's properties.json, the snapshot
+    in tests/camoufox/data: a writer for any other key raises UnknownProperty."""
+    monkeypatch.setattr(utils, "_host_os_key", lambda: host)
+    monkeypatch.setattr(utils, "add_default_addons", lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, "installed_verstr", lambda: "159.0-beta.43")
+    monkeypatch.setattr(utils, "launch_path", lambda: "/test/camoufox")
+    sent = {}
+    monkeypatch.setattr(utils, "get_env_vars", lambda config, *a, **k: sent.update(config) or {})
+    for _ in range(5):
+        utils.launch_options(os=os_name, i_know_what_im_doing=True, headless=True)
+        assert sent and not set(UNRELEASED_KEYS) & set(sent)

@@ -97,15 +97,6 @@ def test_windows_identity_gets_windows_behaviour(launch):
     assert prefs["full-screen-api.transition-duration.enter"] == "200 200"
 
 
-def test_windows_identity_turns_eme_on(launch):
-    # Linux builds default EME off: Widevine said "EME has been preffed off"
-    # where stock Windows grants it. The Widevine CDM a Linux build downloads
-    # really plays, and PlayReady only gets as far as stock win-i9's "Key system
-    # configuration is not supported" (eme-playready-claimed-os patch).
-    _, prefs = launch(WIN_UA)
-    assert prefs["media.eme.enabled"] is True
-
-
 @pytest.mark.parametrize("ua", [MAC_UA, LIN_UA])
 def test_other_identities_keep_host_behaviour(launch, ua):
     _, prefs = launch(ua)
@@ -159,16 +150,3 @@ def test_scrollbars_on_a_windows_host_are_left_alone(launch, monkeypatch):
 def test_caller_scrollbar_style_wins(launch):
     _, prefs = launch(WIN_UA, firefox_user_prefs={SCROLLBAR_STYLE: 2})
     assert prefs[SCROLLBAR_STYLE] == 2
-
-
-def test_a_windows_identity_without_coordinates_never_has_location_on():
-    from camoucore.camoufox.fingerprints import set_location_setting_default
-    seen = set()
-    for salt in range(400):
-        config = {"navigator.userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0)"}
-        set_location_setting_default(config, salt, "win", "lin")
-        seen.add(config["geolocation:systemPermission"])
-    assert seen == {"prompt", "denied"}
-    config = {"geolocation:latitude": 39.7, "geolocation:longitude": -105.0}
-    set_location_setting_default(config, 1, "win", "lin")
-    assert config["geolocation:systemPermission"] == "allowed"

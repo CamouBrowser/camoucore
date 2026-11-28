@@ -305,7 +305,6 @@ class TestGeoipIPv6:
     def test_no_ipv6_route_is_an_ipv4_only_network(self, monkeypatch, isolated_launch_dependencies):
         sent = self._launch(monkeypatch, None, geoip=self.IPV4)
         assert sent["network:ipv4Only"] is True
-        assert sent["webrtc:hostipv6"] is False
 
     @pytest.mark.parametrize("host_ipv6", ["2001:db8::2", "2001:db8::3"], ids=["elsewhere", "unknown"])
     def test_ipv6_that_disagrees_is_dropped_with_a_warning(
@@ -358,7 +357,6 @@ class TestGeoipIPv6:
         sent = self._launch(monkeypatch, None, geoip="2001:db8::1")
         assert "network:ipv4Only" not in sent
         assert sent["webrtc:ipv6"] == "2001:db8::1"
-        assert sent["webrtc:hostipv6"] is True
 
 
 class TestPrefsReachStartup:
@@ -417,32 +415,6 @@ class TestWindowsScrollbarsFollowVersion:
     def test_other_oses_overlay(self, isolated_launch_dependencies):
         ua = "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
         assert self._prefs(["DejaVu Sans"], ua=ua)[self.PREF] == 1
-
-
-class TestColourSchemeOfAnotherOs:
-    """An identity of another OS reads light in a window and headless alike; on
-    its own OS the browser follows the desktop, as stock does."""
-
-    PREF = "ui.systemUsesDarkTheme"
-    WIN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:152.0) Gecko/20100101 Firefox/152.0"
-
-    def _prefs(self, monkeypatch, host, **options):
-        monkeypatch.setattr(utils, "_host_os_key", lambda: host)
-        return utils.launch_options(
-            config={"navigator.userAgent": self.WIN_UA},
-            i_know_what_im_doing=True,
-            **options,
-        )["firefox_user_prefs"]
-
-    def test_another_os_is_light(self, monkeypatch, isolated_launch_dependencies):
-        assert self._prefs(monkeypatch, "lin")[self.PREF] == 0
-
-    def test_own_os_follows_the_desktop(self, monkeypatch, isolated_launch_dependencies):
-        assert self.PREF not in self._prefs(monkeypatch, "win")
-
-    def test_caller_pref_wins(self, monkeypatch, isolated_launch_dependencies):
-        prefs = self._prefs(monkeypatch, "lin", firefox_user_prefs={self.PREF: 1})
-        assert prefs[self.PREF] == 1
 
 
 class TestNativeWindowsVariantFonts:

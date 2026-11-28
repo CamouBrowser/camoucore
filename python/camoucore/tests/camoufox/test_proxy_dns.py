@@ -1,9 +1,10 @@
 """
-Who resolves names behind a proxy (docs/proxy-dns.md).
+Who resolves names behind a proxy.
 
-Behind a SOCKS5 proxy the browser resolves by DoH through the proxy unless the
-caller picks `proxy_dns='exit'`; an HTTP proxy is always given names. The
-browser's half is browser/tests/playwright/patches/http3-socks5-udp.py.
+The proxy does unless the caller picks `proxy_dns='doh'` behind a SOCKS5 proxy:
+then the browser resolves by DoH through the proxy. An HTTP proxy is always
+given names. The default is 'exit' because no released browser yet carries
+HTTP/3 over SOCKS5, the half that makes 'doh' match a Firefox at the exit.
 """
 
 import pytest
@@ -21,19 +22,20 @@ def _apply(proxy_dns, proxy, exit_looked_up=False, config=None, prefs=None):
     return config, prefs
 
 
-@pytest.mark.parametrize("proxy_dns", [None, "doh"])
-def test_socks5_proxy_resolves_by_doh(proxy_dns):
+@pytest.mark.parametrize("proxy_dns", [None, "exit"])
+def test_names_go_to_the_proxy_by_default(proxy_dns, monkeypatch):
+    monkeypatch.setattr(utils, "public_ipv6", lambda proxy: pytest.fail("looked up"))
+    assert _apply(proxy_dns, SOCKS, exit_looked_up=True) == ({}, {})
+
+
+def test_doh_resolves_through_the_socks5_proxy():
     assert utils.PROXY_DOH_PREFS["network.trr.mode"] == 3
-    assert _apply(proxy_dns, SOCKS) == ({}, DOH)
+    assert _apply("doh", SOCKS) == ({}, DOH)
 
 
 def test_a_proxy_named_by_address_needs_no_exclusion():
     for server in ("socks5://127.0.0.1:1080", "socks5://[2001:db8::1]:1080"):
-        assert _apply(None, {"server": server}) == ({}, utils.PROXY_DOH_PREFS)
-
-
-def test_exit_mode_leaves_names_to_the_proxy():
-    assert _apply("exit", SOCKS) == ({}, {})
+        assert _apply("doh", {"server": server}) == ({}, utils.PROXY_DOH_PREFS)
 
 
 @pytest.mark.parametrize("proxy", [None, {"server": "http://proxy.example:8080"}, {"server": "proxy.example:8080"},
@@ -52,7 +54,7 @@ def test_unknown_mode_raises():
 
 def test_caller_prefs_are_kept():
     mine = {"network.trr.uri": "https://dns.example/dns-query", "network.trr.excluded-domains": "a.example"}
-    _, prefs = _apply(None, SOCKS, prefs=dict(mine))
+    _, prefs = _apply("doh", SOCKS, prefs=dict(mine))
     assert prefs == {**mine, "network.trr.mode": 3}
 
 
@@ -60,37 +62,19 @@ def test_caller_prefs_are_kept():
 def test_exit_without_ipv6_is_an_ipv4_only_network(monkeypatch, ipv6, expected):
     asked = []
     monkeypatch.setattr(utils, "public_ipv6", lambda proxy: asked.append(proxy) or ipv6)
-    assert _apply(None, SOCKS, exit_looked_up=True)[0] == expected
+    assert _apply("doh", SOCKS, exit_looked_up=True)[0] == expected
     assert asked == ["socks5://u:p@proxy.example:1080"]
 
 
 def test_exit_ipv6_is_not_asked_when_already_known(monkeypatch):
     monkeypatch.setattr(utils, "public_ipv6", lambda proxy: pytest.fail("looked up"))
-    assert _apply(None, SOCKS, exit_looked_up=False)[0] == {}
+    assert _apply("doh", SOCKS, exit_looked_up=False)[0] == {}
     for known in ({"webrtc:ipv6": "2001:db8::7"}, {"network:ipv4Only": False}):
-        assert _apply(None, SOCKS, exit_looked_up=True, config=dict(known))[0] == known
-    assert _apply("exit", SOCKS, exit_looked_up=True)[0] == {}
+        assert _apply("doh", SOCKS, exit_looked_up=True, config=dict(known))[0] == known
 
 
-OPTIMISTIC = {"network.proxy.socks5_optimistic_data": True}
+def test_the_launch_has_no_optimistic_data_option():
+    """The SOCKS5 optimistic-data pref needs a browser patch no release has."""
+    import inspect
 
-
-@pytest.mark.parametrize("proxy", [SOCKS, None])
-def test_optimistic_data_sets_the_pref(proxy):
-    # With no launch proxy it is for a context's own SOCKS5 proxy.
-    prefs = {}
-    utils.apply_proxy_optimistic_data(True, proxy, prefs)
-    assert prefs == OPTIMISTIC
-
-
-@pytest.mark.parametrize("enabled", [None, False])
-def test_optimistic_data_is_off_unless_asked_for(enabled):
-    prefs = {}
-    utils.apply_proxy_optimistic_data(enabled, SOCKS, prefs)
-    assert prefs == {}
-
-
-@pytest.mark.parametrize("server", ["http://proxy.example:8080", "socks4://proxy.example:1080"])
-def test_optimistic_data_needs_a_socks5_proxy(server):
-    with pytest.raises(ValueError, match="socks5"):
-        utils.apply_proxy_optimistic_data(True, {"server": server}, {})
+    assert "proxy_optimistic_data" not in inspect.signature(utils.launch_options).parameters

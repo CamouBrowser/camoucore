@@ -26,15 +26,12 @@ export const INSTALL_DIR: string = PRODUCT.cacheDir;
  * tarball, so one seed draws one identity in either launcher.
  */
 export const DATA_FILES: readonly string[] = [
-	"audio-output-latency.json",
 	"browser-pin.json",
-	"display-profiles.json",
 	"essential-fonts.json",
 	"fingerprint-presets.json",
 	"fingerprint-presets-v150.json",
 	"font-bases.json",
 	"font-groups.json",
-	"font-prefs.json",
 	"fonts.json",
 	"fpgen.yml",
 	"launcher-constants.json",

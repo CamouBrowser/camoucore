@@ -160,3 +160,17 @@ export class ProfileDirectoryError extends Error {
 		this.name = "ProfileDirectoryError";
 	}
 }
+
+/**
+ * Thrown in strict mode (CAMOUFOX_STRICT_CONFIG=1) when the launcher writes a
+ * config key the browser's properties.json does not declare. Outside strict
+ * mode such a key is reported and skipped, so a newer library still launches
+ * an older build. (A KeyError in Python; pycompat imports this module, so it
+ * cannot extend pycompat's KeyError here.)
+ */
+export class UnknownProperty extends Error {
+	constructor(message?: string) {
+		super(message ?? "The property is unknown to this browser build.");
+		this.name = "UnknownProperty";
+	}
+}

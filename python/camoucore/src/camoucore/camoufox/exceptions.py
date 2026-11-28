@@ -149,3 +149,15 @@ class ProfileDirectoryError(RuntimeError):
     """Raised when Camoufox's required runtime directory cannot be prepared."""
 
     ...
+
+
+class UnknownProperty(KeyError):
+    """
+    Raised in strict mode (CAMOUFOX_STRICT_CONFIG=1) when the launcher writes a
+    config key the browser's properties.json does not declare. Outside strict
+    mode such a key is reported and skipped, so a newer library still launches
+    an older build.
+    """
+
+    def __str__(self) -> str:
+        return str(self.args[0]) if self.args else ''

@@ -19,14 +19,9 @@ from .fingerprints import generate_context_fingerprint
 from .utils import (
     async_attach_vd,
     attach_context_defaults,
-    attach_persistent_geometry,
     attach_socks5_auth,
-    attach_viewport_fit,
-    context_screen_bound,
     context_identity,
-    hand_over_context_geometry,
     host_identity,
-    launch_geometry,
     launch_options,
     launch_os,
     needs_exit_geo,
@@ -36,7 +31,6 @@ from .utils import (
     place_at_exit,
     spoofs_window_dimensions,
     start_virtual_display,
-    take_back_context_geometry,
 )
 
 
@@ -251,15 +245,12 @@ async def _launch_browser(
             **persistent_context_options(from_options, no_viewport_default)
         )
         driver_defaults.mark(context)
-        attach_persistent_geometry(context, from_options)
         telemetry.attach(context, reporter, is_async=True)
         return await async_attach_vd(context, virtual_display)
 
     identity = await asyncio.get_running_loop().run_in_executor(None, host_identity, from_options, canvas_noise)
     browser = await playwright.firefox.launch(**from_options)
-    attach_context_defaults(
-        browser, no_viewport_default, launch_geometry(from_options), launch_proxy=bool(from_options.get('proxy'))
-    )
+    attach_context_defaults(browser, no_viewport_default, launch_proxy=bool(from_options.get('proxy')))
     browser._camoufox_host_identity = identity
     browser._camoufox_passthrough = passthrough
     telemetry.attach(browser, reporter, is_async=True)
@@ -324,24 +315,15 @@ async def AsyncNewContext(
         )
 
     os, webgl_config = context_identity(browser, os, preset)
-    screen_bound = context_screen_bound(browser, os, context_kwargs)
     fp = await asyncio.get_event_loop().run_in_executor(
         None,
         lambda: generate_context_fingerprint(
             preset=preset, os=os, ff_version=ff_version, webrtc_ip=webrtc_ip, webgl_config=webgl_config,
-            screen_bound=screen_bound,
         ),
     )
 
-    # A browser launched elsewhere takes SOCKS5 credentials too, and its
-    # contexts are fitted to their screens as well. The hand-over is read by
-    # the new_context() call below before it first awaits.
+    # A browser launched elsewhere takes SOCKS5 credentials too.
     attach_socks5_auth(browser)
-    attach_viewport_fit(browser)
-    hand_over_context_geometry(browser, fp)
-    try:
-        context = await browser.new_context(**new_context_options(fp, context_kwargs, proxy, geolocation))
-    finally:
-        take_back_context_geometry(browser)
+    context = await browser.new_context(**new_context_options(fp, context_kwargs, proxy, geolocation))
     await context.add_init_script(fp['init_script'])
     return context

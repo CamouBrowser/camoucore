@@ -28,28 +28,22 @@ import {
 	applyNoViewport,
 	attachDesktopOnlyWarning,
 	attachNoViewportDefault,
-	attachPersistentGeometry,
 	attachSharedTrafficWarning,
 	attachSocks5Auth,
 	attachStockMediaDefaults,
-	attachViewportFit,
 	attachVirtualDisplay,
 	contextIdentity,
-	contextScreenBound,
 	driverPid,
 	type GpuDisplayOptions,
 	type Headless,
-	handOverContextGeometry,
 	hostIdentity,
 	type LaunchOptions,
-	launchGeometry,
 	launchOptions,
 	launchOs,
 	pinnedCoreCount,
 	STOCK_MEDIA_DEFAULTS,
 	spoofsWindowDimensions,
 	startVirtualDisplay,
-	takeBackContextGeometry,
 } from "./utils.js";
 
 export type { Headless } from "./utils.js";
@@ -218,7 +212,6 @@ async function launchWith(
 			options,
 		);
 		attachDriverDefaults(context);
-		attachPersistentGeometry(context, fromOptions);
 		return attachVirtualDisplay(context, virtualDisplay);
 	}
 
@@ -227,7 +220,6 @@ async function launchWith(
 	const browser = await playwright.launch(fromOptions);
 	attachSocks5Auth(browser);
 	if (!fromOptions.proxy) attachSharedTrafficWarning(browser);
-	attachViewportFit(browser, launchGeometry(fromOptions));
 	if (noViewportDefault) {
 		attachNoViewportDefault(browser);
 	}
@@ -328,7 +320,6 @@ export async function NewContext(
 		ff_version: ffVersion,
 		webrtc_ip: webrtcIp,
 		webgl_config: webglConfig,
-		screen_bound: contextScreenBound(browser, contextOs, contextOptions),
 	});
 
 	// Merge the generated context options with user overrides (user wins). They
@@ -345,18 +336,9 @@ export async function NewContext(
 		opts.permissions ??= ["geolocation"];
 	}
 
-	// A browser launched elsewhere takes SOCKS5 credentials too, and its
-	// contexts are fitted to their screens as well. The hand-over is read by
-	// the newContext() call below before it first awaits.
+	// A browser launched elsewhere takes SOCKS5 credentials too.
 	attachSocks5Auth(browser);
-	attachViewportFit(browser);
-	handOverContextGeometry(browser, fp);
-	let context: BrowserContext;
-	try {
-		context = await browser.newContext(opts);
-	} finally {
-		takeBackContextGeometry(browser);
-	}
+	const context = await browser.newContext(opts);
 	await context.addInitScript(fp.init_script);
 	return context;
 }

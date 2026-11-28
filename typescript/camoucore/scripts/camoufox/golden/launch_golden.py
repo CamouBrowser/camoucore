@@ -19,8 +19,7 @@ the goldens are a function of the code alone:
     probe, the host GPU probe and the public-IP lookup are patched; the GeoIP
     reader is a fake maxminddb module over a fixed table; numpy's weighted
     locale choice uses a fixed uniform draw (same algorithm as numpy, so the
-    TS port can mirror it), and so do the per-launch timing draws
-    (fingerprints.launch_uniform).
+    TS port can mirror it).
   * paths: the browser bundle is tests/fixtures/launch/bundle*, the cache the
     scratch dir; both are written back as <BUNDLE>/<CACHE>/... placeholders.
 
@@ -117,14 +116,10 @@ HOST = {
     # Neither this host nor a proxy's exit has IPv6.
     'public_ipv6': None,
     'locale_uniform': 0.5,
-    # The per-launch timing draws (audio output open delay, Windows alias
-    # load time): real values move per launch; the golden pins the draw.
-    'launch_uniform': 0.37,
     'fresh_salt': 1234567890123456789,
 }
 
 fingerprints.host_cpu_count = lambda: HOST['cpu_count']
-fingerprints.launch_uniform = lambda: HOST['launch_uniform']
 utils._stock_profile_disk_capacity_kb = lambda: HOST['disk_capacity_kb']
 utils._host_os_key = lambda: HOST['host_os_key']
 utils.host_gpu = lambda *args: HOST['host_gpu']

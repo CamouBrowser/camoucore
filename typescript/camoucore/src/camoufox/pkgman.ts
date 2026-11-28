@@ -5,20 +5,12 @@
  * TypeScript twin of python/camoucore/src/camoucore/camoufox/pkgman.py.
  */
 import { execFileSync } from "node:child_process";
-import { once } from "node:events";
 import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Writable } from "node:stream";
-import cliProgress, { type Options as BarOptions } from "cli-progress";
-import prettyBytes from "pretty-bytes";
-import {
-	githubHeaders,
-	type ProgressCallback,
-	raiseForStatus,
-	request,
-} from "../download.js";
+import { githubHeaders, raiseForStatus, request, webdl } from "../download.js";
 import { CONSTRAINTS, LIBRARY_VERSION } from "./__version__.js";
 import {
 	effectivePin,
@@ -65,6 +57,7 @@ export {
 	type ProgressCallback,
 	unzip,
 	verifySha256,
+	webdl,
 } from "../download.js";
 
 /**
@@ -709,11 +702,6 @@ export class CamoufoxFetcher {
 	_versionObj?: Version;
 	_selectedVersion?: AvailableVersion;
 	_url?: string;
-	/**
-	 * Where the download is kept between runs, so that a later fetch resumes
-	 * it; unset downloads into a temporary file.
-	 */
-	partial?: string;
 
 	constructor(repoConfig?: RepoConfig, selectedVersion?: AvailableVersion) {
 		this.repoConfig = repoConfig ?? RepoConfig.getDefault();
@@ -866,17 +854,6 @@ export class CamoufoxFetcher {
 	static async downloadFile(file: Writable, url: string): Promise<void> {
 		rprint(`Downloading package: ${url}`);
 		await webdl(url, undefined, true, file);
-	}
-
-	/**
-	 * Download this build's archive into `file`. Through the instance's class,
-	 * as Python's fetcher.download_file(), so a subclass can override either.
-	 */
-	download(file: Writable): Promise<void> {
-		return (this.constructor as typeof CamoufoxFetcher).downloadFile(
-			file,
-			this.url,
-		);
 	}
 
 	/**
@@ -1285,101 +1262,6 @@ export function selectedLaunchPath(specifier: string): string {
 	return launchPath(installPath);
 }
 
-const formatBytes = (v: number, _: BarOptions, type: string) =>
-	type === "total" || type === "value" ? prettyBytes(v) : String(v);
-
-/**
- * camoucore.download.webdl cannot resume (no `offset`, `restart`); this stays
- * until it can.
- *
- * Download a file from the given URL. Streams into `buffer` when one is given,
- * otherwise accumulates and returns the bytes.
- *
- * An HTTP error raises requests' "<status> Client Error: ... for url: ..."
- * message, like the Python twin; see request() for network failures.
- *
- * `offset` resumes a download whose first `offset` bytes `buffer` already
- * appends to. `restart` empties what `buffer` writes to: it is called when the
- * server sends the whole file, not the rest of it.
- */
-export async function webdl(
-	url: string,
-	desc?: string,
-	bar: boolean = true,
-	buffer: Writable | null = null,
-	{
-		progressCallback,
-		offset = 0,
-		restart,
-	}: {
-		progressCallback?: ProgressCallback;
-		offset?: number;
-		restart?: () => void;
-	} = {},
-): Promise<Buffer> {
-	const headers = githubHeaders(url);
-	if (offset) headers.Range = `bytes=${offset}-`;
-	const response = await request(url, { headers });
-	raiseForStatus(response, url);
-	if (offset && response.status !== 206) {
-		restart?.();
-		offset = 0;
-	}
-
-	const totalSize =
-		offset + Number.parseInt(response.headers.get("content-length") || "0", 10);
-	let progressBar: cliProgress.SingleBar | null = null;
-	if (!progressCallback && bar) {
-		progressBar = new cliProgress.SingleBar(
-			{
-				format: `${desc || "Downloading"} [{bar}] {percentage}% | ETA: {eta_formatted} | {value}/{total}`,
-				formatValue: formatBytes,
-				noTTYOutput: true,
-			},
-			cliProgress.Presets.shades_classic,
-		);
-		progressBar.start(totalSize, offset);
-	}
-
-	const chunks: Uint8Array[] = [];
-	let downloaded = offset;
-	let lastUpdate = offset;
-	try {
-		if (!response.body) {
-			throw new Error(`Response from ${url} had no body`);
-		}
-		for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
-			if (buffer) {
-				// A stream that already failed (disk full) never drains: surface
-				// its error instead of waiting on it. When it is merely slow,
-				// wait for it, or the whole archive ends up queued in memory.
-				if (buffer.errored) throw buffer.errored;
-				if (!buffer.write(chunk)) await once(buffer, "drain");
-			} else {
-				chunks.push(chunk);
-			}
-			downloaded += chunk.length;
-			if (progressCallback) {
-				if (downloaded - lastUpdate >= 65536 || downloaded === totalSize) {
-					progressCallback(downloaded, totalSize);
-					lastUpdate = downloaded;
-				}
-			} else if (progressBar) {
-				progressBar.increment(chunk.length);
-			} else if (totalSize) {
-				const pct = (downloaded / totalSize) * 100;
-				process.stdout.write(`\r${desc}: ${pct.toFixed(0)}%`);
-			}
-		}
-	} finally {
-		progressBar?.stop();
-	}
-	if (!progressCallback && !bar) {
-		process.stdout.write(desc ? `\r${desc}: Complete\n` : "\n");
-	}
-
-	return Buffer.concat(chunks);
-}
 /**
  * chmod -R 755 on POSIX so the freshly-extracted binaries are executable.
  * (The zip does not carry usable permission bits on every platform.)
