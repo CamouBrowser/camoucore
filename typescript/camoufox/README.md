@@ -23,16 +23,16 @@ AI coding agents are in [`AGENTS.md`](https://github.com/daijro/camoufox/blob/ma
 ## Install
 
 ```bash
-npm install camoufox camoucore-camoufox playwright-core
+npm install camoufox playwright-core
 npx camoufox fetch
 ```
 
 `camoufox` is the [daijro/camoufox](https://github.com/daijro/camoufox)
 repository's package: it pins this driver, `camoucore-camoufox`, at the exact
 release that browser was tested with, and that browser build
-(`camoufox/camoufox_pin`). The driver is the module you import, as
-`camoucore-camoufox`; on its own it fetches the browser camoucore's CI tested it
-with.
+(`camoufox/camoufox_pin`), and re-exports the driver, so you import from
+`camoufox`. Installed on its own, `camoucore-camoufox` fetches the browser
+camoucore's CI tested it with.
 
 | Requirement | Value |
 |---|---|
@@ -53,7 +53,7 @@ persistent profile), so existing Playwright code works once the launch is
 changed.
 
 ```javascript
-import { Camoufox } from "camoucore-camoufox";
+import { Camoufox } from "camoufox";
 
 const browser = await Camoufox({ headless: true });
 const page = await browser.newPage();
@@ -69,7 +69,7 @@ parity with Python.
 ### Proxy with a matching location
 
 ```javascript
-import { Camoufox } from "camoucore-camoufox";
+import { Camoufox } from "camoufox";
 
 const browser = await Camoufox({
     proxy: { server: "http://proxy.example.com:8080", username: "user", password: "pass" },
@@ -88,7 +88,7 @@ browser behaves as on an IPv4-only network, and a `LeakWarning` says why.
 ### Persistent profile
 
 ```javascript
-import { Camoufox } from "camoucore-camoufox";
+import { Camoufox } from "camoufox";
 
 const context = await Camoufox({ persistent_context: true, user_data_dir: "./profiles/alice" });
 const page = await context.newPage();
@@ -103,7 +103,7 @@ fonts, voices, timezone, WebRTC IP), applied through
 `addInitScript` before any page script runs.
 
 ```javascript
-import { Camoufox, NewContext } from "camoucore-camoufox";
+import { Camoufox, NewContext } from "camoufox";
 
 const browser = await Camoufox({ headless: true, canvas_noise: true });
 const alice = await NewContext(browser, { os: "windows" });
@@ -196,7 +196,7 @@ host's only when the identity claims the host's GPU. Otherwise
 | `"virtual-gpu"` | A headed browser on a private, headless Xorg server bound to one GPU | Linux only, needs Xorg and the card's driver. Canvas and WebGL render on the card. Handled like `"virtual"`. |
 
 ```javascript
-import { Camoufox } from "camoucore-camoufox";
+import { Camoufox } from "camoufox";
 
 const browser = await Camoufox({ headless: "virtual-gpu", gpu: "0000:01:00.0", os: "linux" });
 ```
@@ -212,12 +212,12 @@ npx camoufox gpu-setup 0000:01:00.0 | sudo sh
 
 The launch checks that the browser renders on the card, and the identity claims
 that card. The Python README explains the selectors, the checks and the
-errors: [The GPU display](https://github.com/daijro/camoufox/blob/main/python/README.md#the-gpu-display).
+errors: [The GPU display](https://github.com/CamouBrowser/camoucore/blob/main/python/camoufox/README.md#the-gpu-display).
 
 ### Remote server
 
 ```javascript
-import { launchServer } from "camoucore-camoufox";
+import { launchServer } from "camoufox";
 
 const server = await launchServer({ headless: true, port: 1234, ws_path: "camoufox" });
 console.log(server.wsEndpoint());
@@ -233,7 +233,7 @@ returns the options for `firefox.launch()`:
 
 ```javascript
 import { firefox } from "playwright-core";
-import { NewBrowser, launchOptions } from "camoucore-camoufox";
+import { NewBrowser, launchOptions } from "camoufox";
 
 const browser = await NewBrowser(firefox, { os: "linux", headless: true });
 await browser.close();
@@ -252,7 +252,7 @@ window size is spoofed, and to the host's own color scheme and motion settings.
 The browser does not humanize input: each Playwright call reaches the page as one native-looking event ([docs/humanize.md](../docs/humanize.md)). Humanization belongs to the driver. The `humanize` option picks an engine per channel, run in your own process:
 
 ```ts
-import { Camoufox, myuri, raw } from "camoucore-camoufox";
+import { Camoufox, myuri, raw } from "camoufox";
 
 // `humanize: true` is myuri() on every channel
 const browser = await Camoufox({
@@ -277,7 +277,7 @@ Each piece of myuri is a part you can replace with a function of yours, in your 
 
 ```ts
 import { setTimeout as sleep } from "node:timers/promises";
-import { Camoufox, myuri } from "camoucore-camoufox";
+import { Camoufox, myuri } from "camoufox";
 
 const browser = await Camoufox({
 	humanize: {
@@ -408,22 +408,22 @@ and `from_options` (an object from `launchOptions()` to use as is).
 Each release is paired with the one browser build it was built and tested with,
 the same build as the Python release of the same version, and every launch uses
 it until `camoufox set` chooses another. The Python README explains the rules:
-[Which browser build is used](https://github.com/daijro/camoufox/blob/main/python/README.md#which-browser-build-is-used).
+[Which browser build is used](https://github.com/CamouBrowser/camoucore/blob/main/python/camoufox/README.md#which-browser-build-is-used).
 
 ## Development
 
 The tests compare this package's output with the Python package's, so they need
-a Python with `python/` installed: the repository's `.venv`, or
-`CAMOUFOX_PYTHON`.
+a Python with `python/camoufox` installed: the repository's `.venv`, or
+`CAMOUFOX_PYTHON`. From the root of [camoucore](https://github.com/CamouBrowser/camoucore):
 
 ```bash
-python3.14 -m venv .venv                                           # repo root
-.venv/bin/pip install -r ci/requirements.txt -e python
+python3 -m venv .venv
+.venv/bin/pip install -r python/requirements-dev.txt -e 'python/camoucore[geoip]' -e 'python/camoufox[geoip]'
 .venv/bin/python python/camoucore/scripts/pin-fpgen-model.py
-cd typescript
 pnpm install
+cd typescript/camoufox
 pnpm build       # tsc -> dist/, then copy the Python package's data files into dist/data-files
-pnpm test        # records the golden fixtures from python/, then runs vitest
+pnpm test        # records the golden fixtures from python/camoufox, then runs vitest
 pnpm check       # biome lint and format
 pnpm typecheck   # tsc --noEmit
 ```
@@ -454,7 +454,7 @@ npm uploads use trusted publishing; no token is stored.
 
 ## Licence
 
-MIT ([`LICENSE`](https://github.com/daijro/camoufox/blob/main/typescript/LICENSE)).
+MIT ([`LICENSE`](https://github.com/CamouBrowser/camoucore/blob/main/typescript/camoufox/LICENSE)).
 The browser itself is MPL-2.0. It depends on
 [`camoucore`](https://github.com/CamouBrowser/camoucore) (MIT; it carries a port
 of NumPy's pairwise summation, with its notice), [`fpgen-js`](https://www.npmjs.com/package/fpgen-js) (Apache-2.0) and

@@ -20,7 +20,7 @@ with the same options. Notes for AI coding agents are in
 ## Install
 
 ```bash
-pip install -U camoufox "camoucore-camoufox[geoip]"
+pip install -U "camoufox[geoip]"
 camoufox fetch
 ```
 
@@ -460,18 +460,18 @@ paired with nothing and follows its channel, `official/stable` by default.
 
 ## Development
 
-From the repository root:
+From the root of [camoucore](https://github.com/CamouBrowser/camoucore):
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r ci/requirements.txt -e 'python[geoip]'
+.venv/bin/pip install -r python/requirements-dev.txt -e 'python/camoucore[geoip]' -e 'python/camoufox[geoip]'
 .venv/bin/python python/camoucore/scripts/pin-fpgen-model.py
-.venv/bin/python -m ci.run_pythonlib
+cd python/camoufox && ../../.venv/bin/python -m pytest tests
 ```
 
-`ci.run_pythonlib` runs `python/camoufox/tests/`, the same job CI runs. Which suite covers
-which change is in [`AGENTS.md`](https://github.com/daijro/camoufox/blob/main/AGENTS.md#testing).
+That is the suite CI's `python` job runs. Which suite covers which change is in
+[`AGENTS.md`](https://github.com/CamouBrowser/camoucore/blob/main/AGENTS.md).
 
 ## Licence
 
-MIT ([`LICENSE`](https://github.com/daijro/camoufox/blob/main/python/LICENSE)). The browser itself is MPL-2.0.
+MIT ([`LICENSE`](https://github.com/CamouBrowser/camoucore/blob/main/python/camoufox/LICENSE)). The browser itself is MPL-2.0.

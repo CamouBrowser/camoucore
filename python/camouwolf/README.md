@@ -17,7 +17,7 @@ to the browser, which answers with it from C++.
 ## Install
 
 ```bash
-pip install -U camouwolf "camoucore-camouwolf[geoip]"
+pip install -U "camouwolf[geoip]"
 camouwolf fetch
 ```
 
