@@ -296,7 +296,8 @@ def test_a_report_holds_counts_and_launch_dimensions_only():
     assert url == 'https://api.camoufox.com/v1/telemetry/antibot'
     assert payload == {
         'schema': 1, 'product': 'camoufox', 'version': '1.2.3', 'browser_version': '146.0',
-        'cross_os': True, 'passthrough': False, 'proxy_provider': 'smartproxy.com',
+        # fp-process's ingest refuses a report without a boolean `pro`.
+        'pro': False, 'cross_os': True, 'passthrough': False, 'proxy_provider': 'smartproxy.com',
         'counts': {'datadome': {'success': 0, 'challenge': 0, 'block': 1, 'unknown': 0}},
     }
     text = json.dumps(payload)

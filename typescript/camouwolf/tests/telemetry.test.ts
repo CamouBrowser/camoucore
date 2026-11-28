@@ -80,6 +80,7 @@ describe.skipIf(!MODEL.ok)("telemetry", () => {
 		expect(browser.handlers.disconnected).toHaveLength(1);
 		expect(made[0].dimensions).toMatchObject({
 			product: "camouwolf",
+			pro: false,
 			cross_os: true,
 			passthrough: false,
 			proxy_provider: "none",

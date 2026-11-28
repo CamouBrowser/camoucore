@@ -6,7 +6,7 @@
  * TypeScript twin of python/camoucore/src/camoucore/telemetry.py, which documents what is
  * collected and what never is. In short: outcome counts per anti-bot provider
  * and the launch's dimensions (launcher, versions, cross-OS, passthrough,
- * proxy provider domain). Never a URL, site, page content, cookie, header
+ * proxy provider domain, and `pro`, always false until Pro ships). Never a URL, site, page content, cookie, header
  * value, IP address, proxy credential, or any identifier of the user.
  *
  * Off with `telemetry: false`, `<NAME>_TELEMETRY=0`, or `DO_NOT_TRACK=1`.
@@ -434,6 +434,8 @@ export class Telemetry {
 			product: product.name,
 			version: options.version,
 			browser_version: options.browserVersion,
+			// The ingest keys every report on it and refuses one without it.
+			pro: false,
 			cross_os: Boolean(options.crossOs),
 			passthrough: Boolean(options.passthrough),
 			// The domain is all that is kept of the proxy.

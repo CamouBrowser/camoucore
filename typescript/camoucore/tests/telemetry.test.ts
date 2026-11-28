@@ -417,6 +417,8 @@ describe("reports", () => {
 					product: "camoufox",
 					version: "1.2.3",
 					browser_version: "146.0",
+					// fp-process's ingest refuses a report without a boolean `pro`.
+					pro: false,
 					cross_os: true,
 					passthrough: false,
 					proxy_provider: "smartproxy.com",
