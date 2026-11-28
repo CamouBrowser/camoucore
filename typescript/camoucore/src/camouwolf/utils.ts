@@ -37,9 +37,9 @@ import {
 	InvalidPropertyType,
 	NonChromeFingerprint,
 	NotImplementedError,
+	RuntimeError,
 	UnknownIPLocation,
 	UnknownProperty,
-	RuntimeError,
 	UnsupportedOSSpoof,
 	ValueError,
 } from "./exceptions.js";
