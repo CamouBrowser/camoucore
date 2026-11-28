@@ -3,8 +3,8 @@
  * browser has a session to open in.
  */
 import { expect, it } from "vitest";
-import { hasDisplay } from "../src/display.js";
-import { OS_NAME } from "../src/host.js";
+import { hasDisplay } from "../../src/display.js";
+import { OS_NAME } from "../../src/host.js";
 
 it.runIf(OS_NAME !== "lin")("is always true off Linux", () => {
 	expect(hasDisplay({})).toBe(true);

@@ -1,6 +1,6 @@
 /**
  * camouwolf.defaults.json: the defaults every launch starts from, and the
- * user's own. Twin of python/camouwolf/tests/test_defaults.py.
+ * user's own. Twin of python/camoucore/tests/camouwolf/test_defaults.py.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -16,7 +16,7 @@ import {
 	utils,
 } from "./launch-host.js";
 
-const { DEFAULTS_FILE } = await import("../src/paths.js");
+const { DEFAULTS_FILE } = await import("../../src/camouwolf/paths.js");
 
 let tmp: string;
 let saved: string | undefined;
@@ -55,9 +55,11 @@ it("is the Python launcher's file", () => {
 				"..",
 				"..",
 				"..",
+				"..",
 				"python",
-				"camouwolf",
+				"camoucore",
 				"src",
+				"camoucore",
 				"camouwolf",
 				"camouwolf.defaults.json",
 			),

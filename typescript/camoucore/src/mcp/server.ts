@@ -26,8 +26,9 @@ import { z } from "zod";
 import { redactValue, Secrets, UrlPattern } from "./secrets.js";
 import { findInTree } from "./tree.js";
 
+// dist/mcp/ in the package, src/mcp/ in the repo: the package root either way.
 const VERSION: string = createRequire(import.meta.url)(
-	"../package.json",
+	"../../package.json",
 ).version;
 
 /** What a launcher package exports for this server to drive it. */

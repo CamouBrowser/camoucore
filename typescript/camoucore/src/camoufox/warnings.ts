@@ -1,13 +1,13 @@
 /**
  * Camoufox's warning messages and its FallbackWarning.
  *
- * TypeScript twin of python/camoufox/src/camoufox/_warnings.py. The messages are read
+ * TypeScript twin of python/camoucore/src/camoucore/camoufox/_warnings.py. The messages are read
  * from the same warnings.yml the Python package ships, so both launchers say
  * the same thing. The warning channel (warn, recordWarnings, LeakWarning) is
  * camoucore's, so one recorder sees the core's warnings and camoufox's.
  */
 import * as os from "node:os";
-import { warn } from "camoucore/warnings.js";
+import { warn } from "../warnings.js";
 import { LIBRARY_VERSION } from "./__version__.js";
 import { CamoufoxNotInstalled } from "./exceptions.js";
 import { loadDataFile } from "./paths.js";
@@ -18,7 +18,7 @@ export {
 	type RecordedWarning,
 	recordWarnings,
 	warn,
-} from "camoucore/warnings.js";
+} from "../warnings.js";
 
 let warningsData: Record<string, string> | undefined;
 

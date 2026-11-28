@@ -6,51 +6,29 @@ settings:
 
 importers:
 
-  mcp:
+  typescript/camoucore:
     dependencies:
+      '@jwriter20/myuri':
+        specifier: 5.1.0
+        version: 5.1.0(playwright-core@1.62.0)
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
         version: 1.30.0(zod@3.25.76)
-      zod:
-        specifier: 3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@biomejs/biome':
-        specifier: 2.4.10
-        version: 2.4.10
-      '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
-      camoucore-camoufox:
-        specifier: workspace:*
-        version: link:../typescript/camoufox
-      camoucore-camouwolf:
-        specifier: workspace:*
-        version: link:../typescript/camouwolf
-      playwright-core:
-        specifier: 1.62.0
-        version: 1.62.0
-      rimraf:
-        specifier: ^6.1.4
-        version: 6.1.4
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: 8.3.8
-        version: 8.3.8(@types/node@24.19.2)(yaml@2.9.1)
-      vitest:
-        specifier: ^4.1.12
-        version: 4.1.12(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(yaml@2.9.1))
-
-  typescript/camoucore:
-    dependencies:
       adm-zip:
         specifier: ^0.6.1
         version: 0.6.1
       cli-progress:
         specifier: ^3.12.0
         version: 3.12.0
+      commander:
+        specifier: ^14.0.0
+        version: 14.0.3
+      fpgen-js:
+        specifier: 1.3.0
+        version: 1.3.0
+      impit:
+        specifier: ^0.14.1
+        version: 0.14.9
       language-tags:
         specifier: ^2.0.1
         version: 2.1.0
@@ -60,12 +38,21 @@ importers:
       pretty-bytes:
         specifier: ^7.1.0
         version: 7.2.0
+      python-random:
+        specifier: 1.0.0
+        version: 1.0.0
+      ua-parser-js:
+        specifier: ^2.0.2
+        version: 2.0.10
       xml2js:
         specifier: ^0.6.2
         version: 0.6.2
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@biomejs/biome':
         specifier: 2.4.10
@@ -82,9 +69,9 @@ importers:
       '@types/xml2js':
         specifier: ^0.4.14
         version: 0.4.14
-      fpgen-js:
-        specifier: 1.3.0
-        version: 1.3.0
+      playwright-core:
+        specifier: 1.62.0
+        version: 1.62.0
       rimraf:
         specifier: ^6.0.1
         version: 6.1.4
@@ -94,104 +81,6 @@ importers:
       vite:
         specifier: 8.3.8
         version: 8.3.8(@types/node@24.19.2)(yaml@2.9.1)
-      vitest:
-        specifier: ^4.0.0
-        version: 4.1.12(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(yaml@2.9.1))
-
-  typescript/camoufox:
-    dependencies:
-      '@jwriter20/myuri':
-        specifier: 5.1.0
-        version: 5.1.0(playwright-core@1.62.0)
-      camoucore:
-        specifier: workspace:*
-        version: link:../camoucore
-      cli-progress:
-        specifier: ^3.12.0
-        version: 3.12.0
-      commander:
-        specifier: ^14.0.0
-        version: 14.0.3
-      fpgen-js:
-        specifier: 1.3.0
-        version: 1.3.0
-      impit:
-        specifier: ^0.14.1
-        version: 0.14.9
-      pretty-bytes:
-        specifier: ^7.1.0
-        version: 7.2.0
-      python-random:
-        specifier: 1.0.0
-        version: 1.0.0
-      ua-parser-js:
-        specifier: ^2.0.2
-        version: 2.0.10
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
-    devDependencies:
-      '@biomejs/biome':
-        specifier: 2.4.10
-        version: 2.4.10
-      '@types/cli-progress':
-        specifier: ^3.11.6
-        version: 3.11.6
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.19.2
-      adm-zip:
-        specifier: ^0.6.1
-        version: 0.6.1
-      playwright-core:
-        specifier: 1.62.0
-        version: 1.62.0
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.1.4
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-      vitest:
-        specifier: ^4.0.0
-        version: 4.1.12(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(yaml@2.9.1))
-
-  typescript/camouwolf:
-    dependencies:
-      '@jwriter20/myuri':
-        specifier: 5.1.0
-        version: 5.1.0(playwright-core@1.62.0)
-      camoucore:
-        specifier: workspace:*
-        version: link:../camoucore
-      commander:
-        specifier: ^14.0.0
-        version: 14.0.3
-      fpgen-js:
-        specifier: 1.3.0
-        version: 1.3.0
-      python-random:
-        specifier: 1.0.0
-        version: 1.0.0
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
-    devDependencies:
-      '@biomejs/biome':
-        specifier: 2.4.10
-        version: 2.4.10
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.19.2
-      playwright-core:
-        specifier: 1.62.0
-        version: 1.62.0
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.1.4
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
       vitest:
         specifier: ^4.0.0
         version: 4.1.12(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(yaml@2.9.1))

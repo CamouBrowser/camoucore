@@ -1,7 +1,7 @@
 /**
  * Camoufox version constants.
  *
- * TypeScript twin of python/camoufox/src/camoufox/__version__.py.
+ * TypeScript twin of python/camoucore/src/camoucore/camoufox/__version__.py.
  */
 
 // biome-ignore lint/complexity/noStaticOnlyClass: mirrors the Python twin's CONSTRAINTS class so both launchers read the same

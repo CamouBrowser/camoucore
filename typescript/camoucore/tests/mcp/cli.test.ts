@@ -10,7 +10,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { afterEach, describe, expect, it } from "vitest";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const CLI = path.join(HERE, "..", "dist", "cli.js");
+const CLI = path.join(HERE, "..", "..", "dist", "mcp", "main.js");
 
 let client: Client | undefined;
 afterEach(async () => {
@@ -74,4 +74,55 @@ describe("camoucore-mcp", () => {
 		expect(none.status).toBe(2);
 		expect(none.stderr).toContain("usage: camoucore-mcp <launcher>");
 	});
+});
+
+describe("<launcher> mcp, the launcher bin", () => {
+	const bin = (launcher: string) =>
+		path.join(HERE, "..", "..", "dist", launcher, "cli.js");
+
+	for (const launcher of ["camoufox", "camouwolf"]) {
+		it(`${launcher} mcp serves that launcher; anything else is its CLI`, () => {
+			// The launcher is fixed, so a positional is one too many, and the
+			// usage names the command the user typed.
+			const extra = spawnSync(process.execPath, [bin(launcher), "mcp", "zod"], {
+				encoding: "utf8",
+			});
+			expect(extra.status).toBe(2);
+			expect(extra.stderr).toContain(
+				`usage: ${launcher} mcp [--secrets <file>]`,
+			);
+			expect(extra.stderr).not.toContain("<launcher>");
+
+			const badFlag = spawnSync(
+				process.execPath,
+				[bin(launcher), "mcp", "--no-such-flag"],
+				{ encoding: "utf8" },
+			);
+			expect(badFlag.status).toBe(2);
+			expect(badFlag.stderr).toContain(`usage: ${launcher} mcp`);
+
+			const help = spawnSync(process.execPath, [bin(launcher), "--help"], {
+				encoding: "utf8",
+			});
+			expect(help.status).toBe(0);
+			expect(help.stdout).toContain("fetch");
+		});
+
+		it(`${launcher} mcp speaks MCP on a clean stdout`, async () => {
+			client = new Client({ name: "test", version: "1.0.0" });
+			const protocolErrors: Error[] = [];
+			client.onerror = (error) => protocolErrors.push(error);
+			await client.connect(
+				new StdioClientTransport({
+					command: process.execPath,
+					args: [bin(launcher), "mcp"],
+					env: { PATH: process.env.PATH ?? "" },
+					stderr: "ignore",
+				}),
+			);
+			const { tools } = await client.listTools();
+			expect(tools.map((tool) => tool.name)).toContain("session_open");
+			expect(protocolErrors).toEqual([]);
+		});
+	}
 });

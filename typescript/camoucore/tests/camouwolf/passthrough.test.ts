@@ -1,9 +1,9 @@
 /**
  * passthrough: true: the host's own fingerprint, with the behaviour options
- * kept. Twin of python/camouwolf/tests/test_passthrough.py.
+ * kept. Twin of python/camoucore/tests/camouwolf/test_passthrough.py.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ValueError } from "../src/exceptions.js";
+import { ValueError } from "../../src/camouwolf/exceptions.js";
 import { MODEL } from "./fpgen-setup.js";
 import {
 	BUNDLE_EXE,
@@ -15,7 +15,9 @@ import {
 	warnings,
 } from "./launch-host.js";
 
-const { NewBrowser, NewContext } = await import("../src/sync_api.js");
+const { NewBrowser, NewContext } = await import(
+	"../../src/camouwolf/sync_api.js"
+);
 
 const PROXY = { server: "http://proxy.example:8080" };
 const base = () => ({

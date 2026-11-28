@@ -14,9 +14,9 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import { chromium } from "playwright-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { gpuVendor, selectGpu } from "../src/gpudisplay.js";
-import { launchServer } from "../src/server.js";
-import { Camouwolf } from "../src/sync_api.js";
+import { gpuVendor, selectGpu } from "../../src/camouwolf/gpudisplay.js";
+import { launchServer } from "../../src/camouwolf/server.js";
+import { Camouwolf } from "../../src/camouwolf/sync_api.js";
 
 const ENABLED = Boolean(process.env.CAMOUWOLF_GPU?.trim());
 const EXECUTABLE = process.env.CAMOUWOLF_EXECUTABLE ?? "";

@@ -6,11 +6,11 @@
  * part of the browser bundle: `camouwolf fetch` downloads the release pinned in
  * data/ubo.json (version, url, sha256) and unpacks it under the cache directory.
  *
- * TypeScript twin of python/camouwolf/src/camouwolf/addons.py.
+ * TypeScript twin of python/camoucore/src/camoucore/camouwolf/addons.py.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { unzip, verifySha256, webdl } from "camoucore/download.js";
+import { unzip, verifySha256, webdl } from "../download.js";
 import { InvalidAddonPath } from "./exceptions.js";
 import { INSTALL_DIR, loadDataFile } from "./paths.js";
 import { loadWarnings, warn } from "./warnings.js";

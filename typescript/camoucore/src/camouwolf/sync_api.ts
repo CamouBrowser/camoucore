@@ -1,7 +1,7 @@
 /**
  * The launcher entry points: Camouwolf(), NewBrowser(), NewContext().
  *
- * TypeScript twin of python/camouwolf/src/camouwolf/sync_api.py (and async_api.py, whose
+ * TypeScript twin of python/camoucore/src/camoucore/camouwolf/sync_api.py (and async_api.py, whose
  * names async_api.ts re-exports). The Python library ships a sync and an
  * async variant because Playwright-Python has two APIs; playwright-core has
  * only one (promise-based), so the behaviours of both live here: the context
@@ -9,15 +9,15 @@
  * virtual-display teardown.
  */
 
-import * as cpuAffinity from "camoucore/cpu_affinity.js";
-import type { ProxyConfig } from "camoucore/ip.js";
-import type { VirtualDisplay } from "camoucore/virtdisplay.js";
 import {
 	type Browser,
 	type BrowserContext,
 	type BrowserType,
 	chromium,
 } from "playwright-core";
+import * as cpuAffinity from "../cpu_affinity.js";
+import type { ProxyConfig } from "../ip.js";
+import type { VirtualDisplay } from "../virtdisplay.js";
 import { attach } from "./_humanize_playwright.js";
 import { attachDriverDefaults } from "./driver_defaults.js";
 import { normalize } from "./humanize.js";

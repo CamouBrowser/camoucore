@@ -1,5 +1,5 @@
 /**
- * Mirrors python/camoufox/tests/test_version_floor_upgrade.py: raising the browser
+ * Mirrors python/camoucore/tests/camoufox/test_version_floor_upgrade.py: raising the browser
  * floor must upgrade a below-floor install, in both install layouts, and the
  * floor is keyed on the resolved Playwright.
  *
@@ -11,8 +11,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-type Pkgman = typeof import("../src/pkgman.js");
-type Exceptions = typeof import("../src/exceptions.js");
+type Pkgman = typeof import("../../src/camoufox/pkgman.js");
+type Exceptions = typeof import("../../src/camoufox/exceptions.js");
 
 let tmp: string;
 let savedXdg: string | undefined;
@@ -31,8 +31,8 @@ afterEach(() => {
 });
 
 async function load(): Promise<{ pkgman: Pkgman; exc: Exceptions }> {
-	const pkgman = await import("../src/pkgman.js");
-	const exc = await import("../src/exceptions.js");
+	const pkgman = await import("../../src/camoufox/pkgman.js");
+	const exc = await import("../../src/camoufox/exceptions.js");
 	return { pkgman, exc };
 }
 
@@ -43,7 +43,7 @@ async function install(
 	floor: string,
 ) {
 	const { pkgman, exc } = await load();
-	const root = (await import("../src/paths.js")).INSTALL_DIR;
+	const root = (await import("../../src/camoufox/paths.js")).INSTALL_DIR;
 	fs.mkdirSync(root, { recursive: true });
 	fs.writeFileSync(path.join(root, ".0.5_FLAG"), "");
 	fs.writeFileSync(path.join(root, "repo_cache.json"), "{}");
@@ -115,7 +115,7 @@ it("upgrades a below-floor install instead of raising", async () => {
 
 it("the root probe reports false, rather than raising, with no root file", async () => {
 	const { pkgman } = await load();
-	fs.mkdirSync((await import("../src/paths.js")).INSTALL_DIR, {
+	fs.mkdirSync((await import("../../src/camoufox/paths.js")).INSTALL_DIR, {
 		recursive: true,
 	});
 	expect(pkgman.rootInstallSupported()).toBe(false);

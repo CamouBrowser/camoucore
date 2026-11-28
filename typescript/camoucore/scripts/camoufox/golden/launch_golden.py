@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Record Python launch_options() outputs as goldens for the TypeScript port.
 
-    .venv/bin/python typescript/camoufox/scripts/golden/launch_golden.py
+    .venv/bin/python typescript/camoucore/scripts/camoufox/golden/launch_golden.py
 
-Writes typescript/camoufox/tests/fixtures/launch/*.json, one file per scenario, and
-typescript/camoufox/tests/fixtures/launch/inputs.json (the fixed fingerprints / presets
+Writes typescript/camoucore/tests/camoufox/fixtures/launch/*.json, one file per scenario, and
+typescript/camoucore/tests/camoufox/fixtures/launch/inputs.json (the fixed fingerprints / presets
 the scenarios are built from). tests/launch-golden.test.ts replays every
 scenario through the TypeScript launchOptions() and requires the same result.
 
@@ -41,8 +41,8 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-TS_ROOT = HERE.parent.parent
-FIXTURES = TS_ROOT / 'tests' / 'fixtures' / 'launch'
+TS_ROOT = HERE.parents[2]
+FIXTURES = TS_ROOT / 'tests' / 'camoufox' / 'fixtures' / 'launch'
 
 # Must precede every camoufox import: INSTALL_DIR is computed at import time.
 SCRATCH = Path(tempfile.mkdtemp(prefix='camoufox-golden-'))
@@ -90,12 +90,12 @@ sys.modules['maxminddb'] = _fake_mmdb
 import numpy as np  # noqa: E402
 import orjson  # noqa: E402
 
-import camoufox.fingerprints as fingerprints  # noqa: E402
+import camoucore.camoufox.fingerprints as fingerprints  # noqa: E402
 from camoucore import geolocation, locales  # noqa: E402
-from camoufox import utils  # noqa: E402
-from camoufox.addons import DefaultAddons  # noqa: E402
-from camoufox.fingerprints import Screen  # noqa: E402
-from camoufox.utils import launch_options  # noqa: E402
+from camoucore.camoufox import utils  # noqa: E402
+from camoucore.camoufox.addons import DefaultAddons  # noqa: E402
+from camoucore.camoufox.fingerprints import Screen  # noqa: E402
+from camoucore.camoufox.utils import launch_options  # noqa: E402
 
 assert str(utils.INSTALL_DIR) == str(CACHE), (utils.INSTALL_DIR, CACHE)
 
@@ -187,7 +187,7 @@ def load_inputs():
     if path.exists() and '--regen-inputs' not in sys.argv:
         return json.loads(path.read_text())
     presets = orjson.loads((Path(fingerprints.__file__).parent / 'fingerprint-presets-v150.json').read_bytes())['presets']
-    from camoufox.webgl import firefox_gpus
+    from camoucore.camoufox.webgl import firefox_gpus
 
     pairs = {os_key: sorted(firefox_gpus(os_key)) for os_key in ('win', 'mac', 'lin')}
     known = {x for v in pairs.values() for x in v}

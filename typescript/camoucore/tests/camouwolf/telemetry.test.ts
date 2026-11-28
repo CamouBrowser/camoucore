@@ -1,13 +1,13 @@
 /**
  * Telemetry: every context of a launch is watched, and it never breaks one.
- * Twin of python/camouwolf/tests/test_telemetry.py.
+ * Twin of python/camoucore/tests/camouwolf/test_telemetry.py.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MODEL } from "./fpgen-setup.js";
 import { BUNDLE_EXE, HOME, restoreDeps, stubHost } from "./launch-host.js";
 
-const { NewBrowser } = await import("../src/sync_api.js");
-const telemetry = await import("camoucore/telemetry.js");
+const { NewBrowser } = await import("../../src/camouwolf/sync_api.js");
+const telemetry = await import("../../src/telemetry.js");
 
 class Events {
 	handlers: Record<string, Array<(...args: any[]) => void>> = {};

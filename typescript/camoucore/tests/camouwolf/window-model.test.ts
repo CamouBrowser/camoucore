@@ -3,7 +3,7 @@ import {
 	chromeViewportWidth,
 	chromeWindowReports,
 	snapWindowToDevicePixels,
-} from "../src/fingerprints.js";
+} from "../../src/camouwolf/fingerprints.js";
 
 // Windows Chrome opened at 1.75 on X11, [position, size] asked -> read back.
 const MEASURED_AT_1_75: [[number, number], [number, number]][] = [

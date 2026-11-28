@@ -4,7 +4,7 @@
  * downloaded is a missing prerequisite.
  */
 import { ensureModel } from "fpgen-js";
-import "../src/paths.js";
+import "../../src/camoufox/paths.js";
 import { prerequisite } from "./prereq.js";
 
 async function prepare(): Promise<{ ok: boolean; reason?: string }> {

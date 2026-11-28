@@ -2,13 +2,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FileNotFoundError } from "../src/exceptions.js";
+import { FileNotFoundError } from "../../src/camoufox/exceptions.js";
 import {
 	LOCAL_DATA,
 	loadDataFile,
 	OS_ARCH_MATRIX,
 	OS_NAME,
-} from "../src/paths.js";
+} from "../../src/camoufox/paths.js";
 import {
 	AvailableVersion,
 	formatAssetDate,
@@ -16,7 +16,7 @@ import {
 	RepoConfig,
 	Version,
 	webdl,
-} from "../src/pkgman.js";
+} from "../../src/camoufox/pkgman.js";
 
 describe("Version ordering", () => {
 	it("orders alpha < beta < numeric builds", () => {
@@ -160,7 +160,7 @@ describe("the fpgen model directory", () => {
 	async function modelDirWith(env: string): Promise<[string, string]> {
 		vi.stubEnv("CAMOUFOX_FPGEN_DATA", env);
 		vi.resetModules();
-		const { INSTALL_DIR } = await import("../src/paths.js");
+		const { INSTALL_DIR } = await import("../../src/camoufox/paths.js");
 		const { modelDir } = await import("fpgen-js");
 		return [modelDir(), INSTALL_DIR];
 	}
@@ -186,7 +186,7 @@ describe("repos.yml", () => {
 		const shipped = fs.readFileSync(
 			path.join(
 				import.meta.dirname,
-				"../../../python/camoufox/src/camoufox/repos.yml",
+				"../../../../python/camoucore/src/camoucore/camoufox/repos.yml",
 			),
 			"utf-8",
 		);
@@ -220,7 +220,7 @@ describe("parseSemver", () => {
 		["^0.5.0", [0, 5, 0]],
 		["1", [1, 0, 0]],
 	])("%s parses as its release", async (raw, expected) => {
-		const { parseSemver } = await import("../src/pkgman.js");
+		const { parseSemver } = await import("../../src/camoufox/pkgman.js");
 		expect(parseSemver(raw)).toEqual(expected);
 	});
 });

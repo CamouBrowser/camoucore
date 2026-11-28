@@ -1,8 +1,8 @@
 /**
  * myuri on Playwright pages: the parts passed to myuri(), raw() channels and
- * the page wrappers. The twin of python/camouwolf/tests/test_humanize_playwright.py,
+ * the page wrappers. The twin of python/camoucore/tests/camouwolf/test_humanize_playwright.py,
  * against the same fake page and the same recorded sequence,
- * python/camouwolf/tests/data/humanize-sequence.json.
+ * python/camoucore/tests/camouwolf/data/humanize-sequence.json.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -19,8 +19,8 @@ import {
 	clock,
 	FRAME_ORIGIN,
 	VIEWPORT,
-} from "../src/_humanize_playwright.js";
-import { FILL_NEEDS_CLICK } from "../src/driver_defaults.js";
+} from "../../src/camouwolf/_humanize_playwright.js";
+import { FILL_NEEDS_CLICK } from "../../src/camouwolf/driver_defaults.js";
 import {
 	CHANNELS,
 	drivenChannels,
@@ -28,10 +28,10 @@ import {
 	myuri,
 	normalize,
 	raw,
-} from "../src/humanize.js";
-import { launchServer } from "../src/server.js";
-import { NewBrowser } from "../src/sync_api.js";
-import * as warnings from "../src/warnings.js";
+} from "../../src/camouwolf/humanize.js";
+import { launchServer } from "../../src/camouwolf/server.js";
+import { NewBrowser } from "../../src/camouwolf/sync_api.js";
+import * as warnings from "../../src/camouwolf/warnings.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SEQUENCE = JSON.parse(
@@ -41,9 +41,11 @@ const SEQUENCE = JSON.parse(
 			"..",
 			"..",
 			"..",
+			"..",
 			"python",
-			"camouwolf",
+			"camoucore",
 			"tests",
+			"camouwolf",
 			"data",
 			"humanize-sequence.json",
 		),

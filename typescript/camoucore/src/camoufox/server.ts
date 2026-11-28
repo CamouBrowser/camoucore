@@ -1,7 +1,7 @@
 /**
  * Playwright server mode.
  *
- * TypeScript twin of python/camoufox/src/camoufox/server.py. Python has to shell out to
+ * TypeScript twin of python/camoucore/src/camoucore/camoufox/server.py. Python has to shell out to
  * the Node runtime bundled with its Playwright driver (and hand it a base64
  * config frame over stdin, via launchServer.js) because there is no Python
  * binding for BrowserServer. Here we already are that runtime, so this calls
@@ -9,8 +9,8 @@
  * would send: launchOptions() with every top-level key camelCased.
  */
 
-import { withUnpinnedLaunch } from "camoucore/cpu_affinity.js";
 import { type BrowserServer, firefox } from "playwright-core";
+import { withUnpinnedLaunch } from "../cpu_affinity.js";
 import { GpuDisplay, proveGpu } from "./gpudisplay.js";
 import { drivenChannels } from "./humanize.js";
 import { camelCase } from "./sync_api.js";

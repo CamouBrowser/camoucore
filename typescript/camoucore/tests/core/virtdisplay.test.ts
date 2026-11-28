@@ -14,12 +14,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	CannotExecuteXvfb,
 	VirtualDisplayNotSupported,
-} from "../src/exceptions.js";
+} from "../../src/exceptions.js";
 import {
 	COMPOSITE_KEY,
 	SCREEN_KEY,
 	VirtualDisplay,
-} from "../src/virtdisplay.js";
+} from "../../src/virtdisplay.js";
 import { PRODUCT } from "./launcher.js";
 import { prerequisite } from "./prereq.js";
 
@@ -212,7 +212,7 @@ describe.skipIf(
 		// and SIGTERM lets Xvfb remove its own lock and socket. The child loads
 		// the source through Vite's module runner, as vitest does.
 		const src = fileURLToPath(
-			new URL("../src/virtdisplay.ts", import.meta.url),
+			new URL("../../src/virtdisplay.ts", import.meta.url),
 		);
 		const product = fileURLToPath(new URL("./launcher.ts", import.meta.url));
 		const child = spawn(

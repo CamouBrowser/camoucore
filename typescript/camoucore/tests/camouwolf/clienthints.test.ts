@@ -1,9 +1,9 @@
 /**
  * The user agent and the client hints come from one identity and must agree.
- * Twin of python/camouwolf/tests/test_clienthints.py.
+ * Twin of python/camoucore/tests/camouwolf/test_clienthints.py.
  */
 import { describe, expect, it } from "vitest";
-import * as ch from "../src/clienthints.js";
+import * as ch from "../../src/camouwolf/clienthints.js";
 
 const identity = (os: ch.OsKey): ch.ChromeIdentity => ({
 	milestone: 152,

@@ -3,13 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { FIREFOX, Product } from "../src/product.js";
+import { FIREFOX, Product } from "../../src/product.js";
 import {
 	applyDefaults,
 	loadDefaults,
 	userDefaultsPath,
 	writeUserDefaults,
-} from "../src/settings.js";
+} from "../../src/settings.js";
 
 const FOX = new Product("camoufox", "Camoufox", FIREFOX);
 const PACKAGED = {

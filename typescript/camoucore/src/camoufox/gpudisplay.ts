@@ -1,7 +1,7 @@
 /**
  * headless="virtual-gpu": a headless Xorg server pinned to one GPU.
  *
- * TypeScript twin of python/camoufox/src/camoufox/gpudisplay.py.
+ * TypeScript twin of python/camoucore/src/camoucore/camoufox/gpudisplay.py.
  *
  * Xvfb has no GPU path, so a browser on it renders WebGL and canvas with
  * Mesa's software rasterizer. This display is a real Xorg server bound to one
@@ -15,7 +15,7 @@ import * as fs from "node:fs";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
-import { VirtualDisplay } from "camoucore/virtdisplay.js";
+import { VirtualDisplay } from "../virtdisplay.js";
 import {
 	AmbiguousGpuSelection,
 	CannotExecuteXorg,

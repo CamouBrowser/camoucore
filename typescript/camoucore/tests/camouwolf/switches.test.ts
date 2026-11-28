@@ -1,13 +1,13 @@
 /**
  * Command-line hygiene: what is dropped, what is refused, what is added.
- * Twin of python/camouwolf/tests/test_switches.py.
+ * Twin of python/camoucore/tests/camouwolf/test_switches.py.
  */
 import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { ValueError } from "../src/exceptions.js";
-import * as switches from "../src/switches.js";
+import { ValueError } from "../../src/camouwolf/exceptions.js";
+import * as switches from "../../src/camouwolf/switches.js";
 
 const { auditSwitches, mergeListSwitches } = switches;
 

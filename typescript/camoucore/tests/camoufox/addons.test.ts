@@ -1,13 +1,13 @@
 /**
- * Mirrors python/camoufox/tests/test_addons.py: the default addons are the ones the
+ * Mirrors python/camoucore/tests/camoufox/test_addons.py: the default addons are the ones the
  * browser bundles, under addons/<name>/ beside its binary.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { addDefaultAddons, getAddonPath } from "../src/addons.js";
-import { recordWarnings } from "../src/warnings.js";
+import { addDefaultAddons, getAddonPath } from "../../src/camoufox/addons.js";
+import { recordWarnings } from "../../src/camoufox/warnings.js";
 
 let tmp: string;
 

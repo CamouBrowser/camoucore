@@ -1,10 +1,10 @@
 /**
  * The identity is checked against itself on every launch.
- * Twin of python/camouwolf/tests/test_coherence.py.
+ * Twin of python/camoucore/tests/camouwolf/test_coherence.py.
  */
 import { describe, expect, it } from "vitest";
-import * as clienthints from "../src/clienthints.js";
-import * as coherence from "../src/coherence.js";
+import * as clienthints from "../../src/camouwolf/clienthints.js";
+import * as coherence from "../../src/camouwolf/coherence.js";
 
 function windows(): Record<string, any> {
 	return {

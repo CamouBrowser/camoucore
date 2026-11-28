@@ -1,5 +1,5 @@
 /**
- * Mirrors python/camouwolf/tests/test_browser_pin.py: a released library runs the
+ * Mirrors python/camoucore/tests/camouwolf/test_browser_pin.py: a released library runs the
  * browser it was released with, and nothing else by default.
  *
  * INSTALL_DIR is computed at import from XDG_CACHE_HOME, so every test points
@@ -40,11 +40,11 @@ async function setup(opts: {
 	installed: string[];
 	config: Record<string, string>;
 }) {
-	const pinMod = await import("../src/browser-pin.js");
-	const pkgman = await import("../src/pkgman.js");
-	const multiversion = await import("../src/multiversion.js");
-	const exc = await import("../src/exceptions.js");
-	const root = (await import("../src/paths.js")).INSTALL_DIR;
+	const pinMod = await import("../../src/camouwolf/browser-pin.js");
+	const pkgman = await import("../../src/camouwolf/pkgman.js");
+	const multiversion = await import("../../src/camouwolf/multiversion.js");
+	const exc = await import("../../src/camouwolf/exceptions.js");
+	const root = (await import("../../src/camouwolf/paths.js")).INSTALL_DIR;
 	fs.mkdirSync(root, { recursive: true });
 	fs.writeFileSync(path.join(root, ".0.5_FLAG"), "");
 	fs.writeFileSync(path.join(root, "repo_cache.json"), "{}");
@@ -75,7 +75,7 @@ describe("the pin file", () => {
 		"",
 		"not json",
 	])("an empty or unreadable pin (%j) pins nothing", async (content) => {
-		const { loadPin } = await import("../src/browser-pin.js");
+		const { loadPin } = await import("../../src/camouwolf/browser-pin.js");
 		const f = path.join(tmp, "p.json");
 		fs.writeFileSync(f, content);
 		expect(loadPin(f)).toBeNull();
@@ -85,7 +85,7 @@ describe("the pin file", () => {
 	it("the checked-in pin is empty: only the release workflow writes one", () => {
 		const file = path.resolve(
 			__dirname,
-			"../../../python/camouwolf/src/camouwolf/browser-pin.json",
+			"../../../../python/camoucore/src/camoucore/camouwolf/browser-pin.json",
 		);
 		expect(JSON.parse(fs.readFileSync(file, "utf-8"))).toEqual({});
 	});
@@ -98,7 +98,7 @@ describe("the browser repository's pin", () => {
 	 * `camouwolf` package installed in its node_modules.
 	 */
 	async function project(opts: { wrapperPin?: object; exportsPin?: boolean }) {
-		const pinMod = await import("../src/browser-pin.js");
+		const pinMod = await import("../../src/camouwolf/browser-pin.js");
 		const own = path.join(tmp, "driver-pin.json");
 		fs.writeFileSync(own, JSON.stringify(PIN));
 		pinMod.browserPinDeps.file = own;
@@ -234,7 +234,9 @@ describe("the browser option", () => {
 			installed: ["152.0.4-beta.31"],
 			config: {},
 		});
-		const { LAUNCH_FILE, OS_NAME } = await import("../src/paths.js");
+		const { LAUNCH_FILE, OS_NAME } = await import(
+			"../../src/camouwolf/paths.js"
+		);
 		const dir = path.join(ctx.root, "browsers", "official", "152.0.4-beta.31");
 		const exe =
 			OS_NAME === "mac"

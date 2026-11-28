@@ -5,8 +5,8 @@
  */
 import * as net from "node:net";
 import { expect, it } from "vitest";
-import { InvalidIP } from "../src/exceptions.js";
-import { publicIP } from "../src/ip.js";
+import { InvalidIP } from "../../src/exceptions.js";
+import { publicIP } from "../../src/ip.js";
 
 it("fails with the proxy's tunnel rather than going around it", async () => {
 	const targets: string[] = [];

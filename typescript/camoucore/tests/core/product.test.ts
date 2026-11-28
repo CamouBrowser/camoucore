@@ -1,8 +1,8 @@
 /** Twin of python/camoucore/tests/test_product.py: two launchers in one process keep their own names. */
 import { afterEach, expect, it } from "vitest";
-import { VirtualDisplayNotSupported } from "../src/exceptions.js";
-import { CHROMIUM, FIREFOX, Product } from "../src/product.js";
-import { SCREEN_KEY, VirtualDisplay } from "../src/virtdisplay.js";
+import { VirtualDisplayNotSupported } from "../../src/exceptions.js";
+import { CHROMIUM, FIREFOX, Product } from "../../src/product.js";
+import { SCREEN_KEY, VirtualDisplay } from "../../src/virtdisplay.js";
 
 const FOX = new Product("camoufox", "Camoufox", FIREFOX);
 const WOLF = new Product("camouwolf", "Camouwolf", CHROMIUM);

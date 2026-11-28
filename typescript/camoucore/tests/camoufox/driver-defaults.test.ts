@@ -11,12 +11,12 @@ import {
 	attach as attachHumanize,
 	clock,
 	FRAME_ORIGIN,
-} from "../src/_humanize_playwright.js";
+} from "../../src/camoufox/_humanize_playwright.js";
 import {
 	attachDriverDefaults,
 	FILL_NEEDS_CLICK,
-} from "../src/driver_defaults.js";
-import { myuri, raw } from "../src/humanize.js";
+} from "../../src/camoufox/driver_defaults.js";
+import { myuri, raw } from "../../src/camoufox/humanize.js";
 
 const HIT_TEST = String(HIT_TEST_JS);
 const BOX = { x: 40, y: 120, width: 200, height: 24 };

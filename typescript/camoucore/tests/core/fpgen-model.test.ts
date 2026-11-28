@@ -5,7 +5,7 @@
  */
 import { MODEL_PIN } from "fpgen-js";
 import { expect, it } from "vitest";
-import { loadDataFile } from "../src/data.js";
+import { loadDataFile } from "../../src/data.js";
 
 it("matches python/camoucore/src/camoucore/fpgen-model.json", () => {
 	const { note: _note, ...fields } = loadDataFile("fpgen-model.json");

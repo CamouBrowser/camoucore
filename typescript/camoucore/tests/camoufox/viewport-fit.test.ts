@@ -1,6 +1,6 @@
 /**
  * A viewport the caller asks for sits on a screen and in a window that can
- * hold it. Twin of python/camoufox/tests/test_viewport_fit.py (which also derives
+ * hold it. Twin of python/camoucore/tests/camoufox/test_viewport_fit.py (which also derives
  * RECORDED_WINDOW_CHROME from fpgen's recorded windows).
  */
 

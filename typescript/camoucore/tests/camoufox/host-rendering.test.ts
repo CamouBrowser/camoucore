@@ -1,7 +1,7 @@
 /**
  * The canvas renders on the host: an identity on the host's OS claims the
  * host's GPU, and one on another OS gets the canvas placeholder.
- * Twin of python/camoufox/tests/test_host_rendering.py.
+ * Twin of python/camoucore/tests/camoufox/test_host_rendering.py.
  */
 import * as fs from "node:fs";
 import { firefox } from "playwright-core";
@@ -18,7 +18,7 @@ import {
 	warnings,
 } from "./launch-host.js";
 
-const { NewContext } = await import("../src/sync_api.js");
+const { NewContext } = await import("../../src/camoufox/sync_api.js");
 const {
 	BASELINE_OVERRIDES_PREF,
 	CANVAS_PLACEHOLDER_TARGETS,
@@ -28,8 +28,8 @@ const {
 	hostGpu,
 	setWebgpu,
 	WEBGPU_BLOCKLIST_PREF,
-} = await import("../src/host_rendering.js");
-type Gpu = import("../src/host_rendering.js").Gpu;
+} = await import("../../src/camoufox/host_rendering.js");
+type Gpu = import("../../src/camoufox/host_rendering.js").Gpu;
 // Imported after launch-host, which has to set the cache directory first.
 const { MODEL } = await import("./fpgen-setup.js");
 

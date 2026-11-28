@@ -5,7 +5,7 @@
  * one recorder catches what the core and this launcher emit.
  */
 import * as os from "node:os";
-import { warn } from "camoucore/warnings.js";
+import { warn } from "../warnings.js";
 import { LIBRARY_VERSION } from "./__version__.js";
 import { CamouwolfNotInstalled } from "./exceptions.js";
 import { loadDataFile } from "./paths.js";
@@ -16,7 +16,7 @@ export {
 	type RecordedWarning,
 	recordWarnings,
 	warn,
-} from "camoucore/warnings.js";
+} from "../warnings.js";
 
 let warningsData: Record<string, string> | undefined;
 

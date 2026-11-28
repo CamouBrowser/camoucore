@@ -11,6 +11,7 @@ const SOURCE = fs.readFileSync(
 	path.join(
 		path.dirname(fileURLToPath(import.meta.url)),
 		"..",
+		"..",
 		"src",
 		"virtdisplay.ts",
 	),

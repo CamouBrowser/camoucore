@@ -1,12 +1,12 @@
 /**
- * Twin of python/camoufox/tests/test_settled_rules.py: settled decisions the
+ * Twin of python/camoucore/tests/camoufox/test_settled_rules.py: settled decisions the
  * camoufox driver holds, from the browser repositories' ci/tribal-rules.yml.
  */
 import * as fs from "node:fs";
-import { COMPOSITE_KEY, SCREEN_KEY } from "camoucore/virtdisplay.js";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { SERVER_FLAGS } from "../src/gpudisplay.js";
-import { PRODUCT } from "../src/product.js";
+import { SERVER_FLAGS } from "../../src/camoufox/gpudisplay.js";
+import { PRODUCT } from "../../src/camoufox/product.js";
+import { COMPOSITE_KEY, SCREEN_KEY } from "../../src/virtdisplay.js";
 import { MODEL } from "./fpgen-setup.js";
 import {
 	BUNDLE_EXE,
@@ -41,7 +41,7 @@ it("gives Firefox a 1x1x24 virtual display", () => {
 });
 
 it("drops the viewport when the window is spoofed", async () => {
-	const utils = await import("../src/utils.js");
+	const utils = await import("../../src/camoufox/utils.js");
 	expect(typeof utils.spoofsWindowDimensions).toBe("function");
 	expect(typeof utils.attachNoViewportDefault).toBe("function");
 });

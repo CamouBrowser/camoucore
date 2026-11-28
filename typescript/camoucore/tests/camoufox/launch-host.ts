@@ -32,9 +32,9 @@ export const CACHE = path.join(SCRATCH, "xdg-cache", "camoufox");
 export const HOME = path.join(SCRATCH, "home");
 fs.mkdirSync(HOME, { recursive: true });
 
-export const utils = await import("../src/utils.js");
-export const fingerprints = await import("../src/fingerprints.js");
-export const warnings = await import("../src/warnings.js");
+export const utils = await import("../../src/camoufox/utils.js");
+export const fingerprints = await import("../../src/camoufox/fingerprints.js");
+export const warnings = await import("../../src/camoufox/warnings.js");
 
 /** Reassemble the chunked CAMOU_CONFIG_<n> env vars into the config. */
 export function configOf(options: Record<string, any>): Record<string, any> {

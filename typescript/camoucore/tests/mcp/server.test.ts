@@ -8,12 +8,12 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { Browser, BrowserType } from "playwright-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { Secrets } from "../src/secrets.js";
+import { Secrets } from "../../src/mcp/secrets.js";
 import {
 	createServer,
 	type Launcher,
 	type ServerOptions,
-} from "../src/server.js";
+} from "../../src/mcp/server.js";
 // Plain JavaScript, so the spawned server in cli.test.ts can import it too.
 import * as fake from "./fake-launcher.mjs";
 

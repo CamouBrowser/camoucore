@@ -1,4 +1,4 @@
-# Recorded from pythonlib by tests/golden-setup.ts on every test run.
+# Recorded from pythonlib by tests/camoufox/golden-setup.ts on every test run.
 /fpgen/*
 !/fpgen/stats.json
 /identity/

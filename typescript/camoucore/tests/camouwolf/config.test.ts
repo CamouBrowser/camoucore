@@ -1,6 +1,6 @@
 /**
  * The config contract: the schema, validation, and how it reaches the
- * browser. Twin of python/camouwolf/tests/test_config.py.
+ * browser. Twin of python/camoucore/tests/camouwolf/test_config.py.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -10,9 +10,9 @@ import {
 	InvalidPropertyType,
 	KeyError,
 	UnknownProperty,
-} from "../src/exceptions.js";
-import { LOCAL_DATA } from "../src/paths.js";
-import { PyFloat } from "../src/pycompat.js";
+} from "../../src/camouwolf/exceptions.js";
+import { LOCAL_DATA } from "../../src/camouwolf/paths.js";
+import { PyFloat } from "../../src/camouwolf/pycompat.js";
 import { restoreDeps, stubHost, utils } from "./launch-host.js";
 
 const SCHEMA = path.join(LOCAL_DATA, "data", "properties.json");

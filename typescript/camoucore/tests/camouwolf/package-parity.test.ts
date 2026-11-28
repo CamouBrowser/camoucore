@@ -5,15 +5,18 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { LIBRARY_VERSION } from "../src/__version__.js";
-import { FRAME_ORIGIN, VIEWPORT } from "../src/_humanize_playwright.js";
-import { FILL_NEEDS_CLICK } from "../src/driver_defaults.js";
-import { DATA_FILES, LOCAL_DATA } from "../src/paths.js";
+import { LIBRARY_VERSION } from "../../src/camouwolf/__version__.js";
+import {
+	FRAME_ORIGIN,
+	VIEWPORT,
+} from "../../src/camouwolf/_humanize_playwright.js";
+import { FILL_NEEDS_CLICK } from "../../src/camouwolf/driver_defaults.js";
+import { DATA_FILES, LOCAL_DATA } from "../../src/camouwolf/paths.js";
 import { prerequisite } from "./prereq.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const PKG = path.resolve(HERE, "..");
-const PYLIB = path.resolve(PKG, "..", "..", "python", "camouwolf");
+const PKG = path.resolve(HERE, "..", "..");
+const PYLIB = path.resolve(PKG, "..", "..", "python", "camoucore");
 const pkg = JSON.parse(
 	fs.readFileSync(path.join(PKG, "package.json"), "utf-8"),
 );
@@ -46,15 +49,19 @@ describe("package.json tracks pyproject.toml", () => {
 
 	it("builds with the Python package's data files, byte for byte", () => {
 		// `pnpm build` copies them (scripts/copy-files.mjs); a copy that differs
-		// from python/camouwolf/src/camouwolf is a stale or edited one.
-		const built = path.join(PKG, "dist", "data-files");
+		// from python/camoucore/src/camoucore/camouwolf is a stale or edited one.
+		const built = path.join(PKG, "dist", "camouwolf", "data-files");
 		if (!prerequisite("build", fs.existsSync(built), "run pnpm build")) return;
 		for (const name of DATA_FILES) {
 			expect(
 				fs
 					.readFileSync(path.join(built, name))
-					.equals(fs.readFileSync(path.join(PYLIB, "src", "camouwolf", name))),
-				`dist/data-files/${name} differs from python/camouwolf/src/camouwolf/${name}`,
+					.equals(
+						fs.readFileSync(
+							path.join(PYLIB, "src", "camoucore", "camouwolf", name),
+						),
+					),
+				`dist/camouwolf/data-files/${name} differs from python/camoucore/src/camoucore/camouwolf/${name}`,
 			).toBe(true);
 		}
 		const extra = fs
@@ -67,7 +74,9 @@ describe("package.json tracks pyproject.toml", () => {
 	});
 
 	it("reads every data file from the Python package, the one copy", () => {
-		expect(path.resolve(LOCAL_DATA)).toBe(path.join(PYLIB, "src", "camouwolf"));
+		expect(path.resolve(LOCAL_DATA)).toBe(
+			path.join(PYLIB, "src", "camoucore", "camouwolf"),
+		);
 		for (const name of DATA_FILES)
 			expect(fs.existsSync(path.join(LOCAL_DATA, name)), name).toBe(true);
 	});
@@ -76,7 +85,7 @@ describe("package.json tracks pyproject.toml", () => {
 describe("the page scripts are the Python package's, byte for byte", () => {
 	const constant = (file: string, name: string) => {
 		const source = fs.readFileSync(
-			path.join(PYLIB, "src", "camouwolf", file),
+			path.join(PYLIB, "src", "camoucore", "camouwolf", file),
 			"utf-8",
 		);
 		const match =

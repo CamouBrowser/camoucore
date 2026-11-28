@@ -1,7 +1,7 @@
 /**
  * Every test file runs with telemetry off (a test with a fake sender turns it
  * back on) and without the user's own defaults file. Twin of the
- * isolated_environment fixture in python/camouwolf/tests/conftest.py.
+ * isolated_environment fixture in python/camoucore/tests/camouwolf/conftest.py.
  */
 import * as os from "node:os";
 import * as path from "node:path";

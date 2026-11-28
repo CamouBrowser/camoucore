@@ -1,6 +1,6 @@
 /**
  * An fpgen Chrome fingerprint becomes the config the browser reads.
- * Twin of python/camouwolf/tests/test_fpgen_mapping.py.
+ * Twin of python/camoucore/tests/camouwolf/test_fpgen_mapping.py.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { MODEL } from "./fpgen-setup.js";
 import { fingerprints, utils } from "./launch-host.js";
 
-const webgl = await import("../src/webgl.js");
+const webgl = await import("../../src/camouwolf/webgl.js");
 const { fromFpgen } = fingerprints;
 
 const RTX =

@@ -1,5 +1,5 @@
 /**
- * Port of python/camoufox/tests/test_launch_rules.py: what a build declares beside
+ * Port of python/camoucore/tests/camoufox/test_launch_rules.py: what a build declares beside
  * its binary (launch.json, properties.json) is what the launcher applies.
  */
 import * as fs from "node:fs";

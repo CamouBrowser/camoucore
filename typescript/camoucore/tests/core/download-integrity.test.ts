@@ -8,8 +8,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { verifySha256 } from "../src/download.js";
-import { CorruptedDownload } from "../src/exceptions.js";
+import { verifySha256 } from "../../src/download.js";
+import { CorruptedDownload } from "../../src/exceptions.js";
 
 // Large enough to span several read() blocks, so a single-shot read
 // regression cannot pass by accident.

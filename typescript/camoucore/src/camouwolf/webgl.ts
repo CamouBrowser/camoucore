@@ -15,7 +15,7 @@
  * (browser/patches/0007-webgl-spoofing.patch); an extension it lacks cannot be
  * added, only one the claimed device lacks hidden.
  *
- * TypeScript twin of python/camouwolf/src/camouwolf/webgl.py.
+ * TypeScript twin of python/camoucore/src/camoucore/camouwolf/webgl.py.
  */
 import { type TraceResult, trace } from "fpgen-js";
 import { FPGEN_OS, isSoftwareRenderer, OS_KEYS } from "./fingerprints.js";

@@ -1,5 +1,5 @@
 /**
- * Mirrors python/camoufox/tests/test_proxy_dns.py: who resolves names behind a proxy
+ * Mirrors python/camoucore/tests/camoufox/test_proxy_dns.py: who resolves names behind a proxy
  * (docs/proxy-dns.md).
  */
 import { afterEach, expect, it, vi } from "vitest";
@@ -8,7 +8,7 @@ import {
 	applyProxyOptimisticData,
 	PROXY_DOH_PREFS,
 	utilsDeps,
-} from "../src/utils.js";
+} from "../../src/camoufox/utils.js";
 
 const SOCKS = {
 	server: "socks5://proxy.example:1080",

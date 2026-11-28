@@ -1,7 +1,7 @@
 /** Twin of python/camoucore/tests/test_telemetry.py. */
 import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it } from "vitest";
-import { FIREFOX, Product } from "../src/product.js";
+import { FIREFOX, Product } from "../../src/product.js";
 import {
 	type Observation,
 	proxyProvider,
@@ -12,7 +12,7 @@ import {
 	Tally,
 	Telemetry,
 	telemetryEnabled,
-} from "../src/telemetry.js";
+} from "../../src/telemetry.js";
 
 const PRODUCT = new Product("camoufox", "Camoufox", FIREFOX);
 const RULES = new Rules();

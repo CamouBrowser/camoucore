@@ -1,8 +1,8 @@
 /**
  * Per-channel humanized input, run by the driver, never by the browser.
- * The TypeScript twin of python/camoufox/src/camoufox/humanize.py.
+ * The TypeScript twin of python/camoucore/src/camoucore/camoufox/humanize.py.
  *
- *     import { Camoufox, myuri, raw } from "camoucore-camoufox";
+ *     import { Camoufox, myuri, raw } from "camoufox";
  *
  *     await Camoufox({ humanize: true });          // myuri on every channel
  *     await Camoufox({

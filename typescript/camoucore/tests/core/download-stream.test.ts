@@ -6,7 +6,7 @@
 import * as net from "node:net";
 import { Writable } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { webdl } from "../src/download.js";
+import { webdl } from "../../src/download.js";
 
 afterEach(() => {
 	vi.unstubAllGlobals();

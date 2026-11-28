@@ -4,7 +4,7 @@
  *
  * Opt-in -- it needs a browser binary:
  *
- *   CAMOUFOX_E2E=1 CAMOUFOX_EXECUTABLE=/path/to/camoufox-bin pnpm test tests/e2e.test.ts
+ *   CAMOUFOX_E2E=1 CAMOUFOX_EXECUTABLE=/path/to/camoufox-bin pnpm test tests/camoufox/e2e.test.ts
  *
  * Two kinds of assertion, deliberately kept apart:
  *
@@ -12,7 +12,7 @@
  *    persistent context, through launchServer() and through NewContext(), runs
  *    tests/fixtures/e2e/probe.js on a local page, then launches the PYTHON
  *    camoufox on the same binary with the same identity
- *    (scripts/e2e/python_probe.py, run with $CAMOUFOX_E2E_PYTHON or the repo's
+ *    (scripts/camoufox/e2e/python_probe.py, run with $CAMOUFOX_E2E_PYTHON or the repo's
  *    .venv) and requires the same CAMOU_CONFIG and the same probe result. This is
  *    the claim this package makes, and it holds on any binary.
  *
@@ -35,12 +35,12 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { speechdVoices } from "../src/fingerprints.js";
+import { speechdVoices } from "../../src/camoufox/fingerprints.js";
 import { PYTHON as GOLDEN_PYTHON } from "./golden-setup.js";
 import { prerequisite } from "./prereq.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..", "..");
+const REPO = path.resolve(HERE, "..", "..", "..", "..");
 const EXECUTABLE = process.env.CAMOUFOX_EXECUTABLE ?? "";
 const ENABLED = process.env.CAMOUFOX_E2E === "1" && Boolean(EXECUTABLE);
 const PYTHON = process.env.CAMOUFOX_E2E_PYTHON ?? GOLDEN_PYTHON;
@@ -202,8 +202,9 @@ function pythonProbe(
 				path.join(
 					REPO,
 					"typescript",
-					"camoufox",
+					"camoucore",
 					"scripts",
+					"camoufox",
 					"e2e",
 					"python_probe.py",
 				),
@@ -352,19 +353,19 @@ function expectMatchesConfig(
 
 describe.runIf(ENABLED)("e2e: the TS launcher drives a real Camoufox", () => {
 	let mods: {
-		sync: typeof import("../src/sync_api.js");
-		server: typeof import("../src/server.js");
-		utils: typeof import("../src/utils.js");
-		warnings: typeof import("../src/warnings.js");
+		sync: typeof import("../../src/camoufox/sync_api.js");
+		server: typeof import("../../src/camoufox/server.js");
+		utils: typeof import("../../src/camoufox/utils.js");
+		warnings: typeof import("../../src/camoufox/warnings.js");
 	};
 	const results: Record<string, any> = {};
 
 	beforeAll(async () => {
 		mods = {
-			sync: await import("../src/sync_api.js"),
-			server: await import("../src/server.js"),
-			utils: await import("../src/utils.js"),
-			warnings: await import("../src/warnings.js"),
+			sync: await import("../../src/camoufox/sync_api.js"),
+			server: await import("../../src/camoufox/server.js"),
+			utils: await import("../../src/camoufox/utils.js"),
+			warnings: await import("../../src/camoufox/warnings.js"),
 		};
 	});
 
@@ -551,7 +552,7 @@ describe.runIf(ENABLED)("e2e: the TS launcher drives a real Camoufox", () => {
 						// The launching process got its cores back...
 						expect(selfCores()).toBe(before);
 						// ...and the browser it spawned runs on exactly `reported` cores.
-						const { parseCpuList } = await import("camoucore/cpu_affinity.js");
+						const { parseCpuList } = await import("../../src/cpu_affinity.js");
 						const children = fs
 							.readFileSync(
 								`/proc/${process.pid}/task/${process.pid}/children`,

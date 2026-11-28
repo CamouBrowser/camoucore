@@ -4,7 +4,7 @@
  * Xorg argv, the browser's environment and prefs, the identity's GPU probe,
  * the GPU-use check, and teardown.
  *
- * Twin of python/camoufox/tests/test_gpudisplay.py. The real display is
+ * Twin of python/camoucore/tests/camoufox/test_gpudisplay.py. The real display is
  * gpu-display.test.ts.
  */
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
@@ -28,8 +28,8 @@ const {
 	GpuSoftwareFallback,
 	NoGpuFound,
 	VirtualDisplayError,
-} = await import("../src/exceptions.js");
-const gpudisplay = await import("../src/gpudisplay.js");
+} = await import("../../src/camoufox/exceptions.js");
+const gpudisplay = await import("../../src/camoufox/gpudisplay.js");
 const {
 	busId,
 	configName,
@@ -43,8 +43,8 @@ const {
 	xorgConfig,
 	xorgDriver,
 } = gpudisplay;
-type GpuDevice = import("../src/gpudisplay.js").GpuDevice;
-const { hostGpu } = await import("../src/host_rendering.js");
+type GpuDevice = import("../../src/camoufox/gpudisplay.js").GpuDevice;
+const { hostGpu } = await import("../../src/camoufox/host_rendering.js");
 const { firefox } = await import("playwright-core");
 
 const deps = utils.utilsDeps;
@@ -701,7 +701,7 @@ describe("the server", () => {
 		const connect = vi
 			.spyOn(firefox, "connect")
 			.mockResolvedValue(browser as any);
-		const { launchServer } = await import("../src/server.js");
+		const { launchServer } = await import("../../src/camoufox/server.js");
 		const result = quietly(() =>
 			launchServer({
 				headless: "virtual-gpu",

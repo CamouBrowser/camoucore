@@ -2,7 +2,7 @@
  * Browser package management: version resolution, GitHub release discovery,
  * download/extract, and path lookup.
  *
- * TypeScript twin of python/camouwolf/src/camouwolf/pkgman.py.
+ * TypeScript twin of python/camoucore/src/camoucore/camouwolf/pkgman.py.
  */
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -10,12 +10,7 @@ import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Writable } from "node:stream";
-import {
-	githubHeaders,
-	raiseForStatus,
-	request,
-	webdl,
-} from "camoucore/download.js";
+import { githubHeaders, raiseForStatus, request, webdl } from "../download.js";
 import { CONSTRAINTS, LIBRARY_VERSION } from "./__version__.js";
 import {
 	effectivePin,

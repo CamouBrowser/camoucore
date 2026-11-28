@@ -1,7 +1,7 @@
 /**
  * The launcher entry points: Camoufox(), NewBrowser(), NewContext().
  *
- * TypeScript twin of python/camoufox/src/camoufox/sync_api.py (and async_api.py, whose
+ * TypeScript twin of python/camoucore/src/camoucore/camoufox/sync_api.py (and async_api.py, whose
  * names async_api.ts re-exports). The Python library ships a sync and an
  * async variant because Playwright-Python has two APIs; playwright-core has
  * only one (promise-based), so the behaviours of both live here: the
@@ -9,10 +9,6 @@
  * launch lock (async_api), and virtual-display teardown.
  */
 
-import * as cpuAffinity from "camoucore/cpu_affinity.js";
-import { type ProxyConfig, ProxyHelper, proxyExitGeo } from "camoucore/ip.js";
-import { SELECTOR } from "camoucore/locales.js";
-import type { VirtualDisplay } from "camoucore/virtdisplay.js";
 import { ensureModel } from "fpgen-js";
 import {
 	type Browser,
@@ -20,6 +16,10 @@ import {
 	type BrowserType,
 	firefox,
 } from "playwright-core";
+import * as cpuAffinity from "../cpu_affinity.js";
+import { type ProxyConfig, ProxyHelper, proxyExitGeo } from "../ip.js";
+import { SELECTOR } from "../locales.js";
+import type { VirtualDisplay } from "../virtdisplay.js";
 import { attach } from "./_humanize_playwright.js";
 import { attachDriverDefaults } from "./driver_defaults.js";
 import { generateContextFingerprint } from "./fingerprints.js";

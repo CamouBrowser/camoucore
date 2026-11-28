@@ -21,20 +21,20 @@ import warnings
 from pathlib import Path
 
 HERE = Path(__file__).resolve()
-TYPESCRIPT = HERE.parents[2]
-sys.path.insert(0, str(TYPESCRIPT.parent.parent / 'python' / 'camouwolf' / 'src'))
+TYPESCRIPT = HERE.parents[3]
+sys.path.insert(0, str(TYPESCRIPT.parent.parent / 'python' / 'camoucore' / 'src'))
 
 for name in ('DISPLAY', 'WAYLAND_DISPLAY', 'CAMOUWOLF_EXECUTABLE_PATH', 'CAMOUWOLF_GPU'):
     os.environ.pop(name, None)
 
 from camoucore import cpu_affinity  # noqa: E402
-from camouwolf import DefaultAddons, addons, fingerprints, utils  # noqa: E402
-from camouwolf.fingerprints import Screen  # noqa: E402
+from camoucore.camouwolf import DefaultAddons, addons, fingerprints, utils  # noqa: E402
+from camoucore.camouwolf.fingerprints import Screen  # noqa: E402
 from camoucore.locales import Geolocation, Locale  # noqa: E402
 
-FIXTURES = TYPESCRIPT / 'tests' / 'fixtures' / 'launch'
+FIXTURES = TYPESCRIPT / 'tests' / 'camouwolf' / 'fixtures' / 'launch'
 BUNDLE = FIXTURES / 'bundle'
-GOLDEN = TYPESCRIPT / 'tests' / 'golden' / 'launch.json'
+GOLDEN = TYPESCRIPT / 'tests' / 'camouwolf' / 'golden' / 'launch.json'
 
 # The host every case runs on. tests/launch-host.ts holds the same values.
 HOST = {

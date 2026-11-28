@@ -1,5 +1,5 @@
 /**
- * Mirrors python/camoufox/tests/test_profile_directory.py (the pkgman half; the
+ * Mirrors python/camoucore/tests/camoufox/test_profile_directory.py (the pkgman half; the
  * launch-preflight ordering is covered with the launcher tests): Firefox
  * probes ~/.camoufox at startup even with a Playwright-supplied profile.
  */
@@ -18,8 +18,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	vi.doUnmock("../src/paths.js");
-	vi.doUnmock("../src/multiversion.js");
+	vi.doUnmock("../../src/camoufox/paths.js");
+	vi.doUnmock("../../src/camoufox/multiversion.js");
 	for (const p of [path.join(home, ".camoufox"), home]) {
 		try {
 			fs.chmodSync(p, 0o700);
@@ -29,11 +29,11 @@ afterEach(() => {
 });
 
 async function pkgmanAs(osName: "lin" | "mac" | "win") {
-	vi.doMock("../src/paths.js", async (importOriginal) => ({
-		...(await importOriginal<typeof import("../src/paths.js")>()),
+	vi.doMock("../../src/camoufox/paths.js", async (importOriginal) => ({
+		...(await importOriginal<typeof import("../../src/camoufox/paths.js")>()),
 		OS_NAME: osName,
 	}));
-	return import("../src/pkgman.js");
+	return import("../../src/camoufox/pkgman.js");
 }
 
 it("creates a missing Linux profile directory", async () => {
@@ -61,7 +61,9 @@ it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
 	async () => {
 		fs.mkdirSync(home);
 		const pkgman = await pkgmanAs("lin");
-		const { ProfileDirectoryError } = await import("../src/exceptions.js");
+		const { ProfileDirectoryError } = await import(
+			"../../src/camoufox/exceptions.js"
+		);
 		fs.chmodSync(home, 0o500);
 
 		expect(() => pkgman.ensureBrowserProfileDir({ HOME: home })).toThrow(
@@ -100,8 +102,10 @@ it("fetch prepares the profile directory", async () => {
 	const saved = process.env.HOME;
 	process.env.HOME = home;
 	try {
-		vi.doMock("../src/multiversion.js", async (importOriginal) => ({
-			...(await importOriginal<typeof import("../src/multiversion.js")>()),
+		vi.doMock("../../src/camoufox/multiversion.js", async (importOriginal) => ({
+			...(await importOriginal<
+				typeof import("../../src/camoufox/multiversion.js")
+			>()),
 			installVersioned: async () => true,
 		}));
 		const pkgman = await pkgmanAs("lin");

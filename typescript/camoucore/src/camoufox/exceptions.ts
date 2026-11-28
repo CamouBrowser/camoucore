@@ -1,5 +1,5 @@
 /**
- * TypeScript twin of python/camoufox/src/camoufox/exceptions.py. The errors the core
+ * TypeScript twin of python/camoucore/src/camoucore/camoufox/exceptions.py. The errors the core
  * raises are camoucore's, re-exported so `catch` sites keep one import.
  *
  * The Python hierarchy leans on builtin bases (FileNotFoundError, ValueError,
@@ -8,7 +8,7 @@
  * VirtualDisplayError -- is preserved.
  */
 
-import { VirtualDisplayError } from "camoucore/exceptions.js";
+import { VirtualDisplayError } from "../exceptions.js";
 
 export {
 	CannotExecuteXvfb,
@@ -25,7 +25,7 @@ export {
 	UnsupportedOS,
 	VirtualDisplayError,
 	VirtualDisplayNotSupported,
-} from "camoucore/exceptions.js";
+} from "../exceptions.js";
 
 /** The Python twin relies on the builtin FileNotFoundError; JS has no such
  *  class, so version-lookup misses raise this instead. */

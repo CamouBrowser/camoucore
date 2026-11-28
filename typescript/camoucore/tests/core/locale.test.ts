@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { InvalidLocale } from "../src/exceptions.js";
+import { InvalidLocale } from "../../src/exceptions.js";
 import {
 	handleLocale,
 	handleLocales,
 	normalizeLocale,
-} from "../src/locales.js";
+} from "../../src/locales.js";
 
 describe("normalizeLocale", () => {
 	it("splits language and region", () => {
@@ -95,7 +95,7 @@ describe("handleLocales", () => {
 
 describe("StatisticalLocaleSelector (numpy parity)", () => {
 	it("sums like numpy (pairwise)", async () => {
-		const { pairwiseSum } = await import("../src/locales.js");
+		const { pairwiseSum } = await import("../../src/locales.js");
 		// Values from numpy: 200 x 0.1 sums to 20.0 pairwise (20.000000000000014
 		// sequentially); the 115-element one exercises the 8-way unroll + tail.
 		expect(pairwiseSum(Array.from({ length: 200 }, () => 0.1))).toBe(20);
@@ -107,7 +107,7 @@ describe("StatisticalLocaleSelector (numpy parity)", () => {
 	});
 
 	it("picks by searchsorted(right) of one uniform draw", async () => {
-		const { localeDeps, weightedChoice } = await import("../src/locales.js");
+		const { localeDeps, weightedChoice } = await import("../../src/locales.js");
 		const before = localeDeps.random;
 		try {
 			localeDeps.random = () => 0.5;

@@ -2,7 +2,7 @@
 /**
  * The `camouwolf` CLI.
  *
- * TypeScript twin of python/camouwolf/src/camouwolf/__main__.py. Every command is present,
+ * TypeScript twin of python/camoucore/src/camoucore/camouwolf/__main__.py. Every command is present,
  * with the same arguments, output and config/cache files. The interactive
  * pickers (`set`, `set --geoip`, `remove --select`) use a numbered
  * prompt in place of inquirer's arrow-key list.
@@ -11,6 +11,8 @@ import "./node-floor.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
+import { Argument, Command, Option } from "commander";
+import { ensureModel } from "fpgen-js";
 import {
 	allowGeoip,
 	downloadMmdb,
@@ -21,10 +23,8 @@ import {
 	loadGeoipRepos,
 	saveGeoipConfig,
 	warnIfDeprecated,
-} from "camoucore/geolocation.js";
-import { writeUserDefaults } from "camoucore/settings.js";
-import { Argument, Command, Option } from "commander";
-import { ensureModel } from "fpgen-js";
+} from "../geolocation.js";
+import { writeUserDefaults } from "../settings.js";
 import { LIBRARY_VERSION } from "./__version__.js";
 import {
 	type BrowserPin,

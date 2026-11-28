@@ -1,5 +1,5 @@
 /**
- * Mirrors python/camouwolf/tests/test_profile_directory.py (the pkgman half; the
+ * Mirrors python/camoucore/tests/camouwolf/test_profile_directory.py (the pkgman half; the
  * launch-preflight ordering is covered with the launcher tests): Chromium
  * probes ~/.config/camouwolf at startup even with a Playwright-supplied profile.
  */
@@ -18,8 +18,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	vi.doUnmock("../src/paths.js");
-	vi.doUnmock("../src/multiversion.js");
+	vi.doUnmock("../../src/camouwolf/paths.js");
+	vi.doUnmock("../../src/camouwolf/multiversion.js");
 	for (const p of [path.join(home, ".config", "camouwolf"), home]) {
 		try {
 			fs.chmodSync(p, 0o700);
@@ -29,11 +29,11 @@ afterEach(() => {
 });
 
 async function pkgmanAs(osName: "lin" | "mac" | "win") {
-	vi.doMock("../src/paths.js", async (importOriginal) => ({
-		...(await importOriginal<typeof import("../src/paths.js")>()),
+	vi.doMock("../../src/camouwolf/paths.js", async (importOriginal) => ({
+		...(await importOriginal<typeof import("../../src/camouwolf/paths.js")>()),
 		OS_NAME: osName,
 	}));
-	return import("../src/pkgman.js");
+	return import("../../src/camouwolf/pkgman.js");
 }
 
 it("creates a missing Linux profile directory", async () => {
@@ -61,7 +61,9 @@ it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
 	async () => {
 		fs.mkdirSync(home);
 		const pkgman = await pkgmanAs("lin");
-		const { ProfileDirectoryError } = await import("../src/exceptions.js");
+		const { ProfileDirectoryError } = await import(
+			"../../src/camouwolf/exceptions.js"
+		);
 		fs.chmodSync(home, 0o500);
 
 		expect(() => pkgman.ensureBrowserProfileDir({ HOME: home })).toThrow(
@@ -100,10 +102,15 @@ it("fetch prepares the profile directory", async () => {
 	const saved = process.env.HOME;
 	process.env.HOME = home;
 	try {
-		vi.doMock("../src/multiversion.js", async (importOriginal) => ({
-			...(await importOriginal<typeof import("../src/multiversion.js")>()),
-			installVersioned: async () => true,
-		}));
+		vi.doMock(
+			"../../src/camouwolf/multiversion.js",
+			async (importOriginal) => ({
+				...(await importOriginal<
+					typeof import("../../src/camouwolf/multiversion.js")
+				>()),
+				installVersioned: async () => true,
+			}),
+		);
 		const pkgman = await pkgmanAs("lin");
 		const fetcher = Object.create(
 			pkgman.CamouwolfFetcher.prototype,

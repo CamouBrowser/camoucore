@@ -1,5 +1,5 @@
 /**
- * Launch-option assembly, the twin of python/camouwolf/src/camouwolf/utils.py:
+ * Launch-option assembly, the twin of python/camoucore/src/camoucore/camouwolf/utils.py:
  * launchOptions() must return what launch_options() does
  * (tests/launch-golden.test.ts). `utilsDeps` holds what the Python tests
  * monkeypatch.
@@ -9,22 +9,22 @@ import { createHash, randomInt } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { inspect } from "node:util";
-import * as cpuAffinity from "camoucore/cpu_affinity.js";
-import { hasDisplay, largestDisplay } from "camoucore/display.js";
-import { geoipAllowed, getGeolocation } from "camoucore/geolocation.js";
+import { ensureModel } from "fpgen-js";
+import * as cpuAffinity from "../cpu_affinity.js";
+import { hasDisplay, largestDisplay } from "../display.js";
+import { geoipAllowed, getGeolocation } from "../geolocation.js";
 import {
 	type ProxyConfig,
 	ProxyHelper,
 	publicIP,
 	publicIPv6,
 	validIPv4,
-} from "camoucore/ip.js";
-import { handleLocales } from "camoucore/locales.js";
-import { checkPassthrough, warnPassthrough } from "camoucore/passthrough.js";
-import { applyDefaults, loadDefaults } from "camoucore/settings.js";
-import { Telemetry, telemetryEnabled } from "camoucore/telemetry.js";
-import { VirtualDisplay } from "camoucore/virtdisplay.js";
-import { ensureModel } from "fpgen-js";
+} from "../ip.js";
+import { handleLocales } from "../locales.js";
+import { checkPassthrough, warnPassthrough } from "../passthrough.js";
+import { applyDefaults, loadDefaults } from "../settings.js";
+import { Telemetry, telemetryEnabled } from "../telemetry.js";
+import { VirtualDisplay } from "../virtdisplay.js";
 import { LIBRARY_VERSION } from "./__version__.js";
 import { addDefaultAddons, confirmPaths, type DefaultAddon } from "./addons.js";
 import * as clienthints from "./clienthints.js";

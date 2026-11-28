@@ -9,24 +9,20 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { inspect } from "node:util";
-import * as cpuAffinity from "camoucore/cpu_affinity.js";
-import { hasDisplay, largestDisplay } from "camoucore/display.js";
-import {
-	allowGeoip,
-	geoipAllowed,
-	getGeolocation,
-} from "camoucore/geolocation.js";
+import { ensureModel } from "fpgen-js";
+import { UAParser } from "ua-parser-js";
+import * as cpuAffinity from "../cpu_affinity.js";
+import { hasDisplay, largestDisplay } from "../display.js";
+import { allowGeoip, geoipAllowed, getGeolocation } from "../geolocation.js";
 import {
 	type ProxyConfig,
 	ProxyHelper,
 	publicIP,
 	validIPv4,
 	validIPv6,
-} from "camoucore/ip.js";
-import { handleLocales } from "camoucore/locales.js";
-import { VirtualDisplay } from "camoucore/virtdisplay.js";
-import { ensureModel } from "fpgen-js";
-import { UAParser } from "ua-parser-js";
+} from "../ip.js";
+import { handleLocales } from "../locales.js";
+import { VirtualDisplay } from "../virtdisplay.js";
 import { addDefaultAddons, confirmPaths, type DefaultAddon } from "./addons.js";
 import * as coherence from "./coherence.js";
 import {
@@ -1529,7 +1525,7 @@ const CAMOUFOX_SOCKS5_AUTH = Symbol.for("camoufox.socks5Auth");
 
 /**
  * Let newContext()/newPage() of `target` take a SOCKS5 proxy with a username
- * and password (python/camoufox/src/camoufox/utils.py attach_socks5_auth).
+ * and password (python/camoucore/src/camoucore/camoufox/utils.py attach_socks5_auth).
  *
  * Playwright refuses one ("Browser does not support socks5 proxy
  * authentication"). The context is made with the proxy alone, and an init
@@ -1560,7 +1556,7 @@ export function attachSocks5Auth<T>(target: T): T {
 // Where a browser or context keeps the geometry its pages claim
 // (launchGeometry), where NewContext() leaves its identity's for the
 // newContext() it is about to make, and the mark of a fitted browser
-// (python/camoufox/src/camoufox/utils.py _GEOMETRY, _NEXT_CONTEXT).
+// (python/camoucore/src/camoucore/camoufox/utils.py _GEOMETRY, _NEXT_CONTEXT).
 const CAMOUFOX_GEOMETRY = Symbol.for("camoufox.geometry");
 const CAMOUFOX_NEXT_CONTEXT = Symbol.for("camoufox.nextContext");
 const CAMOUFOX_VIEWPORT_FIT = Symbol.for("camoufox.viewportFit");
@@ -1578,7 +1574,7 @@ export interface Geometry {
 /**
  * What a launch's identity claims around its pages, from the CAMOU_CONFIG in
  * the launch options; null when the identity claims no screen
- * (python/camoufox/src/camoufox/utils.py launch_geometry).
+ * (python/camoucore/src/camoucore/camoufox/utils.py launch_geometry).
  *
  * The window is where CamoufoxWindow.sys.mjs puts the browser's real window,
  * which every page reports in outerWidth/outerHeight: the identity's outer
@@ -1661,7 +1657,7 @@ function warnViewportWindow(
 /**
  * The screen a new context must claim so that its pages fit on it, or null
  * when the identity's own already holds them
- * (python/camoufox/src/camoufox/utils.py fit_context_screen).
+ * (python/camoucore/src/camoucore/camoufox/utils.py fit_context_screen).
  *
  * A viewport sits in a window the recorded chrome larger (screenFloor), and
  * the pages report the browser's window as theirs, so the screen holds both;
@@ -1728,7 +1724,7 @@ export function screenInitScript(width: number, height: number): string {
 
 /**
  * Make every newContext()/newPage() of `target` claim a screen its pages fit
- * on (python/camoufox/src/camoufox/utils.py attach_viewport_fit).
+ * on (python/camoucore/src/camoucore/camoufox/utils.py attach_viewport_fit).
  *
  * `geometry` is what the launch's identity claims (launchGeometry). A context
  * claims that, or the identity NewContext() hands over, with the screen
@@ -1818,7 +1814,7 @@ function osKeys(os: string | readonly string[] | null | undefined): TargetOS[] {
  * The bound on a launch identity's screen that holds a `viewport` page in its
  * window (the caller's `window`, or one the recorded chrome larger), for
  * whichever OS the draw picks, within the caller's or the display's `screen`
- * bound (python/camoufox/src/camoufox/utils.py viewport_screen_bound).
+ * bound (python/camoucore/src/camoucore/camoufox/utils.py viewport_screen_bound).
  */
 export function viewportScreenBound(
 	viewport: [number, number],

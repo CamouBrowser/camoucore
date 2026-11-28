@@ -7,10 +7,10 @@
  * probe answers the question a caller choosing between headless modes has:
  * does this display render on hardware, or on SwiftShader?
  *
- *     import { hostGpu, rendersOnHardware } from "camoucore-camouwolf";
+ *     import { hostGpu, rendersOnHardware } from "camouwolf";
  *     const gpu = await hostGpu(executablePath, true, process.env, []);
  *
- * TypeScript twin of python/camouwolf/src/camouwolf/host_rendering.py. Python runs the
+ * TypeScript twin of python/camoucore/src/camoucore/camouwolf/host_rendering.py. Python runs the
  * probe in a child interpreter (its sync API cannot start inside a running
  * loop); Node has no such limit, so the probe runs in-process under the same
  * deadline.

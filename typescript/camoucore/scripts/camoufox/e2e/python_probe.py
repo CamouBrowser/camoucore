@@ -6,7 +6,7 @@ the same binary and the same identity, and by ci/run_install.py to launch the
 installed package (node_probe.mjs is its Node twin):
 
     echo '{"mode": "headless", "url": "...", "kwargs": {...}}' | \
-        .venv/bin/python typescript/camoufox/scripts/e2e/python_probe.py
+        .venv/bin/python typescript/camoucore/scripts/camoufox/e2e/python_probe.py
 
 Prints one JSON object: {"probe": <probe result>, "config": <CAMOU_CONFIG>}.
 `mode` is "config-only" (launch_options() alone), "headless" (Camoufox(...) -> new_page),
@@ -28,10 +28,10 @@ import tempfile
 import warnings
 from pathlib import Path
 
-from camoufox.sync_api import Camoufox, NewContext
-from camoufox.utils import launch_options
+from camoucore.camoufox.sync_api import Camoufox, NewContext
+from camoucore.camoufox.utils import launch_options
 
-PROBE = (Path(__file__).resolve().parent.parent.parent / 'tests' / 'fixtures' / 'e2e' / 'probe.js').read_text()
+PROBE = (Path(__file__).resolve().parents[3] / 'tests' / 'camoufox' / 'fixtures' / 'e2e' / 'probe.js').read_text()
 
 
 def config_of(options):

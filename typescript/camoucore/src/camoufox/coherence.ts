@@ -1,7 +1,7 @@
 /**
  * Whole-identity coherence: the checks that look at more than one field.
  *
- * TypeScript twin of python/camoufox/src/camoufox/coherence.py -- see there for the
+ * TypeScript twin of python/camoucore/src/camoucore/camoufox/coherence.py -- see there for the
  * measurements behind each rule. Camoufox assembles an identity from several
  * independently sampled pools, so a combination no machine has ever had can
  * be built out of individually plausible parts; every identity passes through

@@ -1,8 +1,9 @@
 /**
  * The built server driving a real launcher's browser, humanized, on local
  * pages: a form, and a login whose secret is typed, redacted and kept on its
- * domain. CAMOUCORE_MCP_LAUNCHER names the launcher package (camoucore-<launcher> in CI),
- * whose browser must be installed.
+ * domain. CAMOUCORE_MCP_LAUNCHER names the launcher (camoufox or camouwolf),
+ * whose browser must be installed; the server runs as that launcher's bin
+ * does, `<launcher> mcp`.
  */
 import fs from "node:fs";
 import http from "node:http";
@@ -15,7 +16,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { prerequisite } from "../../typescript/camoucore/tests/prereq.js";
+import { prerequisite } from "../core/prereq.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const LAUNCHER = process.env.CAMOUCORE_MCP_LAUNCHER ?? "";
@@ -52,7 +53,7 @@ describe.runIf(
 	prerequisite(
 		"CAMOUCORE_MCP_LAUNCHER",
 		Boolean(LAUNCHER),
-		"the launcher package to drive, with its browser installed",
+		"the launcher to drive (camoufox or camouwolf), with its browser installed",
 	),
 )(`camoucore-mcp on ${LAUNCHER}`, () => {
 	let site: http.Server;
@@ -95,8 +96,8 @@ describe.runIf(
 			new StdioClientTransport({
 				command: process.execPath,
 				args: [
-					path.join(HERE, "..", "dist", "cli.js"),
-					LAUNCHER,
+					path.join(HERE, "..", "..", "dist", LAUNCHER, "cli.js"),
+					"mcp",
 					"--secrets",
 					secrets,
 					"--allowed-domains",

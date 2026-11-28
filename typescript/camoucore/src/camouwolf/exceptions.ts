@@ -1,5 +1,5 @@
 /**
- * TypeScript twin of python/camouwolf/src/camouwolf/exceptions.py.
+ * TypeScript twin of python/camoucore/src/camoucore/camouwolf/exceptions.py.
  *
  * The Python hierarchy leans on builtin bases (FileNotFoundError, ValueError,
  * ImportError) that have no JS analogue; those become plain Error subclasses
@@ -23,9 +23,9 @@ export {
 	UnsupportedOS,
 	VirtualDisplayError,
 	VirtualDisplayNotSupported,
-} from "camoucore/exceptions.js";
+} from "../exceptions.js";
 
-import { VirtualDisplayError } from "camoucore/exceptions.js";
+import { VirtualDisplayError } from "../exceptions.js";
 
 /** The Python twin relies on the builtin FileNotFoundError; JS has no such
  *  class, so version-lookup misses raise this instead. */

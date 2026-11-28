@@ -3,12 +3,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { assertNodeFloor, NODE_FLOOR } from "../src/node-floor.js";
+import { assertNodeFloor, NODE_FLOOR } from "../../src/camoufox/node-floor.js";
 
 const PACKAGE = JSON.parse(
 	fs.readFileSync(
 		path.join(
 			path.dirname(fileURLToPath(import.meta.url)),
+			"..",
 			"..",
 			"package.json",
 		),

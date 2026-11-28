@@ -1,5 +1,5 @@
 /**
- * Mirrors python/camoufox/tests/test_geoip_config.py: the CLI's handling of the GeoIP
+ * Mirrors python/camoucore/tests/camoufox/test_geoip_config.py: the CLI's handling of the GeoIP
  * source. Which source is active, and when its database is refreshed, is
  * camoucore's (its tests/geoip-config.test.ts).
  */
@@ -15,14 +15,14 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	vi.doUnmock("camoucore/geolocation.js");
+	vi.doUnmock("../../src/geolocation.js");
 	fs.rmSync(tmp, { recursive: true, force: true });
 });
 
 it("the CLI reports an explicit source missing from the list", async () => {
-	const { ValueError } = await import("../src/pycompat.js");
-	vi.doMock("camoucore/geolocation.js", async (importOriginal) => ({
-		...(await importOriginal<typeof import("camoucore/geolocation.js")>()),
+	const { ValueError } = await import("../../src/camoufox/pycompat.js");
+	vi.doMock("../../src/geolocation.js", async (importOriginal) => ({
+		...(await importOriginal<typeof import("../../src/geolocation.js")>()),
 		GEOIP_DIR: tmp,
 		loadGeoipConfig: () => {
 			throw new ValueError("GeoIP database 'Gone' not found. Available: []");
@@ -40,7 +40,7 @@ it("the CLI reports an explicit source missing from the list", async () => {
 		for (const command of ["version", "list"]) {
 			vi.resetModules();
 			process.argv = ["node", "camoufox", command];
-			await import("../src/__main__.js");
+			await import("../../src/camoufox/__main__.js");
 			await new Promise((resolve) => setTimeout(resolve, 0));
 		}
 	} finally {

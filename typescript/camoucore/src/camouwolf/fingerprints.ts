@@ -7,15 +7,15 @@
  * milestone the binary really is, and the client hints that milestone and OS
  * imply (clienthints.ts).
  *
- * TypeScript twin of python/camouwolf/src/camouwolf/fingerprints.py.
+ * TypeScript twin of python/camoucore/src/camoucore/camouwolf/fingerprints.py.
  */
 
+import { generate, InvalidConstraints } from "fpgen-js";
+import * as random from "python-random";
 import {
 	supported as cpuAffinitySupported,
 	hostCoreCount,
-} from "camoucore/cpu_affinity.js";
-import { generate, InvalidConstraints } from "fpgen-js";
-import * as random from "python-random";
+} from "../cpu_affinity.js";
 import { type OsKey, retargetUserAgent, uaOs } from "./clienthints.js";
 import { ValueError } from "./exceptions.js";
 import { LAUNCHER_CONSTANTS, loadDataFile } from "./paths.js";

@@ -17,7 +17,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PyFloat, parsePyJson } from "../src/pycompat.js";
+import { PyFloat, parsePyJson } from "../../src/camoufox/pycompat.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES = path.join(HERE, "fixtures", "launch");
@@ -112,11 +112,11 @@ function firstDiff(have: string, want: string): string {
 
 /** Python exception type -> the TS error name it corresponds to. */
 let mods: {
-	utils: typeof import("../src/utils.js");
-	fingerprints: typeof import("../src/fingerprints.js");
-	locales: typeof import("camoucore/locales.js");
-	geolocation: typeof import("camoucore/geolocation.js");
-	warnings: typeof import("../src/warnings.js");
+	utils: typeof import("../../src/camoufox/utils.js");
+	fingerprints: typeof import("../../src/camoufox/fingerprints.js");
+	locales: typeof import("../../src/locales.js");
+	geolocation: typeof import("../../src/geolocation.js");
+	warnings: typeof import("../../src/camoufox/warnings.js");
 };
 
 const ORIGINAL_ENV = { ...process.env };
@@ -126,11 +126,11 @@ beforeAll(async () => {
 	process.env.XDG_CACHE_HOME = XDG;
 	fs.mkdirSync(HOME, { recursive: true });
 	mods = {
-		utils: await import("../src/utils.js"),
-		fingerprints: await import("../src/fingerprints.js"),
-		locales: await import("camoucore/locales.js"),
-		geolocation: await import("camoucore/geolocation.js"),
-		warnings: await import("../src/warnings.js"),
+		utils: await import("../../src/camoufox/utils.js"),
+		fingerprints: await import("../../src/camoufox/fingerprints.js"),
+		locales: await import("../../src/locales.js"),
+		geolocation: await import("../../src/geolocation.js"),
+		warnings: await import("../../src/camoufox/warnings.js"),
 	};
 	expect(mods.utils.utilsDeps.installDir()).toBe(CACHE);
 

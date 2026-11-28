@@ -1,5 +1,5 @@
 /**
- * multiversion.ts against python/camoufox/src/camoufox/multiversion.py: ordering is
+ * multiversion.ts against python/camoucore/src/camoucore/camoufox/multiversion.py: ordering is
  * Python's (code-point string comparison, not locale collation), the install
  * scan and specifier lookup, and removal bookkeeping.
  */
@@ -8,7 +8,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-type MV = typeof import("../src/multiversion.js");
+type MV = typeof import("../../src/camoufox/multiversion.js");
 
 let tmp: string;
 let savedXdg: string | undefined;
@@ -19,7 +19,7 @@ beforeEach(async () => {
 	savedXdg = process.env.XDG_CACHE_HOME;
 	process.env.XDG_CACHE_HOME = tmp;
 	vi.resetModules();
-	mv = await import("../src/multiversion.js");
+	mv = await import("../../src/camoufox/multiversion.js");
 });
 
 afterEach(() => {

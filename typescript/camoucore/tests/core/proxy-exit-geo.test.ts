@@ -5,8 +5,8 @@
 import * as http from "node:http";
 import * as net from "node:net";
 import { afterEach, expect, it } from "vitest";
-import { InvalidIP } from "../src/exceptions.js";
-import { proxyExitGeo } from "../src/ip.js";
+import { InvalidIP } from "../../src/exceptions.js";
+import { proxyExitGeo } from "../../src/ip.js";
 
 const EXIT = {
 	status: "success",

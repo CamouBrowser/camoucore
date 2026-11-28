@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Record the Python identity layer's outputs as goldens for the TypeScript port.
 
-    .venv/bin/python typescript/camoufox/scripts/golden/identity_golden.py
+    .venv/bin/python typescript/camoucore/scripts/camoufox/golden/identity_golden.py
 
-Writes typescript/camoufox/tests/fixtures/identity/*.json (and one .json.gz holding full
+Writes typescript/camoucore/tests/camoufox/fixtures/identity/*.json (and one .json.gz holding full
 fpgen fingerprints). tests/identity-golden.test.ts replays every case through
 the TypeScript functions and requires the identical result.
 
@@ -35,15 +35,15 @@ import numpy as np
 import orjson
 
 HERE = Path(__file__).resolve().parent
-TS_ROOT = HERE.parent.parent
-FIXTURES = TS_ROOT / 'tests' / 'fixtures' / 'identity'
+TS_ROOT = HERE.parents[2]
+FIXTURES = TS_ROOT / 'tests' / 'camoufox' / 'fixtures' / 'identity'
 sys.path.insert(0, str(HERE))
 
 
-from camoufox import coherence  # noqa: E402
+from camoucore.camoufox import coherence  # noqa: E402
 from camoucore import cpu_affinity  # noqa: E402
-from camoufox import fingerprints as fp  # noqa: E402
-from camoufox import webgl  # noqa: E402
+from camoucore.camoufox import fingerprints as fp  # noqa: E402
+from camoucore.camoufox import webgl  # noqa: E402
 
 OS_NAMES = ('windows', 'macos', 'linux')
 OS_KEYS = ('win', 'mac', 'lin')

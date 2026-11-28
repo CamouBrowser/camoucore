@@ -1,5 +1,5 @@
 /**
- * Port of python/camouwolf/tests/test_cli_list.py: `camouwolf list --path` shows
+ * Port of python/camoucore/tests/camouwolf/test_cli_list.py: `camouwolf list --path` shows
  * install paths in both listing modes.
  */
 import * as fs from "node:fs";
@@ -23,15 +23,15 @@ afterEach(() => {
 	if (savedXdg === undefined) delete process.env.XDG_CACHE_HOME;
 	else process.env.XDG_CACHE_HOME = savedXdg;
 	process.argv = savedArgv;
-	vi.doUnmock("../src/multiversion.js");
+	vi.doUnmock("../../src/camouwolf/multiversion.js");
 	vi.restoreAllMocks();
 	fs.rmSync(tmp, { recursive: true, force: true });
 });
 
 it("list all --path shows the path of an installed build", async () => {
 	const install = "/cache/browsers/official/152.0.4-beta.30";
-	const actual = await import("../src/multiversion.js");
-	const { Version } = await import("../src/pkgman.js");
+	const actual = await import("../../src/camouwolf/multiversion.js");
+	const { Version } = await import("../../src/camouwolf/pkgman.js");
 	fs.mkdirSync(path.dirname(actual.REPO_CACHE_FILE), { recursive: true });
 	fs.writeFileSync(
 		actual.REPO_CACHE_FILE,
@@ -49,7 +49,7 @@ it("list all --path shows the path of an installed build", async () => {
 		version: new Version("beta.30", "152.0.4"),
 		path: install,
 	});
-	vi.doMock("../src/multiversion.js", () => ({
+	vi.doMock("../../src/camouwolf/multiversion.js", () => ({
 		...actual,
 		listInstalled: () => [installed],
 	}));
@@ -60,7 +60,7 @@ it("list all --path shows the path of an installed build", async () => {
 		return true;
 	});
 	process.argv = ["node", "camouwolf", "list", "all", "--path"];
-	await import("../src/__main__.js");
+	await import("../../src/camouwolf/__main__.js");
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	vi.mocked(process.stdout.write).mockRestore();
 

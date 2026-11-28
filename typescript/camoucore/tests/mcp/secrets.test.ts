@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { Secrets, totp, UrlPattern } from "../src/secrets.js";
+import { Secrets, totp, UrlPattern } from "../../src/mcp/secrets.js";
 
 describe("UrlPattern", () => {
 	const matches = (pattern: string, url: string) =>

@@ -4,7 +4,7 @@
  * Xorg argv, the browser's environment and prefs, the identity's GPU probe,
  * the GPU-use check, and teardown.
  *
- * Twin of python/camouwolf/tests/test_gpudisplay.py. The real display is
+ * Twin of python/camoucore/tests/camouwolf/test_gpudisplay.py. The real display is
  * gpu-display.test.ts.
  */
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
@@ -28,8 +28,8 @@ const {
 	GpuSoftwareFallback,
 	NoGpuFound,
 	VirtualDisplayError,
-} = await import("../src/exceptions.js");
-const gpudisplay = await import("../src/gpudisplay.js");
+} = await import("../../src/camouwolf/exceptions.js");
+const gpudisplay = await import("../../src/camouwolf/gpudisplay.js");
 const {
 	busId,
 	configName,
@@ -43,7 +43,7 @@ const {
 	xorgConfig,
 	xorgDriver,
 } = gpudisplay;
-type GpuDevice = import("../src/gpudisplay.js").GpuDevice;
+type GpuDevice = import("../../src/camouwolf/gpudisplay.js").GpuDevice;
 const { chromium } = await import("playwright-core");
 
 const deps = utils.utilsDeps;
@@ -657,7 +657,7 @@ describe("the server", () => {
 		const connect = vi
 			.spyOn(chromium, "connect")
 			.mockResolvedValue(browser as any);
-		const { launchServer } = await import("../src/server.js");
+		const { launchServer } = await import("../../src/camouwolf/server.js");
 		const result = quietly(() =>
 			launchServer({
 				headless: "virtual-gpu",

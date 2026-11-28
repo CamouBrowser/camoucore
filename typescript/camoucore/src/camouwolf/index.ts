@@ -1,11 +1,11 @@
 /**
- * Public API. Mirrors python/camouwolf/src/camouwolf/__init__.py (Camouwolf, NewBrowser,
+ * Public API. Mirrors python/camoucore/src/camoucore/camouwolf/__init__.py (Camouwolf, NewBrowser,
  * NewContext, their Async* twins, DefaultAddons, launch_options), plus the
  * package-management and server helpers the TS port has always exported.
  */
 import "./node-floor.js";
 
-export { VirtualDisplay } from "camoucore/virtdisplay.js";
+export { VirtualDisplay } from "../virtdisplay.js";
 export { attach } from "./_humanize_playwright.js";
 export type { DefaultAddon } from "./addons.js";
 export { DefaultAddons } from "./addons.js";

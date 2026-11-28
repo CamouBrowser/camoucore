@@ -2,7 +2,7 @@
  * Browser package management: version resolution, GitHub release discovery,
  * download/extract, and path lookup.
  *
- * TypeScript twin of python/camoufox/src/camoufox/pkgman.py.
+ * TypeScript twin of python/camoucore/src/camoucore/camoufox/pkgman.py.
  */
 import { execFileSync } from "node:child_process";
 import { once } from "node:events";
@@ -11,14 +11,14 @@ import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Writable } from "node:stream";
+import cliProgress, { type Options as BarOptions } from "cli-progress";
+import prettyBytes from "pretty-bytes";
 import {
 	githubHeaders,
 	type ProgressCallback,
 	raiseForStatus,
 	request,
-} from "camoucore/download.js";
-import cliProgress, { type Options as BarOptions } from "cli-progress";
-import prettyBytes from "pretty-bytes";
+} from "../download.js";
 import { CONSTRAINTS, LIBRARY_VERSION } from "./__version__.js";
 import {
 	effectivePin,
@@ -65,7 +65,7 @@ export {
 	type ProgressCallback,
 	unzip,
 	verifySha256,
-} from "camoucore/download.js";
+} from "../download.js";
 
 /**
  * Ensure Firefox's Linux application directory exists before startup.

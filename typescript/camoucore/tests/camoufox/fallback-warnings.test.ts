@@ -1,5 +1,5 @@
 /**
- * Port of python/camoufox/tests/test_fallback_warnings.py (identity half; the launch
+ * Port of python/camoucore/tests/camoufox/test_fallback_warnings.py (identity half; the launch
  * half is in launch.test.ts): every place an identity falls back to a
  * substitute value says so, with a report block to paste into an issue.
  *
@@ -10,7 +10,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DATA_FILES, LOCAL_DATA } from "../src/paths.js";
+import { DATA_FILES, LOCAL_DATA } from "../../src/camoufox/paths.js";
 import { MODEL } from "./fpgen-setup.js";
 
 const REPORT =
@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	vi.doUnmock("../src/paths.js");
+	vi.doUnmock("../../src/camoufox/paths.js");
 	fs.rmSync(tmp, { recursive: true, force: true });
 });
 
@@ -40,8 +40,9 @@ async function withData(broken: (dir: string) => void) {
 	for (const name of DATA_FILES)
 		fs.copyFileSync(path.join(LOCAL_DATA, name), path.join(data, name));
 	broken(data);
-	vi.doMock("../src/paths.js", async (importOriginal) => {
-		const paths = await importOriginal<typeof import("../src/paths.js")>();
+	vi.doMock("../../src/camoufox/paths.js", async (importOriginal) => {
+		const paths =
+			await importOriginal<typeof import("../../src/camoufox/paths.js")>();
 		return {
 			...paths,
 			LOCAL_DATA: data,
@@ -49,14 +50,14 @@ async function withData(broken: (dir: string) => void) {
 		};
 	});
 	return {
-		fp: await import("../src/fingerprints.js"),
-		warnings: await import("../src/warnings.js"),
+		fp: await import("../../src/camoufox/fingerprints.js"),
+		warnings: await import("../../src/camoufox/warnings.js"),
 	};
 }
 
 /** The one FallbackWarning `fn` emitted, checked for its report block. */
 async function report(
-	warnings: typeof import("../src/warnings.js"),
+	warnings: typeof import("../../src/camoufox/warnings.js"),
 	fn: () => unknown,
 ): Promise<{ result: any; text: string }> {
 	const { result, error, warnings: caught } = await warnings.recordWarnings(fn);
@@ -70,7 +71,7 @@ async function report(
 	return { result, text };
 }
 
-function preset(fp: typeof import("../src/fingerprints.js")) {
+function preset(fp: typeof import("../../src/camoufox/fingerprints.js")) {
 	const first = fp.loadPresets("152")?.presets.windows[0];
 	return { ...first, fonts: ["Arial"] };
 }

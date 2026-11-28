@@ -1,5 +1,5 @@
 /**
- * Mirrors python/camoufox/tests/test_fetch_by_tag.py: `camoufox fetch` installs a named
+ * Mirrors python/camoucore/tests/camoufox/test_fetch_by_tag.py: `camoufox fetch` installs a named
  * build with one GitHub API call, and fails loudly (#919).
  *
  * The CLI runs on import, so each test points XDG_CACHE_HOME at a fresh
@@ -15,8 +15,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { CONSTRAINTS } from "../src/__version__.js";
-import type { BrowserPin } from "../src/browser-pin.js";
+import { CONSTRAINTS } from "../../src/camoufox/__version__.js";
+import type { BrowserPin } from "../../src/camoufox/browser-pin.js";
 
 const API = "https://api.github.com/repos/daijro/camoufox/releases";
 
@@ -35,9 +35,9 @@ let doMock: ReturnType<typeof vi.spyOn>;
 
 /** The modules beforeEach mocks, which a test must not mock again. */
 const MOCKED = [
-	"../src/browser-pin.js",
-	"../src/addons.js",
-	"camoucore/geolocation.js",
+	"../../src/camoufox/browser-pin.js",
+	"../../src/camoufox/addons.js",
+	"../../src/geolocation.js",
 	"fpgen-js",
 	"node:readline",
 ];
@@ -66,12 +66,12 @@ beforeEach(() => {
 		output += String(chunk);
 		return true;
 	});
-	vi.doMock("../src/browser-pin.js", async (load) => ({
-		...(await load<typeof import("../src/browser-pin.js")>()),
+	vi.doMock("../../src/camoufox/browser-pin.js", async (load) => ({
+		...(await load<typeof import("../../src/camoufox/browser-pin.js")>()),
 		effectivePin: () => pin,
 	}));
-	vi.doMock("camoucore/geolocation.js", async (load) => ({
-		...(await load<typeof import("camoucore/geolocation.js")>()),
+	vi.doMock("../../src/geolocation.js", async (load) => ({
+		...(await load<typeof import("../../src/geolocation.js")>()),
 		allowGeoip: () => false,
 	}));
 	vi.doMock("fpgen-js", async (load) => ({
@@ -116,7 +116,7 @@ async function release(
 	build: string,
 	{ version = "156.0.1", prerelease = false } = {},
 ) {
-	const { RepoConfig } = await import("../src/pkgman.js");
+	const { RepoConfig } = await import("../../src/camoufox/pkgman.js");
 	const official = RepoConfig.getDefault();
 	const manifest = `https://example.invalid/${tag}/manifest.json`;
 	served.set(manifest, { interface: CONSTRAINTS.INTERFACE });
@@ -136,20 +136,20 @@ async function release(
 }
 
 async function onlyOfficialSource() {
-	const { RepoConfig } = await import("../src/pkgman.js");
+	const { RepoConfig } = await import("../../src/camoufox/pkgman.js");
 	const official = RepoConfig.getDefault();
 	vi.spyOn(RepoConfig, "loadRepos").mockReturnValue([official]);
 }
 
 async function fetchCommand(...args: string[]) {
-	const { CamoufoxFetcher } = await import("../src/pkgman.js");
+	const { CamoufoxFetcher } = await import("../../src/camoufox/pkgman.js");
 	vi.spyOn(CamoufoxFetcher.prototype, "install").mockImplementation(
 		async function (this: InstanceType<typeof CamoufoxFetcher>) {
 			installs.push([this.verstr, this.isPrerelease]);
 		},
 	);
 	process.argv = ["node", "camoufox", "fetch", ...args];
-	await import("../src/__main__.js");
+	await import("../../src/camoufox/__main__.js");
 	await vi.waitFor(() => {
 		if (!finished && process.exitCode === undefined)
 			throw new Error("fetch is still running");
@@ -222,7 +222,7 @@ it("fails the fetch when the install fails", async () => {
 		`${API}/tags/v156.0.1-beta.33`,
 		await release("v156.0.1-beta.33", "beta.33"),
 	);
-	const { CamoufoxFetcher } = await import("../src/pkgman.js");
+	const { CamoufoxFetcher } = await import("../../src/camoufox/pkgman.js");
 	const install = vi.spyOn(CamoufoxFetcher.prototype, "install");
 
 	process.argv = ["node", "camoufox", "fetch", "official/156.0.1-beta.33"];
@@ -231,7 +231,7 @@ it("fails the fetch when the install fails", async () => {
 			"404 Client Error: Not Found for url: https://example.invalid/browser.zip",
 		),
 	);
-	await import("../src/__main__.js");
+	await import("../../src/camoufox/__main__.js");
 	await vi.waitFor(() => {
 		if (process.exitCode === undefined)
 			throw new Error("fetch is still running");

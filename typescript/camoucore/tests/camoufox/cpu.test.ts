@@ -1,5 +1,5 @@
 /**
- * Port of python/camoufox/tests/test_cpu.py: cpu:arch and cpu:manufacturer, the CPU
+ * Port of python/camoucore/tests/camoufox/test_cpu.py: cpu:arch and cpu:manufacturer, the CPU
  * whose arithmetic the page sees.
  *
  * Firefox never reports the CPU, but canvas pixels, Web Audio samples, encoded
@@ -9,16 +9,20 @@
  * with its GPU and OS, and sent to the browser as general.cpu_identity.
  */
 import { describe, expect, it } from "vitest";
-import * as coherence from "../src/coherence.js";
+import * as coherence from "../../src/camoufox/coherence.js";
 import {
 	isSoftwareRenderer,
 	setCpuDefault,
 	X86_INTEL_SHARE,
-} from "../src/fingerprints.js";
-import { LAUNCHER_CONSTANTS } from "../src/paths.js";
-import { ValueError } from "../src/pycompat.js";
-import { cpuIdentityPref, osForCpu, vpxRealtimeOnly } from "../src/utils.js";
-import { sampleWebglForScreen } from "../src/webgl.js";
+} from "../../src/camoufox/fingerprints.js";
+import { LAUNCHER_CONSTANTS } from "../../src/camoufox/paths.js";
+import { ValueError } from "../../src/camoufox/pycompat.js";
+import {
+	cpuIdentityPref,
+	osForCpu,
+	vpxRealtimeOnly,
+} from "../../src/camoufox/utils.js";
+import { sampleWebglForScreen } from "../../src/camoufox/webgl.js";
 import { MODEL } from "./fpgen-setup.js";
 
 const WIN_UA =

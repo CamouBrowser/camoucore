@@ -1,11 +1,14 @@
 /**
  * The host GPU probe's browser.close shares the probe's one deadline:
- * python/camoufox/src/camoufox/host_rendering.py bounds the whole probe with a single
+ * python/camoucore/src/camoucore/camoufox/host_rendering.py bounds the whole probe with a single
  * communicate() timeout.
  */
 import { firefox } from "playwright-core";
 import { afterEach, expect, it, vi } from "vitest";
-import { HOST_GPU_PROBE_TIMEOUT_MS, hostGpu } from "../src/host_rendering.js";
+import {
+	HOST_GPU_PROBE_TIMEOUT_MS,
+	hostGpu,
+} from "../../src/camoufox/host_rendering.js";
 
 const HOST_GPU: [string, string] = [
 	"AMD",

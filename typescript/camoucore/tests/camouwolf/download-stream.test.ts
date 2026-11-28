@@ -28,9 +28,9 @@ afterEach(() => {
 
 it("a failed write rejects, and the partial install is removed", async () => {
 	const { installVersioned, BROWSERS_DIR } = await import(
-		"../src/multiversion.js"
+		"../../src/camouwolf/multiversion.js"
 	);
-	const { CamouwolfFetcher } = await import("../src/pkgman.js");
+	const { CamouwolfFetcher } = await import("../../src/camouwolf/pkgman.js");
 
 	class DiskFull extends CamouwolfFetcher {
 		static override async downloadFile(file: Writable): Promise<void> {

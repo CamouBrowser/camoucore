@@ -1,5 +1,5 @@
 /**
- * Mirrors python/camouwolf/tests/test_browser_interface.py: a browser declares the
+ * Mirrors python/camoucore/tests/camouwolf/test_browser_interface.py: a browser declares the
  * interface it speaks, and the library refuses one it cannot drive (#835).
  *
  * INSTALL_DIR is computed at import from XDG_CACHE_HOME, so every test points
@@ -9,7 +9,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CONSTRAINTS } from "../src/__version__.js";
+import { CONSTRAINTS } from "../../src/camouwolf/__version__.js";
 
 const NEWER = CONSTRAINTS.INTERFACE + 1;
 
@@ -56,7 +56,7 @@ function release(tag: string, build: string, manifest?: object) {
 
 describe("a release's interface", () => {
 	it("is 1 without a manifest, and nothing is fetched", async () => {
-		const pkgman = await import("../src/pkgman.js");
+		const pkgman = await import("../../src/camouwolf/pkgman.js");
 		expect(
 			await pkgman.releaseInterface(release("v156.0.1-beta.31", "beta.31")),
 		).toBe(1);
@@ -64,7 +64,7 @@ describe("a release's interface", () => {
 	});
 
 	it("is 1 when the manifest predates the field", async () => {
-		const pkgman = await import("../src/pkgman.js");
+		const pkgman = await import("../../src/camouwolf/pkgman.js");
 		expect(
 			await pkgman.releaseInterface(
 				release("v156.0.1-beta.33", "beta.33", { schema: 1 }),
@@ -75,8 +75,8 @@ describe("a release's interface", () => {
 
 describe("choosing a browser", () => {
 	it("skips a browser this library cannot drive", async () => {
-		const pkgman = await import("../src/pkgman.js");
-		const pin = await import("../src/browser-pin.js");
+		const pkgman = await import("../../src/camouwolf/pkgman.js");
+		const pin = await import("../../src/camouwolf/browser-pin.js");
 		vi.spyOn(pin, "effectivePin").mockReturnValue(null);
 		const fetcher = Object.create(pkgman.CamouwolfFetcher.prototype);
 		fetcher.repoConfig = pkgman.RepoConfig.getDefault();
@@ -94,7 +94,7 @@ describe("choosing a browser", () => {
 	});
 
 	it("lists only browsers this library can drive", async () => {
-		const pkgman = await import("../src/pkgman.js");
+		const pkgman = await import("../../src/camouwolf/pkgman.js");
 		served.set("https://api.github.com/repos/CamouBrowser/camouwolf/releases", [
 			release("v156.0.1-beta.40", "beta.40", { interface: NEWER }),
 			release("v156.0.1-beta.39", "beta.39", {
@@ -121,10 +121,10 @@ describe("choosing a browser", () => {
 
 describe("launching", () => {
 	async function activeInstall(iface?: number) {
-		const pkgman = await import("../src/pkgman.js");
-		const pin = await import("../src/browser-pin.js");
+		const pkgman = await import("../../src/camouwolf/pkgman.js");
+		const pin = await import("../../src/camouwolf/browser-pin.js");
 		vi.spyOn(pin, "effectivePin").mockReturnValue(null);
-		const root = (await import("../src/paths.js")).INSTALL_DIR;
+		const root = (await import("../../src/camouwolf/paths.js")).INSTALL_DIR;
 		const relative = "browsers/official/156.0.1-beta.40";
 		const dir = path.join(root, relative);
 		fs.mkdirSync(dir, { recursive: true });
@@ -160,15 +160,15 @@ describe("launching", () => {
 
 describe("upgrade warning", () => {
 	async function synced(incompatible: object[]) {
-		const pkgman = await import("../src/pkgman.js");
-		const root = (await import("../src/paths.js")).INSTALL_DIR;
+		const pkgman = await import("../../src/camouwolf/pkgman.js");
+		const root = (await import("../../src/camouwolf/paths.js")).INSTALL_DIR;
 		fs.mkdirSync(root, { recursive: true });
 		fs.writeFileSync(
 			path.join(root, "repo_cache.json"),
 			JSON.stringify({ repos: [], incompatible }),
 		);
 		pkgman.resetOutdatedWarning();
-		const warnings = await import("../src/warnings.js");
+		const warnings = await import("../../src/camouwolf/warnings.js");
 		const seen: string[] = [];
 		vi.spyOn(process, "emitWarning").mockImplementation(((msg: unknown) => {
 			seen.push(String(msg));

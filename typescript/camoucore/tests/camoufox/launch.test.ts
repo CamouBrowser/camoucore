@@ -35,14 +35,18 @@ import {
 	warnings,
 } from "./launch-host.js";
 
-const { OSError } = await import("../src/pycompat.js");
-const { Version } = await import("../src/pkgman.js");
-const { cursory, myuri, normalize, raw } = await import("../src/humanize.js");
-const { InvalidPropertyType, UnknownIPLocation } = await import(
-	"../src/exceptions.js"
+const { OSError } = await import("../../src/camoufox/pycompat.js");
+const { Version } = await import("../../src/camoufox/pkgman.js");
+const { cursory, myuri, normalize, raw } = await import(
+	"../../src/camoufox/humanize.js"
 );
-const cpuAffinity = await import("camoucore/cpu_affinity.js");
-const { attachDriverDefaults } = await import("../src/driver_defaults.js");
+const { InvalidPropertyType, UnknownIPLocation } = await import(
+	"../../src/camoufox/exceptions.js"
+);
+const cpuAffinity = await import("../../src/cpu_affinity.js");
+const { attachDriverDefaults } = await import(
+	"../../src/camoufox/driver_defaults.js"
+);
 
 // Imported after launch-host, which has to set the cache directory first.
 const { MODEL } = await import("./fpgen-setup.js");

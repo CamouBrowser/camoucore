@@ -3,7 +3,7 @@
  * cores as its identity reports.
  */
 import { expect, it } from "vitest";
-import * as cpuAffinity from "../src/cpu_affinity.js";
+import * as cpuAffinity from "../../src/cpu_affinity.js";
 
 it("picks adjacent cores from a random start", () => {
 	const cores = Array.from({ length: 16 }, (_, i) => i);

@@ -13,23 +13,23 @@ const DEPRECATED = "MaxMind GeoLite2";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 let tmp: string;
-let g: typeof import("../src/geolocation.js");
-let w: typeof import("../src/warnings.js");
+let g: typeof import("../../src/geolocation.js");
+let w: typeof import("../../src/warnings.js");
 
 beforeEach(async () => {
 	tmp = fs.mkdtempSync(path.join(os.tmpdir(), "camoucore-geoip-"));
 	vi.resetModules();
 	// GEOIP_DIR is computed at import time
-	vi.doMock("../src/host.js", async (importOriginal) => ({
-		...(await importOriginal<typeof import("../src/host.js")>()),
+	vi.doMock("../../src/host.js", async (importOriginal) => ({
+		...(await importOriginal<typeof import("../../src/host.js")>()),
 		userCacheDir: () => tmp,
 	}));
-	g = await import("../src/geolocation.js");
-	w = await import("../src/warnings.js");
+	g = await import("../../src/geolocation.js");
+	w = await import("../../src/warnings.js");
 });
 
 afterEach(() => {
-	vi.doUnmock("../src/host.js");
+	vi.doUnmock("../../src/host.js");
 	fs.rmSync(tmp, { recursive: true, force: true });
 });
 
@@ -79,14 +79,14 @@ it("records an explicit choice", () => {
 it("keeps an explicit choice through a refresh", async () => {
 	// A launcher's `fetch` and the weekly refresh download without naming a source
 	saved({ name: DEPRECATED, explicit: true });
-	vi.doMock("../src/download.js", async (importOriginal) => ({
-		...(await importOriginal<typeof import("../src/download.js")>()),
+	vi.doMock("../../src/download.js", async (importOriginal) => ({
+		...(await importOriginal<typeof import("../../src/download.js")>()),
 		webdl: async () => Buffer.from("x"),
 	}));
 	try {
 		await g.downloadMmdb();
 	} finally {
-		vi.doUnmock("../src/download.js");
+		vi.doUnmock("../../src/download.js");
 	}
 	expect(g.loadGeoipConfig().name).toBe(DEPRECATED);
 	// The stubbed download, not a real one
@@ -97,8 +97,8 @@ it("unpacks the archive beside the database, not in os.tmpdir()", async () => {
 	// Renaming out of a tmpfs /tmp into the cache fails with EXDEV, which made
 	// a launcher's `fetch` fail on the default (zipped) source.
 	let unpackedIn = "";
-	vi.doMock("../src/download.js", async (importOriginal) => ({
-		...(await importOriginal<typeof import("../src/download.js")>()),
+	vi.doMock("../../src/download.js", async (importOriginal) => ({
+		...(await importOriginal<typeof import("../../src/download.js")>()),
 		webdl: async () => Buffer.from("zip"),
 		unzip: (_buffer: Buffer, dir: string) => {
 			unpackedIn = dir;
@@ -108,7 +108,7 @@ it("unpacks the archive beside the database, not in os.tmpdir()", async () => {
 	try {
 		await g.downloadMmdb();
 	} finally {
-		vi.doUnmock("../src/download.js");
+		vi.doUnmock("../../src/download.js");
 	}
 	expect(path.relative(g.GEOIP_DIR, unpackedIn).startsWith("..")).toBe(false);
 	expect(fs.readFileSync(g.getMmdbPath("ipv4"), "utf-8")).toBe("db");

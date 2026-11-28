@@ -1,5 +1,5 @@
 /**
- * Port of the CLI test in python/camouwolf/tests/test_defaults.py: `camouwolf defaults`
+ * Port of the CLI test in python/camoucore/tests/camouwolf/test_defaults.py: `camouwolf defaults`
  * writes the user's copy of the defaults file and prints its path.
  */
 import * as fs from "node:fs";
@@ -34,11 +34,11 @@ it("defaults copies the packaged file and prints the copy's path", async () => {
 		return true;
 	});
 	process.argv = ["node", "camouwolf", "defaults"];
-	await import("../src/__main__.js");
+	await import("../../src/camouwolf/__main__.js");
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	vi.mocked(process.stdout.write).mockRestore();
 
-	const { DEFAULTS_FILE } = await import("../src/paths.js");
+	const { DEFAULTS_FILE } = await import("../../src/camouwolf/paths.js");
 	expect(process.exitCode ?? 0).toBe(0);
 	expect(output.trim()).toBe(mine);
 	expect(fs.readFileSync(mine, "utf8")).toBe(

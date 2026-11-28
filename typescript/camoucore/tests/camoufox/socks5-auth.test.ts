@@ -1,6 +1,6 @@
 /**
  * A SOCKS5 proxy with a username and password reaches Juggler, not
- * Playwright. Twin of python/camoufox/tests/test_socks5_auth.py.
+ * Playwright. Twin of python/camoucore/tests/camoufox/test_socks5_auth.py.
  */
 
 import * as fs from "node:fs";
@@ -14,7 +14,7 @@ import {
 	utils,
 } from "./launch-host.js";
 
-const ip = await import("../src/ip.js");
+const ip = await import("../../src/camoufox/ip.js");
 
 afterEach(() => restoreDeps());
 afterAll(() => fs.rmSync(SCRATCH, { recursive: true, force: true }));

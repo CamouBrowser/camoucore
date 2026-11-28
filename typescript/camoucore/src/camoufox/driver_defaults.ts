@@ -1,6 +1,6 @@
 /**
  * Driver calls that reach the page as a person's actions would. The TypeScript
- * twin of python/camoufox/src/camoufox/driver_defaults.py, which holds the reasoning.
+ * twin of python/camoucore/src/camoucore/camoufox/driver_defaults.py, which holds the reasoning.
  *
  * Screenshots default to caret: "initial", which leaves the page's style
  * attributes alone. fill() clicks a text field that is not focused first, unless

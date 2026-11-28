@@ -1,6 +1,6 @@
 /**
  * NewContext places a context behind a proxy where the proxy exits.
- * Twin of python/camoufox/tests/test_proxy_geo.py: the lookup must go through the
+ * Twin of python/camoucore/tests/camoufox/test_proxy_geo.py: the lookup must go through the
  * proxy as Playwright would reach it (a scheme-less server is http), a failed
  * lookup must raise rather than leave the context on the host's values, and
  * the locale and position move with the clock. The lookup is camoucore's
@@ -17,17 +17,17 @@ const lookup = vi.hoisted(() => ({
 	respond: async (): Promise<unknown> => ({}),
 }));
 
-vi.mock("camoucore/ip.js", async (importOriginal) => ({
-	...(await importOriginal<typeof import("camoucore/ip.js")>()),
+vi.mock("../../src/ip.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/ip.js")>()),
 	proxyExitGeo: async (proxy: string) => {
 		lookup.proxies.push(proxy);
 		return lookup.respond();
 	},
 }));
 
-const { NewContext } = await import("../src/sync_api.js");
-const { InvalidIP } = await import("../src/exceptions.js");
-const { getRandomPreset } = await import("../src/fingerprints.js");
+const { NewContext } = await import("../../src/camoufox/sync_api.js");
+const { InvalidIP } = await import("../../src/camoufox/exceptions.js");
+const { getRandomPreset } = await import("../../src/camoufox/fingerprints.js");
 
 const EXIT = {
 	ip: "203.0.113.7",

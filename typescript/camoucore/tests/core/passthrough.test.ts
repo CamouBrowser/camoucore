@@ -5,9 +5,9 @@ import {
 	IDENTITY_OPTIONS,
 	passthroughConflicts,
 	warnPassthrough,
-} from "../src/passthrough.js";
-import { FIREFOX, Product } from "../src/product.js";
-import { recordWarnings } from "../src/warnings.js";
+} from "../../src/passthrough.js";
+import { FIREFOX, Product } from "../../src/product.js";
+import { recordWarnings } from "../../src/warnings.js";
 
 const FOX = new Product("camoufox", "Camoufox", FIREFOX);
 

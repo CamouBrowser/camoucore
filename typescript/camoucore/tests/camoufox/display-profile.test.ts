@@ -1,6 +1,6 @@
 /**
  * The identity's display ICC profile (display_profile.ts).
- * Twin of python/camoufox/tests/test_display_profile.py.
+ * Twin of python/camoucore/tests/camoufox/test_display_profile.py.
  *
  * Stock Firefox converts ICC-tagged images to the display's profile, and a
  * page reads the result off a canvas: stock 158.0.1 on win-i9 decodes the
@@ -20,7 +20,7 @@ import {
 	utils,
 } from "./launch-host.js";
 
-const dp = await import("../src/display_profile.js");
+const dp = await import("../../src/camoufox/display_profile.js");
 
 const WIN_UA =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0";

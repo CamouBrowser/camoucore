@@ -1,7 +1,7 @@
 /**
  * Camouwolf version constants.
  *
- * TypeScript twin of python/camouwolf/src/camouwolf/__version__.py.
+ * TypeScript twin of python/camoucore/src/camoucore/camouwolf/__version__.py.
  */
 
 // biome-ignore lint/complexity/noStaticOnlyClass: mirrors the Python twin's CONSTRAINTS class so both launchers read the same

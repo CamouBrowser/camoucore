@@ -1,7 +1,7 @@
 /**
  * Camouwolf()/NewBrowser()/NewContext() against a fake Playwright browser
  * type: what is launched, and the defaults every context gets. Twin of
- * python/camouwolf/tests/test_contexts.py and the launch-path tests of
+ * python/camoucore/tests/camouwolf/test_contexts.py and the launch-path tests of
  * test_launch_options.py that the goldens cannot hold.
  */
 import * as fs from "node:fs";
@@ -15,8 +15,8 @@ import {
 	NotImplementedError,
 	UnknownIPLocation,
 	ValueError,
-} from "../src/exceptions.js";
-import { Screen } from "../src/fingerprints.js";
+} from "../../src/camouwolf/exceptions.js";
+import { Screen } from "../../src/camouwolf/fingerprints.js";
 import { MODEL } from "./fpgen-setup.js";
 import {
 	BUNDLE_EXE,
@@ -29,8 +29,10 @@ import {
 	warnings,
 } from "./launch-host.js";
 
-const { NewBrowser, NewContext } = await import("../src/sync_api.js");
-const { VirtualDisplay } = await import("camoucore/virtdisplay.js");
+const { NewBrowser, NewContext } = await import(
+	"../../src/camouwolf/sync_api.js"
+);
+const { VirtualDisplay } = await import("../../src/virtdisplay.js");
 
 class FakeBrowser {
 	closed = false;

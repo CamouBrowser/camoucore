@@ -9,13 +9,13 @@ import { setModelDir } from "fpgen-js";
 import { parse as parseYaml } from "yaml";
 import { PRODUCT } from "./product.js";
 
-export { rprint, style } from "camoucore/download.js";
-export { ARCH_MAP, OS_MAP, OS_NAME } from "camoucore/host.js";
+export { rprint, style } from "../download.js";
+export { ARCH_MAP, OS_MAP, OS_NAME } from "../host.js";
 
 export const INSTALL_DIR: string = PRODUCT.cacheDir;
 
 /**
- * The data files both launchers read. They live in python/camouwolf/src/camouwolf/, the one
+ * The data files both launchers read. They live in python/camoucore/src/camoucore/camouwolf/, the one
  * copy in the repo; `pnpm build` copies them into dist/data-files/ for the npm
  * tarball, so one seed draws one identity in either launcher.
  */
@@ -35,7 +35,7 @@ export const DATA_FILES: readonly string[] = [
 
 /**
  * Where DATA_FILES are read from: dist/data-files/ in a built package, else
- * python/camouwolf/src/camouwolf/ itself when running from src/ in the repo.
+ * python/camoucore/src/camoucore/camouwolf/ itself when running from src/ in the repo.
  */
 export const LOCAL_DATA: string = fs.existsSync(
 	path.join(import.meta.dirname, "data-files"),
@@ -46,9 +46,11 @@ export const LOCAL_DATA: string = fs.existsSync(
 			"..",
 			"..",
 			"..",
+			"..",
 			"python",
-			"camouwolf",
+			"camoucore",
 			"src",
+			"camoucore",
 			"camouwolf",
 		);
 
@@ -64,7 +66,7 @@ export function loadDataFile<T = any>(file: string): T {
 	return (file.endsWith(".yml") ? parseYaml(text) : JSON.parse(text)) as T;
 }
 
-/** Values both launchers use, kept in one file (python/camouwolf/src/camouwolf/launcher-constants.json). */
+/** Values both launchers use, kept in one file (python/camoucore/src/camoucore/camouwolf/launcher-constants.json). */
 export interface LauncherConstants {
 	plausibleCoreCounts: number[];
 	appleSiliconCores: number[];

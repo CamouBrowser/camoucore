@@ -1,11 +1,12 @@
 /**
- * Twin of python/camouwolf/tests/test_settled_rules.py: settled decisions the
+ * Twin of python/camoucore/tests/camouwolf/test_settled_rules.py: settled decisions the
  * camouwolf driver holds, from the browser repositories' ci/tribal-rules.yml.
  */
-import { COMPOSITE_KEY, SCREEN_KEY } from "camoucore/virtdisplay.js";
+
 import { expect, it } from "vitest";
-import { SERVER_FLAGS } from "../src/gpudisplay.js";
-import { PRODUCT } from "../src/product.js";
+import { SERVER_FLAGS } from "../../src/camouwolf/gpudisplay.js";
+import { PRODUCT } from "../../src/camouwolf/product.js";
+import { COMPOSITE_KEY, SCREEN_KEY } from "../../src/virtdisplay.js";
 
 it("lets the screen size be overridden", () => {
 	expect(PRODUCT.envVar(SCREEN_KEY)).toBe("CAMOUWOLF_VIRTUAL_DISPLAY_SIZE");

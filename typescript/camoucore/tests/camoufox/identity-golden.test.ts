@@ -9,12 +9,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
-import { pairwiseSum } from "camoucore/locales.js";
 import * as random from "python-random";
 import { describe, expect, it } from "vitest";
-import * as coherence from "../src/coherence.js";
-import * as fp from "../src/fingerprints.js";
-import { LOCAL_DATA } from "../src/paths.js";
+import * as coherence from "../../src/camoufox/coherence.js";
+import * as fp from "../../src/camoufox/fingerprints.js";
+import { LOCAL_DATA } from "../../src/camoufox/paths.js";
 import {
 	crc32,
 	formatOrjsonFloat,
@@ -26,8 +25,9 @@ import {
 	pyStrRepr,
 	pySum,
 	pySumFloats,
-} from "../src/pycompat.js";
-import * as webgl from "../src/webgl.js";
+} from "../../src/camoufox/pycompat.js";
+import * as webgl from "../../src/camoufox/webgl.js";
+import { pairwiseSum } from "../../src/locales.js";
 import { prerequisite } from "./prereq.js";
 
 const FIXTURES = path.join(

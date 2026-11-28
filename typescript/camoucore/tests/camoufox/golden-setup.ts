@@ -3,7 +3,7 @@
  * reads them.
  *
  * The goldens are pythonlib's own output over fixed inputs
- * (scripts/golden/*.py -> tests/fixtures/{launch,identity}). They are
+ * (scripts/camoufox/golden/*.py -> tests/camoufox/fixtures/{launch,identity}). They are
  * regenerated on every run rather than committed, so the TS tests always
  * compare against the pythonlib in this checkout: a pythonlib change that
  * typescript/ does not mirror fails here.
@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const REPO = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
+	"..",
 	"..",
 	"..",
 	"..",
@@ -37,7 +38,7 @@ export default function setup(): void {
 			`The golden fixtures are recorded from pythonlib, and ${PYTHON} does not exist. ` +
 				"From the repo root:\n" +
 				"  python3.14 -m venv .venv\n" +
-				"  .venv/bin/pip install -r python/requirements-dev.txt -e python/camoucore -e python/camoufox\n" +
+				"  .venv/bin/pip install -r python/requirements-dev.txt -e python/camoucore\n" +
 				"  .venv/bin/python python/camoucore/scripts/pin-fpgen-model.py\n" +
 				"or point CAMOUFOX_PYTHON at an interpreter that has them.",
 		);
@@ -46,7 +47,15 @@ export default function setup(): void {
 		const proc = spawnSync(
 			PYTHON,
 			[
-				path.join(REPO, "typescript", "camoufox", "scripts", "golden", script),
+				path.join(
+					REPO,
+					"typescript",
+					"camoucore",
+					"scripts",
+					"camoufox",
+					"golden",
+					script,
+				),
 				...args,
 			],
 			{
@@ -54,11 +63,11 @@ export default function setup(): void {
 				encoding: "utf-8",
 				stdio: ["ignore", "pipe", "pipe"],
 				// This checkout's pythonlib first: an interpreter with another
-				// camoufox installed would otherwise record that one's output.
+				// camoucore installed would otherwise record that one's output.
 				env: {
 					...process.env,
 					PYTHONPATH: [
-						path.join(REPO, "python", "camoufox", "src"),
+						path.join(REPO, "python", "camoucore", "src"),
 						process.env.PYTHONPATH,
 					]
 						.filter(Boolean)

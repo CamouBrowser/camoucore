@@ -29,9 +29,9 @@ afterEach(() => {
 
 it("a failed write rejects, and the partial install is removed", async () => {
 	const { installVersioned, BROWSERS_DIR } = await import(
-		"../src/multiversion.js"
+		"../../src/camoufox/multiversion.js"
 	);
-	const { CamoufoxFetcher } = await import("../src/pkgman.js");
+	const { CamoufoxFetcher } = await import("../../src/camoufox/pkgman.js");
 
 	class DiskFull extends CamoufoxFetcher {
 		static override async downloadFile(file: Writable): Promise<void> {

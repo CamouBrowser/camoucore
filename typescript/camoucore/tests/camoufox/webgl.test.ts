@@ -1,5 +1,5 @@
 /**
- * WebGL: ports of python/camoufox/tests/test_webgl.py and
+ * WebGL: ports of python/camoucore/tests/camoufox/test_webgl.py and
  * test_webgl_screen_consistency.py. The seeded draws themselves are pinned
  * against Python in identity-golden.test.ts. (test_no_coherent_gpu_raises is
  * not ported: it needs fpgen's trace replaced, which an ES module cannot do.)
@@ -8,7 +8,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { gpuFitsOs } from "../src/coherence.js";
+import { gpuFitsOs } from "../../src/camoufox/coherence.js";
 import {
 	generateContextFingerprint,
 	gpuScreenIsPlausible,
@@ -16,14 +16,14 @@ import {
 	MODERN_SCREEN_FLOOR,
 	raiseScreenToModernFloor,
 	rendererBucket,
-} from "../src/fingerprints.js";
-import { orjsonDumps } from "../src/pycompat.js";
+} from "../../src/camoufox/fingerprints.js";
+import { orjsonDumps } from "../../src/camoufox/pycompat.js";
 import {
 	firefoxGpus,
 	sampleWebglForScreen,
 	toConfig,
 	webglForGpu,
-} from "../src/webgl.js";
+} from "../../src/camoufox/webgl.js";
 import { MODEL } from "./fpgen-setup.js";
 import { prerequisite } from "./prereq.js";
 
@@ -53,11 +53,11 @@ const SHARED_LIMITS = [
 ];
 const GTX_980_FIXTURE = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	"../../../python/camoufox/tests/data/webgl-gtx980-linux.json",
+	"../../../../python/camoucore/tests/camoufox/data/webgl-gtx980-linux.json",
 );
 const PROPERTIES = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	"../../../python/camoufox/tests/data/properties.json",
+	"../../../../python/camoucore/tests/camoufox/data/properties.json",
 );
 
 describe.skipIf(!MODEL.ok)("webgl (test_webgl.py)", () => {

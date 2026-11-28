@@ -43,11 +43,11 @@ for (const name of [
 	delete process.env[name];
 }
 
-export const utils = await import("../src/utils.js");
-export const fingerprints = await import("../src/fingerprints.js");
-export const warnings = await import("../src/warnings.js");
-export const addons = await import("../src/addons.js");
-const { Geolocation, Locale } = await import("camoucore/locales.js");
+export const utils = await import("../../src/camouwolf/utils.js");
+export const fingerprints = await import("../../src/camouwolf/fingerprints.js");
+export const warnings = await import("../../src/camouwolf/warnings.js");
+export const addons = await import("../../src/camouwolf/addons.js");
+const { Geolocation, Locale } = await import("../../src/locales.js");
 
 /** Reassemble the chunked CAMOU_CONFIG_<n> env vars into the config. */
 export function configOf(options: Record<string, any>): Record<string, any> {

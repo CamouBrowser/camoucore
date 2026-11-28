@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { findInTree } from "../src/tree.js";
+import { findInTree } from "../../src/mcp/tree.js";
 
 describe("findInTree", () => {
 	const tree = [

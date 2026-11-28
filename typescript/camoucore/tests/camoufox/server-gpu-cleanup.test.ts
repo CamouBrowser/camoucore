@@ -1,7 +1,7 @@
 /**
  * launchServer with headless: "virtual-gpu" proves the GPU through its own
  * server. Whatever fails after the server is up must close it and kill the
- * display (python/camoufox/src/camoufox/server.py shuts the process down on any error).
+ * display (python/camoucore/src/camoucore/camoufox/server.py shuts the process down on any error).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,15 +23,15 @@ vi.mock("playwright-core", () => ({
 		connect: mocks.connect,
 	},
 }));
-vi.mock("../src/gpudisplay.js", () => ({
+vi.mock("../../src/camoufox/gpudisplay.js", () => ({
 	GpuDisplay: class {},
 	proveGpu: mocks.proveGpu,
 }));
-vi.mock("camoucore/cpu_affinity.js", () => ({
+vi.mock("../../src/cpu_affinity.js", () => ({
 	withUnpinnedLaunch: <T>(fn: () => T) => fn(),
 }));
-vi.mock("../src/utils.js", async () => {
-	const { GpuDisplay } = await import("../src/gpudisplay.js");
+vi.mock("../../src/camoufox/utils.js", async () => {
+	const { GpuDisplay } = await import("../../src/camoufox/gpudisplay.js");
 	return {
 		launchOptions: async () => ({}),
 		startVirtualDisplay: async () => [
@@ -41,7 +41,7 @@ vi.mock("../src/utils.js", async () => {
 	};
 });
 
-const { launchServer } = await import("../src/server.js");
+const { launchServer } = await import("../../src/camoufox/server.js");
 
 beforeEach(() => {
 	mocks.display = { kill: vi.fn() };

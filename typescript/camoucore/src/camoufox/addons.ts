@@ -1,7 +1,7 @@
 /**
  * Default Firefox addons: the ones each browser release bundles.
  *
- * TypeScript twin of python/camoufox/src/camoufox/addons.py.
+ * TypeScript twin of python/camoucore/src/camoucore/camoufox/addons.py.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
