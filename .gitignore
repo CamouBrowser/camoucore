@@ -5,3 +5,5 @@ dist/
 node_modules/
 # CI downloads and work files (the browser, the fpgen model)
 .ci-work/
+# npm credentials stay on the machine that made them
+.npmrc

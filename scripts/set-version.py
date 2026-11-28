@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
-"""Set every package in this repository to one version, or check that they agree.
+"""Set every version this repository writes to one version, or check that they agree.
 
-Every package is released together, at one version: the Python packages
-(python/*), the npm packages (typescript/*) and the MCP server (mcp/). A
-launcher depends on exactly the camoucore of its own release:
-
-  - python/<launcher>/pyproject.toml pins `camoucore` to the version itself.
-  - typescript/<launcher>/package.json depends on `workspace:*`, which pnpm
-    rewrites to the exact version when it packs.
+camoucore is one package per registry, released at one version: PyPI's
+(python/camoucore/pyproject.toml) and npm's (typescript/camoucore/package.json),
+and each TypeScript launcher's LIBRARY_VERSION
+(typescript/camoucore/src/<launcher>/__version__.ts), which the CLI prints
+where the Python launcher reads its installed version.
 
 Usage:
     python3 scripts/set-version.py 0.6.1     # write the version everywhere
     python3 scripts/set-version.py --check   # non-zero if any file disagrees
 
-npm spells a prerelease 0.6.1-beta.2; PyPI spells it 0.6.1b2. Give the npm
-spelling and each file gets its own.
+npm spelling 0.6.1-beta.2 is PyPI spelling 0.6.1b2. Give the npm spelling and
+each file gets its own.
 """
 
 import argparse
@@ -24,9 +22,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PYTHON = sorted(p.parent for p in (ROOT / 'python').glob('*/pyproject.toml'))
-NPM = sorted(p.parent for p in (ROOT / 'typescript').glob('*/package.json')) + [ROOT / 'mcp']
-CORE = 'camoucore'
+PYPROJECT = ROOT / 'python' / 'camoucore' / 'pyproject.toml'
+PACKAGE_JSON = ROOT / 'typescript' / 'camoucore' / 'package.json'
 VERSION_RE = re.compile(r'^\d+\.\d+\.\d+(-beta\.\d+)?$')
 
 
@@ -37,31 +34,13 @@ def pep440(version: str) -> str:
 # (file, pattern, replacement for a version) for each place a version is written.
 # Each pattern's group 1 is the version, and must match exactly once.
 def places():
-    for pkg in PYTHON:
-        pyproject = pkg / 'pyproject.toml'
-        yield pyproject, re.compile(r'^version = "([^"]+)"$', re.M), pep440
-        if pkg.name != CORE:
-            # A launcher pins exactly its release's camoucore: `camoucore = "==..."`.
-            yield pyproject, re.compile(r'^camoucore = "==([^"]+)"$', re.M), pep440
-    for pkg in NPM:
-        yield pkg / 'package.json', re.compile(r'^  "version": "([^"]+)",$', re.M), str
-        version_ts = pkg / 'src' / '__version__.ts'
-        if version_ts.exists():
-            yield version_ts, re.compile(r'^export const LIBRARY_VERSION = "([^"]+)";$', re.M), str
-
-
-def workspace_problems():
-    """Each npm package takes its sibling packages from the workspace."""
-    names = {json.loads((pkg / 'package.json').read_text())['name'] for pkg in NPM}
-    problems = []
-    for pkg in NPM:
-        manifest = json.loads((pkg / 'package.json').read_text())
-        for field in ('dependencies', 'devDependencies'):
-            for name, spec in manifest.get(field, {}).items():
-                if name in names and spec != 'workspace:*':
-                    problems.append(f'{pkg.relative_to(ROOT)}/package.json: {field}.{name} is '
-                                    f'{spec!r}, not "workspace:*"')
-    return problems
+    yield PYPROJECT, re.compile(r'^version = "([^"]+)"$', re.M), pep440
+    yield PACKAGE_JSON, re.compile(r'^  "version": "([^"]+)",$', re.M), str
+    version_ts = sorted(PACKAGE_JSON.parent.glob('src/*/__version__.ts'))
+    if not version_ts:
+        sys.exit(f'no src/<launcher>/__version__.ts under {PACKAGE_JSON.parent.relative_to(ROOT)}')
+    for path in version_ts:
+        yield path, re.compile(r'^export const LIBRARY_VERSION = "([^"]+)";$', re.M), str
 
 
 def main() -> int:
@@ -75,7 +54,7 @@ def main() -> int:
         sys.exit(f'{args.version!r} is not a version like 0.6.1 or 0.6.1-beta.2')
 
     found = {}
-    problems = workspace_problems()
+    problems = []
     for path, pattern, spell in places():
         text = path.read_text()
         matches = pattern.findall(text)
@@ -93,8 +72,8 @@ def main() -> int:
         print(f'set {len(found)} places to {args.version}')
         return 1 if problems else 0
 
-    # --check: the first npm package.json is the reference.
-    reference = json.loads((NPM[0] / 'package.json').read_text())['version']
+    # --check: npm's package.json is the reference.
+    reference = json.loads(PACKAGE_JSON.read_text())['version']
     for where, (value, spell) in found.items():
         if value != spell(reference):
             problems.append(f'{where}: {value}, expected {spell(reference)}')

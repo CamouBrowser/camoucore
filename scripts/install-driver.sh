@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-# Install one launcher's driver from this checkout, the way its published
-# packages install: what a browser repository's CI runs when its ci/driver-ref
-# names a camoucore ref instead of the latest release.
+# Install camoucore from this checkout, the way the published package installs,
+# and check that one launcher in it imports: what a browser repository's CI
+# runs when its ci/driver-ref names a camoucore ref instead of the latest
+# release.
 #
 #   scripts/install-driver.sh <launcher> <python-venv-dir> <npm-target-dir> [python-extras]
 #
-#   launcher         a launcher in this repository: python/<launcher> and
-#                    typescript/<launcher> (camoufox, camouwolf), published as
-#                    camoucore-<launcher>
-#   python-venv-dir  a virtualenv; created when it does not exist. camoucore and
-#                    the launcher are pip-installed into it (not editable).
-#   npm-target-dir   typescript/camoucore and typescript/<launcher> are built,
-#                    packed, and the tarballs npm-installed here (a package.json
-#                    is created when there is none). "-" or "" skips the npm
-#                    half; so does a machine without node, with a warning,
-#                    since a Python-only job has nothing to run it with.
-#   python-extras    optional, e.g. "geoip": extras for both packages.
+#   launcher         a launcher in camoucore (camoufox, camouwolf): the one
+#                    whose import, camoucore.<launcher> and camoucore/<launcher>,
+#                    is checked
+#   python-venv-dir  a virtualenv; created when it does not exist. camoucore is
+#                    pip-installed into it (not editable).
+#   npm-target-dir   typescript/camoucore is built, packed, and the tarball
+#                    npm-installed here (a package.json is created when there
+#                    is none). "-" or "" skips the npm half; so does a machine
+#                    without node, with a warning, since a Python-only job has
+#                    nothing to run it with.
+#   python-extras    optional, e.g. "geoip".
 #
 # Needs python3 and, for the npm half, node >= 22.15 with pnpm or corepack.
 set -euo pipefail
@@ -24,8 +25,8 @@ usage() { echo "usage: $0 <launcher> <python-venv-dir> <npm-target-dir> [python-
 [ $# -ge 3 ] && [ $# -le 4 ] || usage
 launcher=$1 venv=$2 npm_dir=$3 extras=${4:-}
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-[ "$launcher" != camoucore ] && [ -f "$repo/python/$launcher/pyproject.toml" ] &&
-	[ -f "$repo/typescript/$launcher/package.json" ] || usage
+[ -n "$launcher" ] && [ -f "$repo/python/camoucore/src/camoucore/$launcher/repos.yml" ] &&
+	[ -f "$repo/typescript/camoucore/src/$launcher/index.ts" ] || usage
 [ -n "$venv" ] || usage
 suffix=${extras:+[$extras]}
 
@@ -33,12 +34,15 @@ suffix=${extras:+[$extras]}
 if [ ! -x "$venv/bin/python" ]; then
 	python3 -m venv "$venv"
 fi
-# Both in one pip call, so the launcher's exact camoucore pin resolves to this
-# checkout's camoucore rather than to PyPI.
+# --force-reinstall: a venv that already holds this version (from PyPI, say)
+# would otherwise keep it.
 "$venv/bin/python" -m pip install --quiet --upgrade pip
-"$venv/bin/python" -m pip install --quiet \
-	"$repo/python/camoucore$suffix" "$repo/python/$launcher$suffix"
-"$venv/bin/python" -c "import camoucore, $launcher; print('python:', 'camoucore-$launcher', 'and camoucore installed')"
+"$venv/bin/python" -m pip install --quiet --force-reinstall "$repo/python/camoucore$suffix"
+"$venv/bin/python" -c "
+from importlib.metadata import version
+import camoucore.$launcher
+print('python: camoucore', version('camoucore'), 'installed, with camoucore.$launcher')
+"
 
 # ---- npm
 if [ -z "$npm_dir" ] || [ "$npm_dir" = "-" ]; then
@@ -63,22 +67,19 @@ trap 'rm -rf "$pack"' EXIT
 
 (
 	cd "$repo"
-	# The workspace's own install; lifecycle scripts build every package.
+	# The workspace's own install; its lifecycle script builds the package.
 	"${pnpm[@]}" install --frozen-lockfile --reporter=silent
-	for pkg in camoucore "$launcher"; do
-		(cd "typescript/$pkg" && "${pnpm[@]}" run --silent build >/dev/null &&
-			"${pnpm[@]}" pack --pack-destination "$pack" >/dev/null)
-	done
+	cd typescript/camoucore
+	"${pnpm[@]}" run --silent build >/dev/null
+	"${pnpm[@]}" pack --pack-destination "$pack" >/dev/null
 )
 
 [ -f "$npm_dir/package.json" ] || echo '{"name":"driver-under-test","private":true,"type":"module"}' >"$npm_dir/package.json"
-# pnpm pack wrote the launcher's `workspace:*` as the exact camoucore version,
-# and the camoucore tarball installed beside it satisfies that.
 (cd "$npm_dir" && npm install --no-audit --no-fund --silent "$pack"/*.tgz)
 (cd "$npm_dir" && node --input-type=module -e "
-	const m = await import('camoucore-$launcher');
-	if (typeof m.launchOptions !== 'function') throw new Error('camoucore-$launcher has no launchOptions');
+	const m = await import('camoucore/$launcher');
+	if (typeof m.launchOptions !== 'function') throw new Error('camoucore/$launcher has no launchOptions');
 	const { createRequire } = await import('node:module');
-	const v = createRequire(import.meta.url)('camoucore-$launcher/package.json').version;
-	console.log('npm: camoucore-$launcher', v, 'installed in $npm_dir');
+	const v = createRequire(import.meta.url)('camoucore/package.json').version;
+	console.log('npm: camoucore', v, 'installed in $npm_dir, with camoucore/$launcher');
 ")

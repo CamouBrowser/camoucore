@@ -13,8 +13,8 @@ build they were tested with.
         appends them to $GITHUB_OUTPUT as well.
 
     scripts/browser-release.py stamp camouwolf --repo CamouBrowser/camouwolf --tag v158.0.8127.36-alpha.1
-        Write python/<launcher>/src/<launcher>/browser-pin.json. The npm package
-        ships the same file (its build copies the Python package's data files).
+        Write python/camoucore/src/camoucore/<launcher>/browser-pin.json. The npm
+        package ships the same file (its build copies the Python package's data files).
         A development checkout keeps `{}`: nothing pinned.
 
     scripts/browser-release.py check-schema camouwolf --tag v158.0.8127.36-alpha.1
@@ -38,10 +38,9 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# Every python/<launcher> beside camoucore; a launcher is added by adding its
-# packages (AGENTS.md, "Adding a launcher").
-LAUNCHERS = tuple(sorted(p.parent.name for p in (ROOT / 'python').glob('*/pyproject.toml')
-                         if p.parent.name != 'camoucore'))
+# Every subpackage of camoucore with a repos.yml (AGENTS.md, "Adding a launcher").
+PACKAGE = ROOT / 'python' / 'camoucore' / 'src' / 'camoucore'
+LAUNCHERS = tuple(sorted(p.parent.name for p in PACKAGE.glob('*/repos.yml')))
 # The browser binary in a release, for a launcher whose binary is not named
 # after it (a Firefox build ships <name>-bin, for one).
 EXECUTABLES: dict = {"camoufox": "camoufox-bin"}
@@ -53,7 +52,7 @@ SCHEMA = {'camouwolf': ('data/properties.json', 'browser/settings/properties.jso
 
 
 def package_dir(launcher: str) -> Path:
-    return ROOT / 'python' / launcher / 'src' / launcher
+    return PACKAGE / launcher
 
 
 def official_repo(launcher: str) -> str:
@@ -117,7 +116,7 @@ def check_schema(launcher: str, tag: str) -> int:
     remote = github(f'repos/{repo}/contents/{theirs}?ref={tag}')['sha']
     local = git_blob_sha(package_dir(launcher) / ours)
     if remote != local:
-        print(f'::error::python/{launcher}/src/{launcher}/{ours} differs from {theirs} in {repo} at {tag}. '
+        print(f'::error::{package_dir(launcher).relative_to(ROOT)}/{ours} differs from {theirs} in {repo} at {tag}. '
               'The browser ships first: change the schema there, release it, then copy it here.')
         return 1
     print(f'OK: {ours} is {repo}@{tag}:{theirs}')

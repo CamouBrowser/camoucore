@@ -1,7 +1,7 @@
 name: Set up the pnpm workspace
 description: >-
-  Node, the workspace's pnpm, and a frozen install of every package in
-  typescript/ and mcp/ (their lifecycle scripts build them).
+  Node, the workspace's pnpm, and a frozen install of the package in
+  typescript/ (its lifecycle scripts build it).
 
 inputs:
   node-version:
