@@ -1712,9 +1712,12 @@ describe.skipIf(!MODEL.ok)(
 			]);
 		});
 
-		it("a preset GPU is checked against the host core count (test_coherence.py)", async () => {
+		it("a preset GPU survives a host core count no Mac with it reports (test_coherence.py)", async () => {
 			// The launch replaces the preset's cores with the host's after the
-			// preset's GPU is read: the GPU has to fit the count that ships.
+			// preset's GPU is read. On a host whose count no Intel iGPU Mac
+			// reports, the count is the value that yields (16 is the most such a
+			// Mac claims), not the GPU -- the old order dropped the GPU and redrew
+			// it from the generic pool (daijro/camoufox#1090).
 			const base = fingerprints.loadPresets("152")?.presets.macos[0];
 			const preset = {
 				...base,
@@ -1732,14 +1735,19 @@ describe.skipIf(!MODEL.ok)(
 					unmaskedRenderer: "Intel(R) HD Graphics 400, or similar",
 				},
 			};
-			deps.fixHardwareConcurrency = (config, canPin) =>
-				fingerprints.fixHardwareConcurrency(config, canPin, { cpuCount: 20 });
+			deps.fixHardwareConcurrency = (config, canPin, _host, targetOs) =>
+				fingerprints.fixHardwareConcurrency(
+					config,
+					canPin,
+					{ cpuCount: 20 },
+					targetOs,
+				);
 			const config = await launchConfig({
 				os: "macos",
 				fingerprint_preset: preset,
 			});
-			expect(config["navigator.hardwareConcurrency"]).toBe(20);
-			expect(config["webGl:renderer"]).not.toContain("Intel");
+			expect(config["navigator.hardwareConcurrency"]).toBe(16);
+			expect(config["webGl:renderer"]).toBe(preset.webgl.unmaskedRenderer);
 		});
 
 		it("a preset GPU fpgen has never seen raises", async () => {
@@ -1845,25 +1853,43 @@ describe.skipIf(!MODEL.ok)(
 		])("every bundled %s preset launches with its own GPU", async (osName) => {
 			const presets = fingerprints.loadPresets("150")?.presets[osName] ?? [];
 			expect(presets.length).toBeGreaterThan(0);
-			// hardwareConcurrency follows the host, and the GPU must fit it (no
-			// Intel Mac reports 20 or 24 cores beside its IGP), so a many-core CI
-			// host would redraw a preset's GPU. 8 cores fit every preset's machine.
-			const fix = deps.fixHardwareConcurrency;
-			deps.fixHardwareConcurrency = (config, canPin) =>
-				fix(config, canPin, { cpuCount: 8 });
-			try {
-				for (const [i, preset] of presets.entries()) {
-					const config = await launchConfig({
-						os: osName,
-						fingerprint_preset: preset,
-					});
-					expect(config["webGl:parameters"], `${osName} ${i}`).toBeTruthy();
-					expect(config["webGl:renderer"], `${osName} ${i}`).toBe(
-						preset.webgl.unmaskedRenderer,
-					);
-				}
-			} finally {
-				deps.fixHardwareConcurrency = fix;
+			for (const [i, preset] of presets.entries()) {
+				const config = await launchConfig({
+					os: osName,
+					fingerprint_preset: preset,
+				});
+				expect(config["webGl:parameters"], `${osName} ${i}`).toBeTruthy();
+				expect(config["webGl:renderer"], `${osName} ${i}`).toBe(
+					preset.webgl.unmaskedRenderer,
+				);
+			}
+		}, 120_000);
+
+		it.each([
+			12, 32,
+		])("every bundled macos preset keeps its GPU on a %i-core host", async (cores) => {
+			// The launch replaces the preset's core count with the host's; on a
+			// host whose count no Intel-iGPU Mac reports, that used to cost the
+			// preset its GPU, redrawn from the generic pool
+			// (daijro/camoufox#1090). The host count is pinned so the guard
+			// holds on runners of any size (test_identity_salt.py).
+			deps.fixHardwareConcurrency = (config, canPin, _host, targetOs) =>
+				fingerprints.fixHardwareConcurrency(
+					config,
+					canPin,
+					{ cpuCount: cores },
+					targetOs,
+				);
+			const presets = fingerprints.loadPresets("150")?.presets.macos ?? [];
+			expect(presets.length).toBeGreaterThan(0);
+			for (const [i, preset] of presets.entries()) {
+				const config = await launchConfig({
+					os: "macos",
+					fingerprint_preset: preset,
+				});
+				expect(config["webGl:renderer"], `${cores} ${i}`).toBe(
+					preset.webgl.unmaskedRenderer,
+				);
 			}
 		}, 120_000);
 	},
