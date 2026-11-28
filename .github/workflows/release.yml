@@ -1,11 +1,11 @@
 name: release
 
-# A v<version> tag publishes every package at that version: camoucore and each
-# launcher (camoucore-<launcher>) to PyPI and npm, and camoucore-mcp to npm.
-# They are released together so a launcher's exact camoucore pin is always on
-# the registry beside it. Each launcher's own browser-pin.json is stamped with
-# the browser release the tests below ran it against: what it fetches when the
-# browser repository's <launcher> package, whose pin wins, is not installed.
+# A v<version> tag publishes camoucore at that version to PyPI and npm: the
+# core, every launcher (camoucore.<launcher>, camoucore/<launcher>) and, on
+# npm, the MCP server. Each launcher's own browser-pin.json inside it is
+# stamped with the browser release the tests below ran it against: what it
+# fetches when the browser repository's <launcher> package, whose pin wins, is
+# not installed.
 #
 # Publishing is OIDC trusted publishing with provenance; RELEASING.md lists the
 # trusted publishers this needs. Re-running a release skips what is already
@@ -22,7 +22,7 @@ jobs:
     uses: ./.github/workflows/tests.yml
 
   build:
-    name: Build the packages
+    name: Build the package
     needs: tests
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-24.04"') }}
     timeout-minutes: 20
@@ -41,13 +41,13 @@ jobs:
           python-version: "3.12"
       - uses: ./.github/actions/node
       - id: version
-        name: The tag is the version every package carries
+        name: The tag is the version the package carries
         env:
           TAG: ${{ github.ref_name }}
         run: |
           python3 scripts/set-version.py --check
           version=$(jq -r .version typescript/camoucore/package.json)
-          [ "v$version" = "$TAG" ] || { echo "::error::$TAG does not match the packages' version $version"; exit 1; }
+          [ "v$version" = "$TAG" ] || { echo "::error::$TAG does not match the package's version $version"; exit 1; }
           case "$version" in *-*) echo "npm-tag=next" ;; *) echo "npm-tag=latest" ;; esac >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -56,30 +56,37 @@ jobs:
           merge-multiple: true
       - name: Stamp each launcher's fallback pin with the browser it was tested on
         run: |
-          for launcher in $(cd python && ls -d */ | tr -d / | grep -vx camoucore); do
+          launchers=$(cd python/camoucore/src/camoucore && ls -d */repos.yml | cut -d/ -f1)
+          [ -n "$launchers" ] || { echo "::error::no launcher found to stamp"; exit 1; }
+          for launcher in $launchers; do
             f=.ci-work/tested/$launcher.json
             [ -f "$f" ] || { echo "::error::no tested browser recorded for $launcher"; exit 1; }
             python3 scripts/browser-release.py stamp "$launcher" --repo "$(jq -r .repo "$f")" --tag "$(jq -r .tag "$f")"
           done
-      - name: Build the Python packages
+      - name: Build the Python package
         run: |
           python3 -m pip install -q build twine
-          for pkg in python/*/; do python3 -m build "$pkg" --outdir python-dist; done
+          python3 -m build python/camoucore --outdir python-dist
           python3 -m twine check --strict python-dist/*
-      - name: Build the npm packages
-        # pnpm pack writes each workspace:* dependency as the exact version.
+      - name: Every launcher's stamped pin is in the wheel
+        run: |
+          for launcher in $(cd python/camoucore/src/camoucore && ls -d */repos.yml | cut -d/ -f1); do
+            unzip -p python-dist/*.whl "camoucore/$launcher/browser-pin.json" | jq -e .tag >/dev/null \
+              || { echo "::error::the wheel's camoucore/$launcher/browser-pin.json is not stamped"; exit 1; }
+          done
+      - name: Build the npm package
+        # The build copies the stamped pins in with the other data files.
         run: |
           mkdir npm-dist
-          for pkg in typescript/*/ mcp/; do
-            (cd "$pkg" && pnpm run build && pnpm pack --pack-destination "$GITHUB_WORKSPACE/npm-dist")
-          done
-          ls npm-dist
-      - name: The packed npm packages pin each other exactly
+          cd typescript/camoucore
+          pnpm run build
+          pnpm pack --pack-destination "$GITHUB_WORKSPACE/npm-dist"
+          ls "$GITHUB_WORKSPACE/npm-dist"
+      - name: Every launcher's stamped pin is in the tarball
         run: |
-          for tgz in npm-dist/*.tgz; do
-            if tar -xOzf "$tgz" package/package.json | grep -q '"workspace:'; then
-              echo "::error::$tgz still has a workspace: dependency"; exit 1
-            fi
+          for launcher in $(cd python/camoucore/src/camoucore && ls -d */repos.yml | cut -d/ -f1); do
+            tar -xOzf npm-dist/camoucore-*.tgz "package/dist/$launcher/data-files/browser-pin.json" | jq -e .tag >/dev/null \
+              || { echo "::error::the tarball's dist/$launcher/data-files/browser-pin.json is not stamped"; exit 1; }
           done
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -129,11 +136,10 @@ jobs:
         with:
           name: npm-dist
           path: npm-dist
-      # camoucore first: each launcher and the MCP server depend on it.
       - env:
           NPM_TAG: ${{ needs.build.outputs.npm-tag }}
         run: |
-          for tgz in npm-dist/camoucore-[0-9]*.tgz $(ls npm-dist/*.tgz | grep -v '/camoucore-[0-9]'); do
+          for tgz in npm-dist/*.tgz; do
             spec=$(tar -xOzf "$tgz" package/package.json | jq -r '.name + "@" + .version')
             if npm view "$spec" version >/dev/null 2>&1; then
               echo "$spec is already published"; continue

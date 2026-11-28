@@ -1,13 +1,14 @@
 name: tests
 
-# Every package in this repository, in both languages, and each launcher's
-# driver against its launcher's newest browser release. The browser ships
+# The camoucore package in both languages, suite by suite (the core, each
+# launcher, the MCP server), and each launcher against its newest browser
+# release. The browser ships
 # first, then the driver: a driver change that needs a browser change waits for
 # that browser's release, and the integration job says so by failing until it
 # exists.
 #
-# The launchers are found, not listed: every python/<launcher> beside
-# camoucore (AGENTS.md, "Adding a launcher").
+# The launchers are found, not listed: every subpackage of camoucore with a
+# repos.yml (AGENTS.md, "Adding a launcher").
 on:
   push:
     branches: [main]
@@ -28,7 +29,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       launchers: ${{ steps.launchers.outputs.launchers }}
-      packages: ${{ steps.launchers.outputs.packages }}
+      suites: ${{ steps.launchers.outputs.suites }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -39,26 +40,27 @@ jobs:
           python-version: "3.11"
       - id: launchers
         run: |
-          launchers=$(cd python && ls -d */ | tr -d / | grep -vx camoucore | jq -R . | jq -cs .)
+          launchers=$(cd python/camoucore/src/camoucore && ls -d */repos.yml | cut -d/ -f1 | jq -R . | jq -cs .)
+          [ "$launchers" != "[]" ] || { echo "::error::no launcher (a subpackage with repos.yml) in python/camoucore/src/camoucore"; exit 1; }
           echo "launchers=$launchers" >> "$GITHUB_OUTPUT"
-          echo "packages=$(jq -c '["camoucore"] + .' <<<"$launchers")" >> "$GITHUB_OUTPUT"
+          echo "suites=$(jq -c '["core"] + .' <<<"$launchers")" >> "$GITHUB_OUTPUT"
           echo "launchers: $launchers"
-      - name: Every package is at one version
+      - name: Every version file is at one version
         run: python3 scripts/set-version.py --check
       - name: The sources compile on the oldest supported Python
-        run: python3 -m compileall -q python/*/src
+        run: python3 -m compileall -q python/camoucore/src
       - name: No test input is git-ignored
         run: scripts/check-test-inputs.sh
 
   python:
-    name: Python ${{ matrix.package }}
+    name: Python ${{ matrix.suite }}
     needs: static
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-24.04"') }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJSON(needs.static.outputs.packages) }}
+        suite: ${{ fromJSON(needs.static.outputs.suites) }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -69,92 +71,88 @@ jobs:
       - name: Test prerequisites
         # xvfb: the virtual-display lifecycle tests start servers of their own.
         run: command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends xvfb; }
-      # Every extra each package declares (geoip: camoucore's GeoIP source
-      # tests download every source and fail when one stops publishing). Into a
+      # Every extra the package declares (geoip: the GeoIP source tests
+      # download every source and fail when one stops publishing). Into a
       # fresh venv: a self-hosted runner keeps setup-python's interpreter across
       # jobs, and a package another job installed there non-editable (the
-      # integration job's camoufox) would shadow this checkout's.
-      - env:
-          PKG: ${{ matrix.package }}
-        run: |
-          extras() { python3 -c 'import sys, tomllib; print(",".join(tomllib.load(open(sys.argv[1], "rb"))["tool"]["poetry"].get("extras", {})))' "python/$1/pyproject.toml"; }
-          pkgs=("python/camoucore[$(extras camoucore)]")
-          [ "$PKG" = camoucore ] || pkgs+=("python/$PKG[$(extras "$PKG")]")
+      # integration job's camoucore) would shadow this checkout's.
+      - run: |
+          extras=$(python3 -c 'import tomllib; print(",".join(tomllib.load(open("python/camoucore/pyproject.toml", "rb"))["tool"]["poetry"].get("extras", {})))')
           python3 -m venv "$RUNNER_TEMP/venv"
-          "$RUNNER_TEMP/venv/bin/python" -m pip install -q -r python/requirements-dev.txt "${pkgs[@]/#/-e}"
+          "$RUNNER_TEMP/venv/bin/python" -m pip install -q -r python/requirements-dev.txt -e "python/camoucore[$extras]"
           echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
       - uses: ./.github/actions/fpgen-model
       - name: pytest
-        working-directory: python/${{ matrix.package }}
+        working-directory: python/camoucore
         env:
           # The drivers resolve releases through the GitHub API; anonymous, a
           # runner shares its IP range's 60-an-hour quota.
           GITHUB_TOKEN: ${{ github.token }}
-        # A private display: nothing in the suite can reach a desktop.
-        run: xvfb-run -a python3 -m pytest tests -q
+        # A private display: nothing in the suite can reach a desktop. One
+        # suite per run: each imports its helpers by bare name.
+        run: xvfb-run -a python3 -m pytest "tests/${{ matrix.suite }}" -q
 
   typescript:
-    name: TypeScript ${{ matrix.package }}
+    name: TypeScript ${{ matrix.suite }}
     needs: static
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-24.04"') }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJSON(needs.static.outputs.packages) }}
+        suite: ${{ fromJSON(needs.static.outputs.suites) }}
     env:
-      PKG: ${{ matrix.package }}
+      SUITE: ${{ matrix.suite }}
+    defaults:
+      run:
+        working-directory: typescript/camoucore
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
-          # The golden tests hold each TypeScript package to its Python twin's
+          # The golden tests hold each TypeScript suite to its Python twin's
           # output, recorded from this interpreter (<LAUNCHER>_PYTHON).
           python-version: "3.14"
       - name: The Python twin, for the goldens
+        working-directory: .
         run: |
           python3 -m venv .venv
-          pkgs=(-e python/camoucore)
-          [ "$PKG" = camoucore ] || pkgs+=(-e "python/$PKG")
-          .venv/bin/pip install -q -r python/requirements-dev.txt "${pkgs[@]}"
-          echo "${PKG^^}_PYTHON=$PWD/.venv/bin/python" >> "$GITHUB_ENV"
+          .venv/bin/pip install -q -r python/requirements-dev.txt -e python/camoucore
+          prefix=$([ "$SUITE" = core ] && echo CAMOUCORE || echo "${SUITE^^}")
+          echo "${prefix}_PYTHON=$PWD/.venv/bin/python" >> "$GITHUB_ENV"
       - uses: ./.github/actions/fpgen-model
         with:
           python: .venv/bin/python
       - name: Test prerequisites
         run: command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends xvfb; }
       - uses: ./.github/actions/node
+      # The whole package, once: these do not split by suite.
       - name: Type check
-        working-directory: typescript/${{ matrix.package }}
+        if: matrix.suite == 'core'
         run: pnpm typecheck
       - name: Lint
-        working-directory: typescript/${{ matrix.package }}
+        if: matrix.suite == 'core'
         run: pnpm check
       - name: Build
-        working-directory: typescript/${{ matrix.package }}
         run: pnpm build
-      - name: The packed tarball installs, imports and ships every data file
-        working-directory: typescript/${{ matrix.package }}
-        run: |
-          if jq -e '.scripts["check:pack"]' package.json >/dev/null; then pnpm check:pack
-          else echo "$PKG has no check:pack"; fi
+      - name: The packed tarball installs, imports, ships every data file and runs as each wrapper
+        if: matrix.suite == 'core'
+        run: pnpm check:pack
       - name: The recorded goldens match the Python launcher
-        working-directory: typescript/${{ matrix.package }}
         run: |
-          if ! jq -e '.scripts.golden' package.json >/dev/null; then echo "$PKG records no goldens"; exit 0; fi
-          pnpm golden
-          git diff --exit-code -- tests/golden || {
-            echo "::error::typescript/$PKG/tests/golden is stale: the Python launcher's output changed. Run pnpm golden and commit, or mirror the change in TypeScript."
+          if ! jq -e --arg s "golden:$SUITE" '.scripts[$s]' package.json >/dev/null; then echo "$SUITE records no goldens"; exit 0; fi
+          pnpm "golden:$SUITE"
+          git diff --exit-code -- "tests/$SUITE/golden" || {
+            echo "::error::typescript/camoucore/tests/$SUITE/golden is stale: the Python launcher's output changed. Run pnpm golden:$SUITE and commit, or mirror the change in TypeScript."
             exit 1
           }
       - name: vitest (golden tests included)
-        working-directory: typescript/${{ matrix.package }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           WAYLAND_DISPLAY: ""
-        run: xvfb-run -a pnpm test
+        run: xvfb-run -a pnpm exec vitest run --project "$SUITE"
 
   mcp:
     name: MCP server
@@ -166,11 +164,11 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/node
-      - working-directory: mcp
+      - working-directory: typescript/camoucore
         env:
           # The real-browser half runs in the integration job, which has a browser.
           CAMOUCORE_TEST_ALLOW_MISSING: CAMOUCORE_MCP_LAUNCHER
-        run: pnpm typecheck && pnpm check && pnpm test
+        run: pnpm test:mcp
 
   install-driver:
     name: install-driver.sh ${{ matrix.launcher }}
@@ -240,11 +238,12 @@ jobs:
         run: command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends xvfb; }
       - uses: ./.github/actions/node
       - name: The MCP server drives the browser
-        working-directory: mcp
+        working-directory: typescript/camoucore
         env:
-          # The launcher's npm package, which the MCP workspace depends on.
-          CAMOUCORE_MCP_LAUNCHER: camoucore-${{ matrix.launcher }}
-        run: xvfb-run -a pnpm exec vitest run tests/real-browser.test.ts
+          # Served as the launcher's bin serves it: `<launcher> mcp`.
+          CAMOUCORE_MCP_LAUNCHER: ${{ matrix.launcher }}
+          WAYLAND_DISPLAY: ""
+        run: xvfb-run -a pnpm exec vitest run --project mcp tests/mcp/real-browser.test.ts
       - name: The packed drivers, installed clean, launch the browser
         run: |
           scripts/install-driver.sh "$L" "$RUNNER_TEMP/venv" "$RUNNER_TEMP/npm" geoip

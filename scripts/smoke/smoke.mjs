@@ -1,11 +1,11 @@
 // The npm twin of smoke.py: launch an INSTALLED npm driver the way a user's
 // code does, and check the launch. A bare import resolves from this file's
-// directory, so copy it (and page.html) into the project the tarballs were
+// directory, so copy it (and page.html) into the project the tarball was
 // installed in:
 //
 //   node <npm-dir>/smoke.mjs <launcher>
 //
-// The npm package is camoucore-<launcher>; its entry point is named after the
+// The launcher is camoucore/<launcher>; its entry point is named after the
 // launcher (Camoufox, Camouwolf).
 import fs from "node:fs";
 import http from "node:http";
@@ -16,7 +16,7 @@ const launcher = process.argv[2];
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PAGE = fs.readFileSync(path.join(HERE, "page.html"));
 const TYPED = "smoketest";
-const api = await import(`camoucore-${launcher}`);
+const api = await import(`camoucore/${launcher}`);
 const open = api[launcher[0].toUpperCase() + launcher.slice(1)];
 
 const seen = {};

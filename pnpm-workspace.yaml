@@ -1,6 +1,5 @@
 packages:
   - typescript/*
-  - mcp
 
 # 24h quarantine on anything freshly published, as supply-chain cover. Our own
 # packages come from this workspace, so the quarantine never holds them back.

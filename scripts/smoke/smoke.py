@@ -44,7 +44,7 @@ def serve():
 
 def main() -> int:
     launcher = sys.argv[1]
-    api = importlib.import_module(f'{launcher}.sync_api')
+    api = importlib.import_module(f'camoucore.{launcher}.sync_api')
     browser_class = getattr(api, launcher.capitalize())
     server, seen = serve()
     try:
