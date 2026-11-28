@@ -35,6 +35,7 @@ export {
 } from "./multiversion.js";
 export { INSTALL_DIR, OS_NAME } from "./paths.js";
 export { CamoufoxFetcher, installedVerStr, RepoConfig } from "./pkgman.js";
+export { PRODUCT } from "./product.js";
 export { type LaunchServerOptions, launchServer } from "./server.js";
 export {
 	Camoufox,
