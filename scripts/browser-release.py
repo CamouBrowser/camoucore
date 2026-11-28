@@ -44,7 +44,7 @@ LAUNCHERS = tuple(sorted(p.parent.name for p in (ROOT / 'python').glob('*/pyproj
                          if p.parent.name != 'camoucore'))
 # The browser binary in a release, for a launcher whose binary is not named
 # after it (a Firefox build ships <name>-bin, for one).
-EXECUTABLES: dict = {}
+EXECUTABLES: dict = {"camoufox": "camoufox-bin"}
 # v158.0.8127.36-alpha.1
 TAG_RE = re.compile(r'^v(?P<version>[^-]+)-(?P<prefix>[a-z]+)\.(?P<n>\d+)$')
 REPO_NAME = 'Official'

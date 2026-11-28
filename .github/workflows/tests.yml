@@ -69,13 +69,14 @@ jobs:
       - name: Test prerequisites
         # xvfb: the virtual-display lifecycle tests start servers of their own.
         run: command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends xvfb; }
-      # geoip: camoucore's GeoIP source tests download every source and fail
-      # when one stops publishing.
+      # Every extra each package declares (geoip: camoucore's GeoIP source
+      # tests download every source and fail when one stops publishing).
       - env:
           PKG: ${{ matrix.package }}
         run: |
-          pkgs=("python/camoucore[geoip,captcha]")
-          [ "$PKG" = camoucore ] || pkgs+=("python/$PKG[geoip,captcha]")
+          extras() { python3 -c 'import sys, tomllib; print(",".join(tomllib.load(open(sys.argv[1], "rb"))["tool"]["poetry"].get("extras", {})))' "python/$1/pyproject.toml"; }
+          pkgs=("python/camoucore[$(extras camoucore)]")
+          [ "$PKG" = camoucore ] || pkgs+=("python/$PKG[$(extras "$PKG")]")
           python3 -m pip install -q -r python/requirements-dev.txt "${pkgs[@]/#/-e}"
       - uses: ./.github/actions/fpgen-model
       - name: pytest
