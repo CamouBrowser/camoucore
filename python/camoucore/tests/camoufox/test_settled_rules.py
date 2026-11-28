@@ -35,17 +35,3 @@ def test_a_spoofed_window_gets_no_viewport():
 
     assert callable(utils.spoofs_window_dimensions)
     assert callable(utils.attach_no_viewport_default)
-
-
-def test_a_caller_s_screen_claims_the_avail_the_browser_reports():
-    # cross-os-canvas-is-the-rfp-placeholder: spoofed avail-screen values go
-    # through baseline protection, so the config claims them as it reports
-    # them, whether or not the caller set screen.* or window.*.
-    from test_launch_geometry import host, launch
-
-    with host(None):
-        config = launch(headless=True, os='windows', config={
-            'screen.width': 1920, 'screen.height': 1080,
-            'screen.availWidth': 1900, 'screen.availHeight': 1000,
-        })
-    assert (config['screen.availWidth'], config['screen.availHeight']) == (1920, 1080 - 48)

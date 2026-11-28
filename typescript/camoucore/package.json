@@ -1,6 +1,6 @@
 {
   "name": "camoucore",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "The Camoufox and Camouwolf launchers, the core they share, and an MCP server that drives them",
   "type": "module",
   "main": "dist/index.js",

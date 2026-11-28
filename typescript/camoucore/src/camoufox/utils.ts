@@ -1949,9 +1949,6 @@ async function buildLaunchOptions({
 		"navigator.oscpu",
 	);
 	const userSetScreenWindow = isDomainSet(config, "screen.", "window.");
-	const userWindowPosition = new Set(
-		["window.screenX", "window.screenY"].filter((k) => k in config),
-	);
 	const userSetMediaDevices = isDomainSet(config, "mediaDevices:");
 	const userSetFonts = Boolean(fonts?.length) || isDomainSet(config, "fonts");
 	const userSetVoices = isDomainSet(config, "voices", "voices:speechd");
@@ -2131,25 +2128,10 @@ async function buildLaunchOptions({
 					Math.trunc(screenCons.maxHeight / fit)) as number,
 			);
 		}
+		utilsDeps.followBaselineProtection(config, targetOs);
+		utilsDeps.clampWindowDimensions(config);
+		utilsDeps.clampWindowPosition(config);
 	}
-
-	// Every launch, a caller's screen and window included: the config claims the
-	// avail rect the browser reports (baseline protection takes the taskbar out
-	// of the screen whatever availHeight says), and the window is fitted inside
-	// it, since the browser grows the screen to hold a window that does not fit
-	// (2560x1408 against a caller's 1920x1080 read back as 7680x2160). Only a
-	// position the caller did not set is moved: one drawn against the generated
-	// screen is moved onto the caller's, or every new context drew another screen.
-	utilsDeps.followBaselineProtection(config, targetOs);
-	utilsDeps.clampWindowDimensions(config);
-	utilsDeps.clampWindowPosition(
-		config,
-		new Set(
-			["window.screenX", "window.screenY"].filter(
-				(k) => !userWindowPosition.has(k),
-			),
-		),
-	);
 
 	// Deliberately NOT setting window.history.length: browser/settings/camoufox.cfg runs
 	// Firefox's stock max_entries, so the real value starts at 1 and grows with
