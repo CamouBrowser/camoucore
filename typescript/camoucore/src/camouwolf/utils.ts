@@ -10,7 +10,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { inspect } from "node:util";
-import { ensureModel } from "fpgen-js";
+import { ensureModel, ValueError as FpgenValueError } from "fpgen-js";
 import * as cpuAffinity from "../cpu_affinity.js";
 import { hasDisplay, largestDisplay } from "../display.js";
 import { geoipAllowed, getGeolocation } from "../geolocation.js";
@@ -39,6 +39,7 @@ import {
 	NotImplementedError,
 	UnknownIPLocation,
 	UnknownProperty,
+	RuntimeError,
 	UnsupportedOSSpoof,
 	ValueError,
 } from "./exceptions.js";
@@ -1804,8 +1805,9 @@ export function speaks(language: string): (value: unknown) => boolean {
  * a machine's voices and fonts follow the language its OS was installed in.
  *
  * `hostCanvas` reads the GPU this host's canvas renders on. A draw on this
- * host's OS then claims it where fpgen recorded it, so the canvas is the
- * claimed machine's and needs no farbling (drawIdentity).
+ * host's OS then claims it where fpgen recorded it beside the other
+ * constraints, so the canvas is the claimed machine's and needs no farbling
+ * (drawIdentity).
  */
 export async function drawFingerprint(
 	os: ListOrString | null | undefined,
@@ -1838,7 +1840,19 @@ export async function drawFingerprint(
 		) {
 			return fingerprint;
 		}
-		return drawFingerprint(hostOs, screen, window, host, language, cpu);
+		// fpgen may have the host's GPU but no machine with it that also fits
+		// the screen, window or CPU; the first draw then stands, farbled.
+		try {
+			return await drawFingerprint(hostOs, screen, window, host, language, cpu);
+		} catch (err) {
+			if (
+				err instanceof ValueError ||
+				err instanceof FpgenValueError ||
+				err instanceof RuntimeError
+			)
+				return fingerprint;
+			throw err;
+		}
 	}
 	await utilsDeps.ensureModel();
 	const names: string[] = typeof os === "string" ? [os] : [...(os ?? [])];
@@ -1952,7 +1966,7 @@ export async function drawFingerprint(
 			continue;
 		return fingerprint;
 	}
-	throw new Error(
+	throw new RuntimeError(
 		`fpgen drew no desktop Chrome fingerprint with a usable GPU for os=${pyRepr(os ?? null)} in ` +
 			`${MAX_FINGERPRINT_DRAWS} draws`,
 	);
