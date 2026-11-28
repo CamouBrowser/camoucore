@@ -5,14 +5,10 @@
  * Screenshots default to caret: "initial", which leaves the page's style
  * attributes alone. fill() clicks a text field that is not focused first, unless
  * something covers it. Both apply only under a Browser or BrowserContext marked
- * by a Camoufox launch (attachDriverDefaults), as does the warning when
- * setViewportSize() asks for a page the context's claimed screen or window
- * cannot hold (checkPageViewportSize in utils.ts).
+ * by a Camoufox launch (attachDriverDefaults).
  */
 
 import { HIT_TEST_JS } from "@jwriter20/myuri";
-
-import { checkPageViewportSize } from "./utils.js";
 
 const LAUNCHED = Symbol.for("camoufox.driver-defaults");
 const FILL_PATCHED = Symbol.for("camoufox.driver-defaults.fill");
@@ -123,12 +119,12 @@ export function attachDriverDefaults<T>(target: T): T {
 		params: Record<string, any>,
 		...rest: any[]
 	) {
-		if (launchedByCamoufox(object)) {
-			if (method === "setViewportSize")
-				checkPageViewportSize(object, params?.viewportSize);
-			if (method === "screenshot" && params?.caret === undefined)
-				params = { ...params, caret: "initial" };
-		}
+		if (
+			method === "screenshot" &&
+			params?.caret === undefined &&
+			launchedByCamoufox(object)
+		)
+			params = { ...params, caret: "initial" };
 		return send.call(this, object, method, params, ...rest);
 	};
 

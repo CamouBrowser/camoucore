@@ -1,15 +1,11 @@
-"""The identity's display ICC profile (display_profile.py).
+"""A caller's display ICC profile (display_profile.py).
 
 Stock Firefox converts ICC-tagged images to the display's profile, and a page
-reads the result off a canvas: stock 158.0.1 on win-i9 decodes the cfparity
-raster.color sRGB red as 217,54,41, a Linux host without _ICC_PROFILE as
-255,0,0 (gate 11, page/raster.color/{srgb,p3,rotated}/{img,bitmapDefault}).
-gfx.color_management.display_profile, read before the OS profile on every
-platform, reproduces stock's values exactly on this build (measured 2026-11-01,
-pkg-it6b and stock Linux 158.0.1 with the win-i9 values).
+reads the result off a canvas. gfx.color_management.display_profile, a stock
+pref read before the OS profile on every platform, points the browser at the
+caller's profile. Without one the launcher sets nothing, for any identity.
 """
 
-import base64
 import struct
 from pathlib import Path
 
@@ -20,8 +16,8 @@ from camoucore.camoufox import utils
 
 from test_launch_environment import isolated_launch_dependencies  # noqa: F401
 
-WIN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:158.0) Gecko/20100101 Firefox/158.0"
-LIN_UA = "Mozilla/5.0 (X11; Linux x86_64; rv:158.0) Gecko/20100101 Firefox/158.0"
+WIN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:159.0) Gecko/20100101 Firefox/159.0"
+LIN_UA = "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"
 PREF = "gfx.color_management.display_profile"
 
 
@@ -32,20 +28,11 @@ def icc(tag: bytes) -> bytes:
     return header + struct.pack(">I", 0) + body
 
 
-DEFAULT, PANEL, OTHER = icc(b"win-default"), icc(b"panel-3456"), icc(b"other")
-TABLE = {
-    "win": [
-        {"name": "default", "icc": base64.b64encode(DEFAULT).decode()},
-        {"name": "panel", "screens": [[3456, 2160]], "icc": base64.b64encode(PANEL).decode()},
-    ],
-    "mac": [],
-    "lin": [],
-}
+OTHER = icc(b"other")
 
 
 @pytest.fixture(autouse=True)
-def table(monkeypatch, tmp_path):
-    monkeypatch.setattr(dp, "_TABLE", TABLE)
+def cache(monkeypatch, tmp_path):
     monkeypatch.setattr(dp, "_cache_dirs", lambda: [tmp_path / "display-profiles"])
 
 
@@ -66,27 +53,6 @@ def profile_of(prefs) -> bytes:
     return Path(prefs[PREF]).read_bytes()
 
 
-class TestDraw:
-    def test_panel_profile_only_for_its_screen(self):
-        hi = {"screen.width": 1382.4, "screen.height": 864, "window.devicePixelRatio": 2.5}
-        assert dp.device_screen(hi) == [3456, 2160]
-        assert dp.draw_display_profile(hi, 1, "win") == PANEL
-        assert dp.draw_display_profile({"screen.width": 1920, "screen.height": 1080}, 1, "win") == DEFAULT
-
-    def test_os_without_records_draws_nothing(self):
-        assert dp.draw_display_profile({"screen.width": 1440, "screen.height": 900}, 1, "mac") is None
-
-    def test_shipped_table_holds_only_icc_profiles(self, monkeypatch):
-        monkeypatch.setattr(dp, "_TABLE", None)
-        for os_key, entries in dp.load_display_profiles().items():
-            if os_key.startswith("_"):
-                continue
-            assert os_key in ("win", "mac", "lin")
-            for e in entries:
-                dp.check_icc(base64.b64decode(e["icc"]))
-                assert e.get("source"), "every profile names the machine it was recorded on"
-
-
 class TestLaunch:
     def test_caller_bytes_reach_the_pref(self, launch):
         prefs = launch(display_profile=OTHER)
@@ -97,23 +63,18 @@ class TestLaunch:
         f.write_bytes(OTHER)
         assert profile_of(launch(display_profile=str(f))) == OTHER
 
-    def test_windows_identity_draws_one(self, launch):
-        prefs = launch(config={"screen.width": 1920, "screen.height": 1080})
-        assert profile_of(prefs) == DEFAULT
+    @pytest.mark.parametrize("option", [None, True, False])
+    def test_no_profile_keeps_the_browsers_own(self, launch, option):
+        assert PREF not in launch(display_profile=option)
+        assert PREF not in launch(ua=LIN_UA, display_profile=option)
 
     def test_same_identity_same_file(self, launch):
         a = launch(display_profile=OTHER)[PREF]
         b = launch(display_profile=OTHER)[PREF]
         assert a == b
 
-    def test_false_keeps_the_browsers_own(self, launch):
-        assert PREF not in launch(display_profile=False)
-
     def test_callers_pref_wins(self, launch):
         assert launch(display_profile=OTHER, firefox_user_prefs={PREF: "/x.icc"})[PREF] == "/x.icc"
-
-    def test_host_os_identity_reads_the_real_display(self, launch):
-        assert PREF not in launch(ua=LIN_UA)
 
     def test_host_os_identity_still_takes_the_callers(self, launch):
         assert profile_of(launch(ua=LIN_UA, display_profile=OTHER)) == OTHER

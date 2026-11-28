@@ -62,13 +62,8 @@
   },
   "proxy_dns": {
     "default": null,
-    "about": "Who resolves names behind a socks5:// proxy: \"doh\", the browser by DNS over HTTPS through the proxy (what null does behind one), or \"exit\", the proxy. An HTTP proxy is always given names.",
-    "examples": ["doh", "exit"]
-  },
-  "proxy_optimistic_data": {
-    "default": false,
-    "about": "Send each TLS ClientHello behind the SOCKS5 CONNECT request, before the proxy replies. Only for a proxy known to forward those bytes: behind one that discards them every HTTPS navigation hangs.",
-    "examples": [true]
+    "about": "Who resolves names behind a socks5:// proxy: \"exit\", the proxy (what null does), or \"doh\", the browser by DNS over HTTPS through the proxy. \"doh\" needs a browser that carries HTTP/3 over SOCKS5, which no released Camoufox does yet. An HTTP proxy is always given names.",
+    "examples": ["exit", "doh"]
   },
   "block_images": {
     "default": false,
@@ -157,7 +152,7 @@
   },
   "display_profile": {
     "default": null,
-    "about": "The display's ICC colour profile, as a path. false keeps the browser's own. null draws one for an identity of another OS, and uses this display's for the host's OS.",
+    "about": "A display ICC colour profile for tagged images, as a path. null or false keeps the browser's own: this display's, as stock Firefox reads it.",
     "examples": ["/path/to/display.icc", false]
   },
   "fingerprint": {

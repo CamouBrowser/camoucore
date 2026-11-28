@@ -4,21 +4,11 @@ import re
 import sys
 from dataclasses import dataclass
 from functools import total_ordering
-from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import orjson
 import requests
-from rich.progress import (
-    BarColumn,
-    DownloadColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeRemainingColumn,
-    TransferSpeedColumn,
-)
 from camoucore.download import (  # noqa: F401 -- re-exported for the launcher's modules
     GITHUB_TOKEN,
     DownloadBuffer,
@@ -27,6 +17,7 @@ from camoucore.download import (  # noqa: F401 -- re-exported for the launcher's
     rprint,
     unzip,
     verify_sha256,
+    webdl,
     write_atomic,
 )
 from camoucore.download import load_yaml as _load_yaml
@@ -545,9 +536,6 @@ class CamoufoxFetcher:
         self.installed_sha256: Optional[str] = None
         self.installed_created_at: Optional[str] = None
         self.installed_interface: int = 1
-        # Where the download is kept between runs, so that a later fetch
-        # resumes it; None downloads into a temporary file.
-        self.partial: Optional[Path] = None
 
         if selected_version:
             self._selected_version = selected_version
@@ -977,73 +965,6 @@ def selected_launch_path(specifier: str) -> str:
     return launch_path(path)
 
 
-# camoucore.download.webdl cannot resume (no `offset`); this stays until it can.
-
-def webdl(
-    url: str,
-    desc: Optional[str] = None,
-    buffer: Optional[DownloadBuffer] = None,
-    bar: bool = True,
-    progress_callback: Optional[ProgressCallback] = None,
-    offset: int = 0,
-) -> DownloadBuffer:
-    """
-    Download a file from the given URL. `offset` resumes a download whose first
-    `offset` bytes `buffer` already ends with.
-    """
-    headers = (
-        {"Authorization": f"Bearer {GITHUB_TOKEN}"} if "api.github" in url and GITHUB_TOKEN else {}
-    )
-    if buffer is None:
-        buffer = BytesIO()
-    if offset:
-        headers["Range"] = f"bytes={offset}-"
-    response = requests.get(url, stream=True, headers=headers)
-    response.raise_for_status()
-    if offset and response.status_code != 206:
-        # The server sent the whole file, not the rest of it.
-        buffer.seek(0)
-        buffer.truncate()
-        offset = 0
-
-    total_size = offset + int(response.headers.get('content-length', 0))
-    block_size = 8192
-
-    if progress_callback:
-        downloaded = offset
-        last_update = offset
-        for data in response.iter_content(block_size * 4):
-            size = buffer.write(data)
-            downloaded += size
-            if downloaded - last_update >= 65536 or downloaded == total_size:
-                progress_callback(downloaded, total_size)
-                last_update = downloaded
-    elif bar:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            DownloadColumn(),
-            TransferSpeedColumn(),
-            TimeRemainingColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task(desc or "Downloading", total=total_size, completed=offset)
-            for data in response.iter_content(block_size):
-                size = buffer.write(data)
-                progress.update(task, advance=size)
-    else:
-        downloaded = offset
-        for data in response.iter_content(block_size):
-            size = buffer.write(data)
-            downloaded += size
-            if total_size:
-                pct = (downloaded / total_size) * 100
-                print(f"\r{desc}: {pct:.0f}%", end="", flush=True)
-        print(f"\r{desc}: Complete" if desc else "")
-
-    buffer.seek(0)
-    return buffer
 def load_yaml(file: str) -> Dict[str, Any]:
     """
     Load one of this package's YAML files as a dictionary

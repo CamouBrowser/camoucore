@@ -7,8 +7,9 @@ intent, colour space, PCS, the reserved version bytes) and only these tags
 (gfx/qcms/src/iccread.rs Profile::new_from_slice with curves_only):
 chad, rXYZ/gXYZ/bXYZ and rTRC/gTRC/bTRC for RGB, kTRC for grey. Everything
 else (desc, cprt, wtpt, lumi, vendor blobs such as Dell's 6 KB DVB1, A2B0/B2A0
-LUTs) never reaches a conversion, so display-profiles.json bundles the reduced
-profile: same conversions, a fraction of the bytes, and no vendor text.
+LUTs) never reaches a conversion, so a profile passed as display_profile= can
+be the reduced one: same conversions, a fraction of the bytes, and no vendor
+text.
 
 Tag data shared between tags (rTRC = gTRC = bTRC is common) stays shared.
 The header's profile ID (MD5, bytes 84-99) is zeroed because it no longer

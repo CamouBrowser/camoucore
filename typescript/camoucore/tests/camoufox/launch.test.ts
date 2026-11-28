@@ -220,8 +220,9 @@ describe("test_launch_environment: prefs", () => {
 		it("windows keeps it", async () => {
 			expect(PREF in (await onHost("win", ua(WIN_UA)))).toBe(false);
 		});
-		it("another OS's identity on a Linux host disables it", async () => {
-			expect((await onHost("lin", ua(WIN_UA)))[PREF]).toBe(false);
+		it("another OS's identity on a Linux host keeps it, as upstream", async () => {
+			expect(PREF in (await onHost("lin", ua(WIN_UA)))).toBe(false);
+			expect(PREF in (await onHost("lin", ua(MAC_UA)))).toBe(false);
 		});
 		it("the caller's pref wins", async () => {
 			const prefs = await prefsFor({
@@ -232,46 +233,46 @@ describe("test_launch_environment: prefs", () => {
 		});
 	});
 
-	describe("another OS's rendering, on a Linux host only (test_claimed_os_rendering.py)", () => {
-		// The C++ behind these exists for a Linux build only (gfxPlatformGtk,
-		// FreeType), so another host sets none of it.
-		const CONFIG_KEYS = ["fonts:metrics", "media:spoof_codecs"];
-		const PREFS = [
-			"font.name-list.emoji",
-			...Object.keys(utils.WINDOWS_UI_COLORS),
-		];
-		const launchOn = async (host: "mac" | "win" | "lin", u: string) => {
-			deps.hostOsKey = () => host;
-			let config: Record<string, any> = {};
+	describe("no rendering of another OS (test_no_claimed_os_rendering.py)", () => {
+		// Text layout, font defaults, codec answers and system colours come from
+		// the platform code of the build the browser runs on; making a Linux host
+		// render as another OS takes browser patches no release has.
+		const launchOn = async (u: string, config: Record<string, any> = {}) => {
+			deps.hostOsKey = () => "lin";
+			let seen: Record<string, any> = {};
 			deps.getEnvVars = (c: Record<string, any>) => {
-				config = { ...c };
+				seen = { ...c };
 				return {};
 			};
-			const result = await launch({ i_know_what_im_doing: true, ...ua(u) });
-			return { config, prefs: result.firefoxUserPrefs };
+			const result = await launch({
+				i_know_what_im_doing: true,
+				...ua(u, config),
+			});
+			return { config: seen, prefs: result.firefoxUserPrefs };
 		};
-		for (const [host, u] of [
-			["mac", WIN_UA],
-			["mac", LINUX_UA],
-			["win", MAC_UA],
-			["win", LINUX_UA],
-		] as const) {
-			it(`sets nothing on a ${host} host for ${u.slice(13, 20)}`, async () => {
-				const { config, prefs } = await launchOn(host, u);
-				expect(CONFIG_KEYS.filter((k) => k in config)).toEqual([]);
-				expect(PREFS.filter((k) => k in prefs)).toEqual([]);
+		for (const u of [WIN_UA, MAC_UA]) {
+			it(`sets no rendering prefs for ${u.slice(13, 20)}`, async () => {
+				const { config, prefs } = await launchOn(u);
+				expect(
+					Object.keys(prefs).filter(
+						(p) => p.startsWith("font.name") || p.startsWith("font.default"),
+					),
+				).toEqual([]);
+				expect("ui.systemUsesDarkTheme" in prefs).toBe(false);
+				expect(
+					Object.keys(prefs).filter(
+						(p) => p.startsWith("ui.") && p.endsWith("color"),
+					),
+				).toEqual([]);
+				expect("media:spoof_codecs" in config).toBe(false);
+				expect("fonts:metrics" in config).toBe(false);
 			});
 		}
-		it("gives a macOS identity the font defaults only", async () => {
-			const { config, prefs } = await launchOn("lin", MAC_UA);
-			expect(prefs["font.name-list.serif.th"]).toBe("Thonburi");
-			expect(CONFIG_KEYS.filter((k) => k in config)).toEqual([]);
-			expect(PREFS.slice(1).filter((k) => k in prefs)).toEqual([]);
-		});
-		it("sets it for a Windows identity on a Linux host", async () => {
-			const { config, prefs } = await launchOn("lin", WIN_UA);
-			expect(CONFIG_KEYS.filter((k) => !(k in config))).toEqual([]);
-			expect(PREFS.filter((k) => !(k in prefs))).toEqual([]);
+		it("does not expand a Windows font list with legacy aliases", async () => {
+			const { config } = await launchOn(WIN_UA, {
+				fonts: ["Arial", "Rockwell"],
+			});
+			expect(config.fonts).toEqual(["Arial", "Rockwell"]);
 		});
 	});
 
@@ -609,92 +610,6 @@ describe("test_launch_environment: prefs", () => {
 		});
 	});
 
-	describe("colour scheme of an identity of another OS", () => {
-		const PREF = "ui.systemUsesDarkTheme";
-		const onHost = async (host: "mac" | "win" | "lin") => {
-			const before = deps.hostOsKey;
-			deps.hostOsKey = () => host;
-			try {
-				return await prefsFor(ua(WIN_UA));
-			} finally {
-				deps.hostOsKey = before;
-			}
-		};
-		it("another OS is light", async () => {
-			expect((await onHost("lin"))[PREF]).toBe(0);
-		});
-		it("its own OS follows the desktop", async () => {
-			expect(PREF in (await onHost("win"))).toBe(false);
-		});
-	});
-
-	describe("Windows legacy font families", () => {
-		const fontsFor = async (fonts: string[]) => {
-			let config: Record<string, any> = {};
-			deps.getEnvVars = ((c: Record<string, any>) => {
-				config = { ...c };
-				return {};
-			}) as any;
-			await launch({
-				os: "windows",
-				block_webgl: true,
-				i_know_what_im_doing: true,
-				...ua(WIN_UA, { fonts }),
-			});
-			return config.fonts;
-		};
-		it("exposes aliases of each presented canonical family", async () => {
-			expect(await fontsFor(["Arial", "Calibri", "Franklin Gothic"])).toEqual([
-				"Arial",
-				"Calibri",
-				"Franklin Gothic",
-				"Arial Black",
-				"Calibri Light",
-				"Franklin Gothic Medium",
-			]);
-		});
-		it("exposes the faces a family names on their own", async () => {
-			expect(await fontsFor(["Rockwell", "Sitka Text", "Sitka Small"])).toEqual(
-				[
-					"Rockwell",
-					"Sitka Text",
-					"Sitka Small",
-					"Rockwell Condensed",
-					"Rockwell Extra Bold",
-					"Sitka",
-				],
-			);
-		});
-		it("exposes Office faces of OS families only with an Office family", async () => {
-			expect(await fontsFor(["Arial", "Franklin Gothic", "Agency FB"])).toEqual(
-				[
-					"Arial",
-					"Franklin Gothic",
-					"Agency FB",
-					"Arial Black",
-					"Franklin Gothic Medium",
-					"Arial Narrow",
-					"Franklin Gothic Demi",
-					"Franklin Gothic Demi Cond",
-					"Franklin Gothic Heavy",
-					"Franklin Gothic Medium Cond",
-				],
-			);
-			expect(await fontsFor(["Arial", "Franklin Gothic"])).toEqual([
-				"Arial",
-				"Franklin Gothic",
-				"Arial Black",
-				"Franklin Gothic Medium",
-			]);
-		});
-		it("adds no alias without its canonical family", async () => {
-			const fonts = await fontsFor(["Times New Roman"]);
-			expect(fonts).not.toContain("Arial Black");
-			expect(fonts).not.toContain("Calibri Light");
-			expect(fonts).not.toContain("Franklin Gothic Medium");
-		});
-	});
-
 	// test_windows_identity.py
 	describe("a Windows identity on another host behaves as Windows", () => {
 		const STYLE = "widget.non-native-theme.scrollbar.style";
@@ -718,7 +633,6 @@ describe("test_launch_environment: prefs", () => {
 			)) {
 				expect(prefs[pref]).toEqual(value);
 			}
-			expect(prefs["media.eme.enabled"]).toBe(true);
 			expect(prefs["middlemouse.paste"]).toBe(false);
 		});
 		it("doubles a wheel's lines as stock does on each OS", async () => {

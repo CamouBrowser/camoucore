@@ -126,26 +126,19 @@ await browser.close();
 | `geolocation` | `{ latitude, longitude }`; also grants the `geolocation` permission. |
 | anything else | Passed to Playwright's `browser.newContext()` (camelCase, e.g. `timezoneId`), overriding the generated value. |
 
-A context's pages are the browser's window unless you pass `viewport`, and its
-screen is drawn to hold that window. A `viewport` here, in `newContext()` or
-`newPage()`, or in a persistent launch, is kept as given, and the context
-claims a recorded screen that holds it with a real Firefox window's toolbars
-around it. Only the browser's window cannot follow a context: a viewport larger
-than it, or a `page.setViewportSize()` the screen cannot hold, emits a
-`LeakWarning`.
+A context's pages are the browser's window unless you pass `viewport`; a
+viewport is handed to Playwright as given.
 
 Canvas noise belongs to the browser, not the context (see
 [The canvas on another OS](#the-canvas-on-another-os)). On a browser without it,
 every context claims the host's OS and GPU too, since its canvas renders there.
 Contexts with other OSes, like the ones above, need `canvas_noise: true`.
 
-Text rendering belongs to the browser as well. On a Linux host, a Windows or
-macOS launch identity sets that OS's font defaults and per-script fallback,
-and for Windows its line metrics, codec answers and system
-colours ([docs/FONTS.md](https://github.com/daijro/camoufox/blob/main/docs/FONTS.md#another-oss-identity-on-a-linux-host)).
-They are read once per process, so every context gets the launch's, and a
-context claiming another OS lays text out as the launch's OS does. Launch one
-browser per OS your contexts claim, with `os` set to it.
+Text rendering belongs to the browser and its host. The fonts an identity
+claims are bundled, but line metrics, per-script fallback, codec answers and
+system colours come from the host's platform code, so a launch or context
+claiming another OS than the host's renders text as the host does. Claim the
+host's OS where that matters.
 
 The browser's own OS also decides some things for all its contexts. A browser
 launched as Windows on a Linux or macOS host (`os: "windows"`, or drawn so)
@@ -346,8 +339,7 @@ names. Any other key is passed to Playwright's `firefox.launch()` (or
 | `gpu` | `string \| number` | `CAMOUFOX_GPU`, or the only GPU | The card for `headless: "virtual-gpu"`. Not taken by `launchOptions()`. |
 | `require_gpu` | `boolean` | `true` | With `headless: "virtual-gpu"`, fail the launch when the browser does not render on the card; `false` warns. Not taken by `launchOptions()`. |
 | `proxy` | `{ server, username?, password?, bypass? }` | none | Playwright proxy. A `socks5://` proxy can have a username and password too (RFC 1929), which Playwright alone refuses; the same holds for `NewContext()` and `newContext()`. |
-| `proxy_dns` | `"doh"` or `"exit"` | `"doh"` behind a `socks5://` proxy | Who resolves names behind the launch proxy. `"doh"`: the browser, by DNS over HTTPS through the proxy, as a Firefox at the exit resolves its own; it then sends real ECH and uses HTTP/3 and WebTransport over the proxy's UDP ASSOCIATE. `"exit"`: the proxy is given names, and HTTP/3 is used from an origin's second connection, once its `Alt-Svc` is known. An HTTP proxy is always given names; `"doh"` with one throws `ValueError`. See [docs/proxy-dns.md](../docs/proxy-dns.md). |
-| `proxy_optimistic_data` | `boolean` | `false` | Send each TLS connection's ClientHello behind the SOCKS5 CONNECT request, before the proxy's reply, so that the exit can send it the moment it has connected, as a Firefox at the exit would. Only for a proxy known to forward what it receives before its reply: behind one that discards it, every HTTPS navigation hangs, and nothing falls back. It applies to every SOCKS5 proxy of the browser; `true` with a launch proxy that is not `socks5://` throws `ValueError`. See [docs/proxy-dns.md](../docs/proxy-dns.md#optimistic-data-the-clienthello-behind-the-connect-request). |
+| `proxy_dns` | `"exit"` or `"doh"` | `"exit"` | Who resolves names behind the launch proxy. `"exit"`: the proxy is given names. `"doh"`, behind a `socks5://` proxy only: the browser, by DNS over HTTPS through the proxy, as a Firefox at the exit resolves its own, so it sends real ECH. HTTP/3 and WebTransport over the proxy's UDP ASSOCIATE need a browser that carries them over SOCKS5, which no released Camoufox does yet. An HTTP proxy is always given names; `"doh"` with one throws `ValueError`. |
 | `geoip` | `boolean \| string` | none | `true` finds the public IP (through `proxy` if set); a string uses that IP. Sets timezone, locale, geolocation and the WebRTC IP. Without a proxy, also decides whether IPv6 stays on. |
 | `geoip_db` | `string` | the `camoufox set --geoip` choice | GeoIP database name, e.g. `"GeoIP AIO by daijro"`. |
 | `locale` | `string \| string[]` | from `geoip`, else the drawn identity's | Locale(s), e.g. `"en-US"`. The first is used for `Intl`. |

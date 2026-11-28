@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 
-# A snapshot of the browser's properties.json (browser/settings/ in the browser
-# repository), taken when a launcher change needs a key the browser added.
+# A snapshot of the newest released browser's properties.json (browser/settings/
+# in the browser repository, at its release tag), refreshed when a release adds a
+# key. The launcher may write only keys a released browser reads.
 SETTINGS = Path(__file__).resolve().parent / 'data'
 
 
@@ -29,6 +30,14 @@ def properties_of_this_checkout(monkeypatch):
     monkeypatch.setattr(
         utils, '_load_properties', lambda path=None: load(path or SETTINGS / 'camoufox-bin')
     )
+
+
+@pytest.fixture(autouse=True)
+def strict_config(monkeypatch):
+    """Every launch in this suite validates strictly against the snapshot, so a
+    writer for a key no released browser reads fails here, not only in the
+    integration job. A test of the lenient default unsets it."""
+    monkeypatch.setenv('CAMOUFOX_STRICT_CONFIG', '1')
 
 
 @pytest.fixture(autouse=True)

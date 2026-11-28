@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { UnknownProperty } from "../../src/camoufox/exceptions.js";
 import { PyFloat, pyTypeName } from "../../src/camoufox/pycompat.js";
 import {
 	CACHE_PREFS,
@@ -200,7 +201,10 @@ describe("Python-compatible serialisation", () => {
 });
 
 describe("validateConfig with removed keys (#835)", () => {
-	afterEach(() => vi.restoreAllMocks());
+	afterEach(() => {
+		vi.restoreAllMocks();
+		vi.unstubAllEnvs();
+	});
 
 	function browserWith(entries: object[]): string {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "camoufox-props-"));
@@ -246,6 +250,58 @@ describe("validateConfig with removed keys (#835)", () => {
 			binary,
 		);
 		expect(String(warn.mock.calls[0]?.[0])).toContain("voices:speechd");
+	});
+
+	it("skips an unknown key by default: users keep launching an older build", () => {
+		vi.stubEnv("CAMOUFOX_STRICT_CONFIG", "");
+		const printed: string[] = [];
+		vi.spyOn(utilsDeps, "print").mockImplementation((msg: string) => {
+			printed.push(msg);
+		});
+		const binary = browserWith([
+			{ property: "navigator.userAgent", type: "str" },
+		]);
+		validateConfig(
+			{ "fonts:metrics": "windows", "navigator.userAgent": "x" },
+			binary,
+		);
+		expect(printed.join("\n")).toContain(
+			"Skipping unknown patch fonts:metrics",
+		);
+	});
+
+	// CI's integration job sets CAMOUFOX_STRICT_CONFIG against the newest
+	// release, so the launcher cannot ship a writer for a key no released
+	// browser reads.
+	it.each([
+		"1",
+		"true",
+		"yes",
+	])("strict mode (%s) rejects an unknown key", (value) => {
+		vi.stubEnv("CAMOUFOX_STRICT_CONFIG", value);
+		const binary = browserWith([
+			{ property: "navigator.userAgent", type: "str" },
+		]);
+		expect(() =>
+			validateConfig(
+				{ "fonts:metrics": "windows", "navigator.userAgent": "x" },
+				binary,
+			),
+		).toThrow(UnknownProperty);
+		expect(() =>
+			validateConfig({ "fonts:metrics": "windows" }, binary),
+		).toThrow(/fonts:metrics/);
+	});
+
+	it.each(["", "0", "false"])("strict mode is off for %j", (value) => {
+		vi.stubEnv("CAMOUFOX_STRICT_CONFIG", value);
+		vi.spyOn(utilsDeps, "print").mockImplementation(() => undefined);
+		const binary = browserWith([
+			{ property: "navigator.userAgent", type: "str" },
+		]);
+		expect(() =>
+			validateConfig({ "fonts:metrics": "windows" }, binary),
+		).not.toThrow();
 	});
 
 	it("does not type-check a removed key", () => {

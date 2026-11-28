@@ -34,20 +34,17 @@ import {
 	InvalidPropertyType,
 	NonFirefoxFingerprint,
 	UnknownIPLocation,
+	UnknownProperty,
 } from "./exceptions.js";
 import {
-	BASELINE_TASKBAR_HEIGHT,
-	type Box,
 	clampScreenToDisplay,
 	clampWindowDimensions,
 	clampWindowPosition,
-	drawScreen,
 	drawVoiceConfig,
 	dropAudioSeed,
 	fixHardwareConcurrency,
 	fixNavigatorArch,
 	followBaselineProtection,
-	fontUnitFamilies,
 	fromFpgen,
 	fromPreset,
 	generateFingerprint,
@@ -57,17 +54,10 @@ import {
 	identitySalt,
 	identitySeed,
 	loadOsFonts,
-	placeWindow,
-	RECORDED_WINDOW_CHROME,
 	raiseScreenToModernFloor,
 	Screen,
-	screenFloor,
 	setCpuDefault,
-	setHostIpv6Default,
-	setLocationSettingDefault,
 	setMediaDevicesDefaults,
-	setOutputLatencyDefault,
-	setWindowsAliasLoadDefault,
 	targetOsFromPlatform,
 	WINDOWS_11_MARKER_FONTS,
 } from "./fingerprints.js";
@@ -86,13 +76,7 @@ import {
 	publicIPv6,
 	socks5Auth,
 } from "./ip.js";
-import {
-	INSTALL_DIR,
-	LAUNCHER_CONSTANTS,
-	loadDataFile,
-	OS_NAME,
-	userCacheDir,
-} from "./paths.js";
+import { INSTALL_DIR, LAUNCHER_CONSTANTS, OS_NAME } from "./paths.js";
 import {
 	buildFile,
 	effectiveVersionMin,
@@ -125,7 +109,6 @@ import {
 	LeakWarning,
 	loadWarnings,
 	warn,
-	warningText,
 } from "./warnings.js";
 import { firefoxGpus, sampleWebglForScreen, webglForGpu } from "./webgl.js";
 
@@ -202,10 +185,6 @@ function hasSystemAvcodec(): boolean {
 	return true; // cannot tell: do not warn
 }
 
-// System colours stock Firefox reports on Windows 10/11 in the light theme,
-// where they differ from a Linux host's GTK theme.
-export const WINDOWS_UI_COLORS: Readonly<Record<string, string>> =
-	LAUNCHER_CONSTANTS.windowsUiColors;
 // Prefs whose Firefox default differs between the Windows and Linux builds and
 // that a page or the user can observe, at the Windows default (see
 // WINDOWS_BEHAVIOUR_PREFS in the Python launcher for each one's reason).
@@ -295,31 +274,6 @@ function stockProfileDiskCapacityKb(): number | null {
 		}
 	}
 	return null;
-}
-
-/**
- * The font.* prefs that make a build for `buildOs` resolve fonts the way stock
- * Firefox does on `targetOs` (font-prefs.json, from all.js by
- * browser/scripts/gen-font-prefs.py): the target's values where they differ,
- * and an empty list for name-lists only the build's platform sets.
- */
-function stockFontPrefs(
-	targetOs: TargetOS,
-	buildOs: TargetOS = "lin",
-): Record<string, any> {
-	const table: Record<string, Record<string, any>> = loadDataFile(
-		"font-prefs.json",
-	);
-	const target = table[OS_NAMES[targetOs]];
-	const build = table[OS_NAMES[buildOs]];
-	const prefs: Record<string, any> = {};
-	for (const [k, v] of Object.entries(target)) {
-		if (build[k] !== v) prefs[k] = v;
-	}
-	for (const [k, v] of Object.entries(build)) {
-		if (!(k in target) && typeof v === "string") prefs[k] = "";
-	}
-	return prefs;
 }
 
 /**
@@ -694,19 +648,37 @@ function loadProperties(
 	return out;
 }
 
+/** True when CAMOUFOX_STRICT_CONFIG asks validateConfig to reject unknown keys. */
+export function strictConfig(): boolean {
+	const value = (PRODUCT.getenv("STRICT_CONFIG") ?? "").trim().toLowerCase();
+	return !["", "0", "false", "no"].includes(value);
+}
+
 /**
  * Validates the config map against the build's properties.json, and lifts a
  * numeric value below its declared `min` up to it.
+ *
+ * A key the build does not declare is reported and skipped, so a newer library
+ * still launches an older build. With CAMOUFOX_STRICT_CONFIG=1 it throws
+ * UnknownProperty instead: CI sets it against the newest release, so the
+ * launcher cannot ship a writer for a key no released browser reads.
  */
 export function validateConfig(
 	configMap: Record<string, any>,
 	executablePath?: string | null,
 ): void {
 	const properties = loadProperties(executablePath);
+	const strict = strictConfig();
 
 	for (const [key, value] of Object.entries(configMap)) {
 		const entry = properties[key];
 		if (!entry) {
+			if (strict) {
+				throw new UnknownProperty(
+					`Unknown property '${key}': this Camoufox build reads no such config key ` +
+						`(${PRODUCT.envVar("STRICT_CONFIG")} is set).`,
+				);
+			}
 			if (key === "voices:speechd") {
 				LeakWarning.warn(loadWarnings().voices_unread);
 			}
@@ -736,129 +708,6 @@ export function validateConfig(
 		}
 		if (key === "voices") {
 			validateVoices(value);
-		}
-	}
-}
-
-interface LaunchRule {
-	target?: string[];
-	host?: string[];
-	prefs?: Record<string, any>;
-	env?: Record<string, string>;
-	envPaths?: Record<string, string>;
-	envPathsOptional?: Record<string, string>;
-	envFromConfig?: Record<string, string>;
-	config?: Record<string, any>;
-	ldPreload?: string[];
-	envCacheDirs?: Record<string, string>;
-	exclusive?: boolean;
-	warn?: string;
-}
-
-/**
- * Applies the prefs and environment variables the build declares in its
- * launch.json. A build that needs a pref or variable set at launch for a
- * feature it compiles in says so there, so the launcher needs no knowledge of
- * any particular build. Most builds ship no launch.json.
- *
- * Each rule may restrict itself to identity OSes (`target`) and host OSes
- * (`host`), both in 'win'/'mac'/'lin' terms. `env` sets variables verbatim,
- * `envPaths` to a file relative to the build's directory, which must exist,
- * `envPathsOptional` likewise but only when the file exists, and
- * `envFromConfig` to the value of a config key when the identity has one.
- * `config` sets config keys. `ldPreload` appends each build-relative
- * library that exists to LD_PRELOAD (appended, never replacing one the
- * caller has), and `envCacheDirs` points each variable at a per-user cache
- * directory of that name, created on demand. A pref or config key the caller
- * set, or a variable already in the environment, is never replaced.
- *
- * An `exclusive` rule owns its variables: where it does not apply they are
- * removed from the environment, the caller's included, so a feature meant for
- * one target/host pairing cannot leak into another through an inherited
- * variable. A rule's `warn` is emitted as a RuntimeWarning when it applies.
- */
-export function applyLaunchRules(
-	targetOs: string,
-	config: Record<string, any>,
-	firefoxUserPrefs: Record<string, any>,
-	userPrefKeys: Set<string>,
-	env: Record<string, any>,
-	executablePath?: string | null,
-): void {
-	const launchFile = executablePath
-		? buildFile(executablePath, "launch.json")
-		: utilsDeps.getPath("launch.json");
-	if (!fs.existsSync(launchFile)) return;
-	const rules: LaunchRule[] = JSON.parse(
-		fs.readFileSync(launchFile, "utf-8"),
-	).rules;
-
-	const hostOs = utilsDeps.hostOsKey();
-	const applies = (rule: LaunchRule): boolean =>
-		!(rule.target && !rule.target.includes(targetOs)) &&
-		!(rule.host && !(hostOs && rule.host.includes(hostOs)));
-	const owned = (rule: LaunchRule): string[] => [
-		...Object.keys(rule.env ?? {}),
-		...Object.keys(rule.envPaths ?? {}),
-		...Object.keys(rule.envPathsOptional ?? {}),
-		...Object.keys(rule.envFromConfig ?? {}),
-		...Object.keys(rule.envCacheDirs ?? {}),
-	];
-
-	const matched = rules.filter(applies);
-	const claimed = new Set(matched.flatMap(owned));
-	for (const rule of rules) {
-		if (!rule.exclusive || applies(rule)) continue;
-		for (const key of owned(rule)) {
-			if (!claimed.has(key)) delete env[key];
-		}
-	}
-
-	for (const rule of matched) {
-		if (rule.warn) warn(String(rule.warn), "RuntimeWarning");
-		for (const [key, value] of Object.entries(rule.prefs ?? {})) {
-			if (!userPrefKeys.has(key)) firefoxUserPrefs[key] = value;
-		}
-		for (const [key, value] of Object.entries(rule.env ?? {})) {
-			if (!(key in env)) env[key] = value;
-		}
-		for (const [key, relative] of Object.entries(rule.envPaths ?? {})) {
-			if (key in env) continue;
-			const resolved = path.join(path.dirname(launchFile), relative);
-			if (!fs.existsSync(resolved)) {
-				throw new Error(
-					`${launchFile} needs ${resolved} for ${key}, and it does not exist.`,
-				);
-			}
-			env[key] = resolved;
-		}
-		for (const [key, relative] of Object.entries(rule.envPathsOptional ?? {})) {
-			const resolved = path.join(path.dirname(launchFile), relative);
-			if (!(key in env) && fs.existsSync(resolved)) env[key] = resolved;
-		}
-		for (const [key, value] of Object.entries(rule.config ?? {})) {
-			if (!(key in config)) config[key] = value;
-		}
-		// `env` is the caller's environment (a copy of process.env by default)
-		// and is spread last into the launch environment, so appending here is
-		// what keeps an LD_PRELOAD someone already has.
-		for (const relative of rule.ldPreload ?? []) {
-			const resolved = path.join(path.dirname(launchFile), relative);
-			const preload = env.LD_PRELOAD ? String(env.LD_PRELOAD) : "";
-			if (fs.existsSync(resolved) && !preload.split(":").includes(resolved)) {
-				env.LD_PRELOAD = preload ? `${preload}:${resolved}` : resolved;
-			}
-		}
-		for (const [key, name] of Object.entries(rule.envCacheDirs ?? {})) {
-			if (key in env) continue;
-			const cacheDir = userCacheDir(`camoufox-${name}`);
-			fs.mkdirSync(cacheDir, { recursive: true });
-			env[key] = cacheDir;
-		}
-		for (const [key, configKey] of Object.entries(rule.envFromConfig ?? {})) {
-			if (configKey in config && !(key in env)) {
-				env[key] = pyStr(config[configKey]);
-			}
 		}
 	}
 }
@@ -1232,11 +1081,12 @@ export function socks5Host(
 /**
  * Who resolves the names a proxied browser visits (docs/proxy-dns.md).
  *
- * "doh", the default behind a SOCKS5 proxy: the browser, by DoH through the
- * proxy, as a Firefox at the exit resolves its own. It gets HTTPS records, so
- * it sends ECH and starts HTTP/3 where that Firefox does, and the proxy is
- * given addresses. "exit": the proxy is given names. An HTTP proxy is always
- * given names.
+ * "exit", the default: the proxy is given names. "doh", behind a SOCKS5 proxy
+ * only: the browser, by DoH through the proxy, as a Firefox at the exit
+ * resolves its own; it gets HTTPS records, so it sends ECH where that Firefox
+ * does, and the proxy is given addresses. Starting HTTP/3 on them also needs
+ * the browser half that carries HTTP/3 over SOCKS5, which no released
+ * Camoufox has yet. An HTTP proxy is always given names.
  */
 export async function applyProxyDns(
 	proxyDns: string | undefined | null,
@@ -1257,7 +1107,7 @@ export async function applyProxyDns(
 		}
 		return;
 	}
-	if (proxyDns === "exit") {
+	if (proxyDns !== "doh") {
 		return;
 	}
 	mergeInto(firefoxUserPrefs, PROXY_DOH_PREFS);
@@ -1276,25 +1126,6 @@ export async function applyProxyDns(
 	) {
 		config["network:ipv4Only"] = true;
 	}
-}
-
-/**
- * Send a connection's TLS ClientHello behind its SOCKS5 CONNECT request,
- * before the proxy's reply. Only for a proxy that forwards what it has
- * received once it has connected (docs/proxy-dns.md).
- */
-export function applyProxyOptimisticData(
-	enabled: boolean | undefined | null,
-	proxy: ProxyConfig | undefined | null,
-	firefoxUserPrefs: Record<string, any>,
-): void {
-	if (!enabled) {
-		return;
-	}
-	if (proxy != null && socks5Host(proxy) === null) {
-		throw new ValueError("proxy_optimistic_data needs a socks5:// proxy.");
-	}
-	firefoxUserPrefs["network.proxy.socks5_optimistic_data"] = true;
 }
 
 /**
@@ -1551,366 +1382,6 @@ export function attachSocks5Auth<T>(target: T): T {
 	(newContext as any)[CAMOUFOX_SOCKS5_AUTH] = true;
 	owner.newContext = newContext;
 	return target;
-}
-
-// Where a browser or context keeps the geometry its pages claim
-// (launchGeometry), where NewContext() leaves its identity's for the
-// newContext() it is about to make, and the mark of a fitted browser
-// (python/camoucore/src/camoucore/camoufox/utils.py _GEOMETRY, _NEXT_CONTEXT).
-const CAMOUFOX_GEOMETRY = Symbol.for("camoufox.geometry");
-const CAMOUFOX_NEXT_CONTEXT = Symbol.for("camoufox.nextContext");
-const CAMOUFOX_VIEWPORT_FIT = Symbol.for("camoufox.viewportFit");
-
-/** The viewport Playwright gives a context that asks for neither a viewport nor none. */
-export const PLAYWRIGHT_DEFAULT_VIEWPORT = { width: 1280, height: 720 };
-
-/** What an identity claims around its pages (launchGeometry). */
-export interface Geometry {
-	os: TargetOS;
-	screen: [number, number];
-	window: Box | null;
-}
-
-/**
- * What a launch's identity claims around its pages, from the CAMOU_CONFIG in
- * the launch options; null when the identity claims no screen
- * (python/camoucore/src/camoucore/camoufox/utils.py launch_geometry).
- *
- * The window is where CamoufoxWindow.sys.mjs puts the browser's real window,
- * which every page reports in outerWidth/outerHeight: the identity's outer
- * size, or, where the identity sets the content area instead, that with the
- * recorded chrome around it.
- */
-export function launchGeometry(
-	fromOptions: Record<string, any>,
-): Geometry | null {
-	const blob = camouConfigBlob(fromOptions);
-	let config: any;
-	try {
-		config = blob ? JSON.parse(blob) : {};
-	} catch {
-		return null;
-	}
-	if (!isPlainObject(config)) return null;
-	const width = config["screen.width"];
-	const height = config["screen.height"];
-	if (!(width && height)) return null;
-	const osKey = getTargetOs(config);
-	const size = (["Width", "Height"] as const).map((axis, i) => {
-		const inner = config[`window.inner${axis}`];
-		return inner
-			? inner + RECORDED_WINDOW_CHROME[osKey][i]
-			: config[`window.outer${axis}`];
-	});
-	const window: Box | null = size.every(Boolean)
-		? {
-				x: config["window.screenX"] || 0,
-				y: config["window.screenY"] || 0,
-				width: size[0],
-				height: size[1],
-			}
-		: null;
-	return { os: osKey, screen: [width, height], window };
-}
-
-function boxSize(value: any): [number, number] | null {
-	if (isPlainObject(value) && value.width && value.height)
-		return [Math.trunc(value.width), Math.trunc(value.height)];
-	return null;
-}
-
-function fmtSize(size: readonly number[]): string {
-	return `${size[0]}x${size[1]}`;
-}
-
-function warnViewportScreen(
-	geometry: Geometry,
-	viewport: readonly number[],
-	claimed: readonly number[],
-	reason: string,
-): void {
-	LeakWarning.warn(
-		warningText("viewport_screen", {
-			viewport: fmtSize(viewport),
-			screen: fmtSize(claimed),
-			os: OS_NAMES[geometry.os],
-			chrome: fmtSize(RECORDED_WINDOW_CHROME[geometry.os]),
-			taskbar: BASELINE_TASKBAR_HEIGHT[geometry.os],
-			reason,
-		}),
-	);
-}
-
-function warnViewportWindow(
-	viewport: readonly number[],
-	window: Box | null,
-): void {
-	if (window && (viewport[0] > window.width || viewport[1] > window.height))
-		LeakWarning.warn(
-			warningText("viewport_window", {
-				viewport: fmtSize(viewport),
-				window: fmtSize([window.width, window.height]),
-			}),
-		);
-}
-
-/**
- * The screen a new context must claim so that its pages fit on it, or null
- * when the identity's own already holds them
- * (python/camoucore/src/camoucore/camoufox/utils.py fit_context_screen).
- *
- * A viewport sits in a window the recorded chrome larger (screenFloor), and
- * the pages report the browser's window as theirs, so the screen holds both;
- * one that does not is replaced with a recorded screen that does
- * (drawScreen). Playwright's own `screen` option, which Juggler does not
- * apply, is the screen the caller chose: it is claimed as given. The caller's
- * viewport is never changed, so where no screen or no window can hold it,
- * this warns.
- */
-export function fitContextScreen(
-	geometry: Geometry,
-	options: Record<string, any>,
-): [number, number] | null {
-	const { os: osKey, screen, window } = geometry;
-	// `viewport: null` is the JS API's no viewport; left out, Playwright's default.
-	const viewport =
-		options.viewport === null
-			? null
-			: (boxSize(options.viewport) ?? boxSize(PLAYWRIGHT_DEFAULT_VIEWPORT));
-	const floor = screenFloor(
-		osKey,
-		viewport && { width: viewport[0], height: viewport[1] },
-		window,
-	);
-	const holds = (size: readonly number[]) =>
-		size[0] >= floor[0] && size[1] >= floor[1];
-	const shown = viewport ?? (window ? [window.width, window.height] : [0, 0]);
-
-	let claimed: [number, number] | null = null;
-	const requested = boxSize(options.screen);
-	if (requested) {
-		claimed =
-			requested[0] !== screen[0] || requested[1] !== screen[1]
-				? requested
-				: null;
-		if (!holds(requested))
-			warnViewportScreen(
-				geometry,
-				shown,
-				requested,
-				"this one is the screen= the context was given, so it is kept",
-			);
-	} else if (!holds(screen)) {
-		claimed = drawScreen(osKey, floor);
-		if (claimed === null)
-			warnViewportScreen(
-				geometry,
-				shown,
-				screen,
-				`no recorded ${OS_NAMES[osKey]} screen is ${fmtSize(floor)} or larger`,
-			);
-	}
-	if (viewport) warnViewportWindow(viewport, window);
-	return claimed;
-}
-
-/**
- * The init script that makes a context claim a `width` x `height` screen
- * (screen-spoofing.patch; the available rect follows it).
- */
-export function screenInitScript(width: number, height: number): string {
-	return `if (typeof window.setScreenDimensions === "function") window.setScreenDimensions(${Math.trunc(width)}, ${Math.trunc(height)});`;
-}
-
-/**
- * Make every newContext()/newPage() of `target` claim a screen its pages fit
- * on (python/camoucore/src/camoucore/camoufox/utils.py attach_viewport_fit).
- *
- * `geometry` is what the launch's identity claims (launchGeometry). A context
- * claims that, or the identity NewContext() hands over, with the screen
- * fitContextScreen() decides set through the per-context screen setter. The
- * context keeps what it claims, for setViewportSize().
- */
-export function attachViewportFit<T>(target: T, geometry?: Geometry | null): T {
-	const owner = target as any;
-	if (geometry) owner[CAMOUFOX_GEOMETRY] = geometry;
-	const original = owner?.newContext;
-	// Marked on the browser, not the method: one check per context, however
-	// many other wrappers sit around it.
-	if (typeof original !== "function" || owner[CAMOUFOX_VIEWPORT_FIT])
-		return target;
-	owner[CAMOUFOX_VIEWPORT_FIT] = true;
-	owner.newContext = async (options?: Record<string, any>, ...rest: any[]) => {
-		// Read before the first await: NewContext() set it just before this call.
-		const claimed: Geometry | null =
-			owner[CAMOUFOX_NEXT_CONTEXT] ?? owner[CAMOUFOX_GEOMETRY] ?? null;
-		delete owner[CAMOUFOX_NEXT_CONTEXT];
-		const screen = claimed ? fitContextScreen(claimed, options ?? {}) : null;
-		const context = await original.call(target, options, ...rest);
-		if (screen) await context.addInitScript(screenInitScript(...screen));
-		if (claimed)
-			context[CAMOUFOX_GEOMETRY] = {
-				...claimed,
-				screen: screen ?? claimed.screen,
-			};
-		return context;
-	};
-	return target;
-}
-
-/**
- * Warn when page.setViewportSize() asks for a page its context's screen or
- * window cannot hold. The screen setter is sealed once a page has loaded, so
- * a context keeps the screen it started with.
- */
-export function checkViewportSize(
-	geometry: Geometry | null | undefined,
-	size: any,
-	reason = "set_viewport_size() comes after the context's pages have loaded, so the screen stays",
-): void {
-	const viewport = boxSize(size);
-	if (!(geometry && viewport)) return;
-	const floor = screenFloor(geometry.os, {
-		width: viewport[0],
-		height: viewport[1],
-	});
-	if (geometry.screen[0] < floor[0] || geometry.screen[1] < floor[1])
-		warnViewportScreen(geometry, viewport, geometry.screen, reason);
-	warnViewportWindow(viewport, geometry.window);
-}
-
-/**
- * A persistent context's pages claim the launch's identity: keep it for
- * setViewportSize(), and warn when the launch's own viewport does not fit it.
- * launchOptions() draws the identity around a viewport it is given, so this
- * only catches one the options were built without.
- */
-export function attachPersistentGeometry<T>(
-	context: T,
-	fromOptions: Record<string, any>,
-): T {
-	const geometry = launchGeometry(fromOptions);
-	if (geometry) {
-		(context as any)[CAMOUFOX_GEOMETRY] = geometry;
-		checkViewportSize(
-			geometry,
-			fromOptions.viewport,
-			"this persistent launch was given an identity drawn without the viewport",
-		);
-	}
-	return context;
-}
-
-/** The OS keys an `os` launch option may draw: all of them when it names none. */
-function osKeys(os: string | readonly string[] | null | undefined): TargetOS[] {
-	const names = typeof os === "string" ? [os] : [...(os ?? [])];
-	const keys = names
-		.filter((name) => name in OS_CODE)
-		.map((name) => OS_CODE[name] as TargetOS);
-	return keys.length ? keys : (Object.keys(OS_NAMES) as TargetOS[]);
-}
-
-/**
- * The bound on a launch identity's screen that holds a `viewport` page in its
- * window (the caller's `window`, or one the recorded chrome larger), for
- * whichever OS the draw picks, within the caller's or the display's `screen`
- * bound (python/camoucore/src/camoucore/camoufox/utils.py viewport_screen_bound).
- */
-export function viewportScreenBound(
-	viewport: [number, number],
-	os: string | readonly string[] | null | undefined,
-	screen: Screen | null,
-	window: readonly [number, number] | null | undefined,
-): Screen {
-	const floors = osKeys(os).map((key) => {
-		const [chromeW, chromeH] = RECORDED_WINDOW_CHROME[key];
-		const outer = window ?? [viewport[0] + chromeW, viewport[1] + chromeH];
-		return screenFloor(
-			key,
-			{ width: viewport[0], height: viewport[1] },
-			{ width: outer[0], height: outer[1] },
-		);
-	});
-	return new Screen({
-		minWidth: Math.max(...floors.map((f) => f[0]), screen?.minWidth ?? 0),
-		maxWidth: screen?.maxWidth ?? null,
-		minHeight: Math.max(...floors.map((f) => f[1]), screen?.minHeight ?? 0),
-		maxHeight: screen?.maxHeight ?? null,
-	});
-}
-
-/**
- * A bound on the screen a NewContext() identity draws, so that it holds the
- * context's pages: the viewport the caller asks for, with the recorded chrome
- * around it, and the browser's window, which the pages report as theirs
- * (screenFloor). Without a known OS, the bound holds them for any.
- */
-export function contextScreenBound(
-	browser: any,
-	os: string | null | undefined,
-	contextOptions: Record<string, any>,
-): Screen | null {
-	const geometry: Geometry | undefined = browser?.[CAMOUFOX_GEOMETRY];
-	const window = geometry?.window ?? null;
-	const viewport = boxSize(contextOptions.viewport);
-	if (!(viewport || window)) return null;
-	const osKeys: TargetOS[] =
-		os && os in OS_CODE
-			? [OS_CODE[os] as TargetOS]
-			: os && os in OS_NAMES
-				? [os as TargetOS]
-				: (Object.keys(OS_NAMES) as TargetOS[]);
-	const floors = osKeys.map((key) =>
-		screenFloor(
-			key,
-			viewport && { width: viewport[0], height: viewport[1] },
-			window,
-		),
-	);
-	return new Screen({
-		minWidth: Math.max(...floors.map((f) => f[0])),
-		minHeight: Math.max(...floors.map((f) => f[1])),
-	});
-}
-
-/**
- * Tell attachViewportFit() what the next context of `browser` claims: the
- * NewContext() identity in `fingerprint`, in the browser's window.
- */
-export function handOverContextGeometry(
-	browser: any,
-	fingerprint: { config: Record<string, any>; preset: Record<string, any> },
-): void {
-	const config = fingerprint.config;
-	const screen = fingerprint.preset?.screen ?? {};
-	const width = screen.width || config["screen.width"];
-	const height = screen.height || config["screen.height"];
-	if (!(width && height)) {
-		delete browser[CAMOUFOX_NEXT_CONTEXT];
-		return;
-	}
-	const geometry: Geometry | undefined = browser[CAMOUFOX_GEOMETRY];
-	browser[CAMOUFOX_NEXT_CONTEXT] = {
-		os: OS_CODE[
-			targetOsFromPlatform(String(config["navigator.platform"] ?? ""))
-		] as TargetOS,
-		screen: [width, height],
-		window: geometry?.window ?? null,
-	} satisfies Geometry;
-}
-
-/** Drop a handOverContextGeometry() that no newContext() took. */
-export function takeBackContextGeometry(browser: any): void {
-	delete browser[CAMOUFOX_NEXT_CONTEXT];
-}
-
-/**
- * page.setViewportSize() on a page of a Camoufox launch: checkViewportSize()
- * against what the page's context claims (attachDriverDefaults in
- * driver_defaults.ts calls it where the client sends the request).
- */
-export function checkPageViewportSize(page: any, size: any): void {
-	checkViewportSize(page?._browserContext?.[CAMOUFOX_GEOMETRY], size);
 }
 
 /**
@@ -2305,16 +1776,12 @@ export interface LaunchOptions {
 	/** Proxy to use for the browser. */
 	proxy?: ProxyConfig;
 	/**
-	 * Who resolves names behind a SOCKS5 proxy: "doh" (default), the browser,
-	 * by DoH through the proxy; "exit", the proxy. See docs/proxy-dns.md.
+	 * Who resolves names behind a SOCKS5 proxy: "exit" (default), the proxy;
+	 * "doh", the browser, by DoH through the proxy. "doh" needs a browser that
+	 * carries HTTP/3 over SOCKS5, which no released Camoufox does yet. See
+	 * docs/proxy-dns.md.
 	 */
 	proxy_dns?: "doh" | "exit";
-	/**
-	 * Send the TLS ClientHello behind the SOCKS5 CONNECT request, before the
-	 * proxy's reply. Only for a proxy that forwards those bytes; behind one
-	 * that discards them every HTTPS connection hangs. See docs/proxy-dns.md.
-	 */
-	proxy_optimistic_data?: boolean;
 	/** Cache previous pages, requests, etc (uses more memory). */
 	enable_cache?: boolean;
 	/** Arguments to pass to the browser. */
@@ -2340,11 +1807,8 @@ export interface LaunchOptions {
 	canvas_noise?: boolean | null;
 	/** The display's ICC colour profile, which ICC-tagged images are converted
 	 * to (a page reads it from their decoded pixels): ICC bytes or a path, e.g.
-	 * one recorded with GetICMProfileW on the machine the identity presents.
-	 * `false` keeps the browser's own (built-in sRGB on a host without one).
-	 * Default: an identity of another OS draws one from display-profiles.json
-	 * for its OS and screen; an identity of the host's OS uses the host
-	 * display's, as stock does. */
+	 * one recorded with GetICMProfileW on a real machine. Default (undefined or
+	 * false): the browser's own, the host display's as stock Firefox uses. */
 	display_profile?: DisplayProfileOption;
 	/** Additional Firefox launch options, passed straight through to Playwright. */
 	[key: string]: any;
@@ -2361,12 +1825,6 @@ export async function launchOptions(
 ): Promise<Record<string, any>> {
 	return buildLaunchOptions(options);
 }
-
-const OS_CODE: Record<string, string> = {
-	windows: "win",
-	macos: "mac",
-	linux: "lin",
-};
 
 async function buildLaunchOptions({
 	config,
@@ -2398,7 +1856,6 @@ async function buildLaunchOptions({
 	firefox_user_prefs,
 	proxy,
 	proxy_dns,
-	proxy_optimistic_data,
 	enable_cache,
 	args,
 	env,
@@ -2422,8 +1879,8 @@ async function buildLaunchOptions({
 
 	// Set default values for optional arguments
 	headless ??= false;
-	// The caller's own prefs, before the launcher adds any: a pref the build
-	// declares in launch.json never replaces one of these.
+	// The caller's own prefs, before the launcher adds any: a display profile
+	// never replaces one of these.
 	const userPrefKeys = new Set(Object.keys(firefox_user_prefs));
 	custom_fonts_only ??= false;
 	i_know_what_im_doing ??= false;
@@ -2579,29 +2036,11 @@ async function buildLaunchOptions({
 	// Bound the geometry to the real display. The generator only honours this
 	// when its pool has a match, so it is re-applied after generation as well.
 	// `headless` and "is there a display to probe" are separate questions.
-	let screenCons: Screen | null = screen
+	const screenCons: Screen | null = screen
 		? toScreen(screen)
 		: utilsDeps.hasDisplay(env)
 			? utilsDeps.getScreenCons(headless)
 			: null;
-
-	// launchPersistentContext({viewport}) shows its pages at that size from the
-	// first one, so a drawn identity is drawn around it: a window the recorded
-	// chrome larger than the viewport, on a screen that holds that window.
-	const launchViewport = boxSize(passthrough.viewport);
-	const fitViewport =
-		launchViewport !== null &&
-		!userSetScreenWindow &&
-		!usedPreset &&
-		fingerprint == null;
-	if (fitViewport) {
-		screenCons = viewportScreenBound(
-			launchViewport,
-			targetOsOption,
-			screenCons,
-			window,
-		);
-	}
 
 	if (!usedPreset && fingerprint == null) {
 		// Default: synthetic generation via fpgen (infinite unique fingerprints)
@@ -2648,44 +2087,12 @@ async function buildLaunchOptions({
 				firefox_user_prefs["layout.css.devPixelsPerPx"] ?? -1,
 			);
 			config["window.devicePixelRatio"] = drawnDpr;
-			let scale = callerScale > 0 ? callerScale : undefined;
-			if (fitViewport && launchViewport && scale === undefined) {
-				// The screen was drawn to hold the viewport's window at the drawn
-				// ratio, and a larger one shrinks it: the nearest display mode at
-				// which it still does.
-				const floor = screenFloor(
-					targetOs,
-					{ width: launchViewport[0], height: launchViewport[1] },
-					window ? { width: window[0], height: window[1] } : null,
-				);
-				for (const step of coherence.PLAUSIBLE_DPR[targetOs]) {
-					const holds = (["width", "height"] as const).every(
-						(axis, at) =>
-							coherence.roundHalfEven(
-								(config[`screen.${axis}`] * drawnDpr) / step,
-							) >= floor[at],
-					);
-					if (
-						holds &&
-						(scale === undefined ||
-							Math.abs(step - drawnDpr) < Math.abs(scale - drawnDpr))
-					)
-						scale = step;
-				}
-			}
-			coherence.repairDevicePixelRatio(config, targetOs, scale);
+			coherence.repairDevicePixelRatio(
+				config,
+				targetOs,
+				callerScale > 0 ? callerScale : undefined,
+			);
 		}
-	}
-
-	// After the ratio moved, which rescales every CSS size: the viewport is in
-	// the pixels the page reports, so its window is placed in them too.
-	if (fitViewport && launchViewport && !window) {
-		const [chromeW, chromeH] = RECORDED_WINDOW_CHROME[targetOs];
-		placeWindow(
-			config,
-			launchViewport[0] + chromeW,
-			launchViewport[1] + chromeH,
-		);
 	}
 
 	// A preset whose screen is a phone viewport is not a real desktop device.
@@ -2789,39 +2196,6 @@ async function buildLaunchOptions({
 		}
 	}
 
-	// After the draw, so a drawn list and a list the caller passes (a captured
-	// enumeration, a profile's bundle) expand alike.
-	if (targetOs === "win") {
-		// Windows enumerates DirectWrite's families ("Arial", "Rockwell", "Sitka
-		// Text"), and once its deferred font-info loader has landed a page can also
-		// ask for the nameID 1/16 names of their faces (Arial Black, Rockwell Extra
-		// Bold, the bare Sitka). The allowlist has to hold those names or it blocks
-		// them for good: windowsLegacyFontFamilies maps each family to them. Arial
-		// and Franklin Gothic ship with Windows, but Arial Narrow and Franklin
-		// Gothic Demi/Heavy are faces Office adds to them, so
-		// windowsOfficeLegacyFontFamilies applies only to a list that holds an
-		// Office family.
-		const expanded: string[] = [...(config.fonts || [])];
-		const presented = new Set(expanded);
-		const tables = [LAUNCHER_CONSTANTS.windowsLegacyFontFamilies];
-		const office = fontUnitFamilies("win", "office");
-		if (expanded.some((name) => office.has(name))) {
-			tables.push(LAUNCHER_CONSTANTS.windowsOfficeLegacyFontFamilies);
-		}
-		for (const table of tables) {
-			for (const [canonical, aliases] of Object.entries(table)) {
-				if (!presented.has(canonical)) continue;
-				for (const alias of aliases) {
-					if (!presented.has(alias)) {
-						expanded.push(alias);
-						presented.add(alias);
-					}
-				}
-			}
-		}
-		config.fonts = expanded;
-	}
-
 	// Draw the identity's media devices unless the caller set any mediaDevices:
 	// key. An empty enumerateDevices() list is a headless tell; a wrong label
 	// after a grant is a spoof tell.
@@ -2829,25 +2203,14 @@ async function buildLaunchOptions({
 		await utilsDeps.setMediaDevicesDefaults(config, salt);
 	}
 
-	// The output device's AudioContext.outputLatency, for an identity of
-	// another OS (audio-output-latency.json).
-	setOutputLatencyDefault(config, salt, targetOs, utilsDeps.hostOsKey());
-
-	// The display's ICC profile, which tagged images are converted to
-	// (display_profile.ts; display-profiles.json).
+	// A caller's display ICC profile, which tagged images are converted to
+	// (display_profile.ts).
 	applyDisplayProfile(
 		firefox_user_prefs,
 		userPrefKeys,
 		display_profile,
-		config,
-		utilsDeps.identitySeed(config, salt),
-		targetOs,
-		utilsDeps.hostOsKey(),
 		utilsDeps.installDir(),
 	);
-
-	// When the Windows legacy styled-family aliases land (fonts.detect timing).
-	setWindowsAliasLoadDefault(config, targetOs, utilsDeps.hostOsKey());
 
 	// Scrollbars: pin the look-and-feel to the claimed OS so headless == headed
 	// == stock, and for Windows to the version the identity's font draw
@@ -2861,14 +2224,6 @@ async function buildLaunchOptions({
 		setInto(firefox_user_prefs, "ui.useOverlayScrollbars", windows11 ? 1 : 0);
 	} else {
 		setInto(firefox_user_prefs, "ui.useOverlayScrollbars", 1);
-	}
-
-	// Colour scheme: on its own OS the browser follows the desktop like stock
-	// Firefox. An identity of another OS has no desktop to follow (a window reads
-	// the host's theme, headless reads none), so it gets the claimed OS's
-	// out-of-the-box setting, light. colorScheme or the pref overrides it.
-	if (targetOs !== utilsDeps.hostOsKey()) {
-		setInto(firefox_user_prefs, "ui.systemUsesDarkTheme", 0);
 	}
 
 	// Stock doubles a wheel's lines on Windows and Linux and never on macOS, and
@@ -2914,44 +2269,9 @@ async function buildLaunchOptions({
 
 	// Per-character font fallback, LINUX ONLY: with async fallback on, the
 	// first measurement of a character only one bundled family provides returns
-	// the primary family's .notdef. macOS must NOT get this. The skip belongs to
-	// the Linux platform code, so another OS's identity on a Linux host needs it
-	// too.
-	const hostOs = utilsDeps.hostOsKey();
-	if (targetOs === "lin" || hostOs === "lin") {
+	// the primary family's .notdef. macOS must NOT get this.
+	if (targetOs === "lin") {
 		setInto(firefox_user_prefs, "gfx.font_rendering.fallback.async", false);
-	}
-
-	// Per-language and generic fonts: the build only has its own platform's
-	// font.name-list defaults, so another OS's identity takes that OS's stock
-	// values (with fallback-fonts-claimed-os.patch for the per-script table).
-	// These and the settings below replace answers that come from the Linux
-	// build's platform code (gfxPlatformGtk, FreeType, the GTK theme). Only a
-	// Linux build has that code, so on a macOS or Windows host nothing is set.
-	// A macOS identity gets the font defaults only: the values below were
-	// measured against stock Windows alone (see utils.py).
-	const rendersAnotherOs =
-		hostOs === "lin" && (targetOs === "win" || targetOs === "mac");
-	if (rendersAnotherOs) {
-		for (const [pref, value] of Object.entries(stockFontPrefs(targetOs))) {
-			setInto(firefox_user_prefs, pref, value);
-		}
-	}
-
-	if (rendersAnotherOs && targetOs === "win") {
-		// Line boxes: DirectWrite's ascent, descent and em height rather than
-		// FreeType's pixel-rounded ones (font-metrics-windows.patch).
-		setInto(config, "fonts:metrics", "windows");
-
-		// canPlayType()/isTypeSupported() and decodingInfo() answer for Windows
-		// instead of the host's decoders (#558), as stock Firefox 158 on
-		// Windows 11 answers.
-		setInto(config, "media:spoof_codecs", true);
-
-		// Windows' system colours instead of the host theme's.
-		for (const [pref, value] of Object.entries(WINDOWS_UI_COLORS)) {
-			setInto(firefox_user_prefs, pref, value);
-		}
 	}
 
 	// Storage quota, from the host's own disk (see stockProfileDiskCapacityKb).
@@ -3049,10 +2369,11 @@ async function buildLaunchOptions({
 		}
 	}
 
-	// Geolocation asks as stock Firefox does: a site never granted reads
-	// permissions.query 'prompt' and getCurrentPosition shows the prompt; the
-	// identity's coordinates are what a granted site receives.
-	if (
+	// A page that receives a position without a prompt must also see
+	// permissions.query({name: 'geolocation'}) report "granted" (#769).
+	if ("geolocation:latitude" in config && "geolocation:longitude" in config) {
+		setInto(firefox_user_prefs, "permissions.default.geo", 1);
+	} else if (
 		// Raise a warning when a proxy is being used without spoofing
 		// geolocation. This warning cannot be ignored with i_know_what_im_doing.
 		pyTruthy(proxy) &&
@@ -3076,13 +2397,6 @@ async function buildLaunchOptions({
 		firefox_user_prefs,
 		pyTruthy(geoip),
 	);
-	applyProxyOptimisticData(proxy_optimistic_data, proxy, firefox_user_prefs);
-
-	// After geoip, which decides whether the machine has IPv6 at all.
-	setHostIpv6Default(config, salt);
-
-	// After geoip too: an identity given coordinates has location on.
-	setLocationSettingDefault(config, salt, targetOs, utilsDeps.hostOsKey());
 
 	// Set locale
 	if (pyTruthy(locale)) {
@@ -3357,14 +2671,6 @@ async function buildLaunchOptions({
 		console.log(inspect(config, { depth: null, sorted: true }));
 	}
 
-	applyLaunchRules(
-		targetOs,
-		config,
-		firefox_user_prefs,
-		userPrefKeys,
-		env,
-		executable_path,
-	);
 	// Validate the config
 	warnIfExecutablePredatesPlaywright(executable_path);
 	utilsDeps.validateConfig(config, executable_path);
