@@ -35,7 +35,7 @@ from .exceptions import (
     NonFirefoxFingerprint,
     UnknownIPLocation,
 )
-from .fingerprints import BASELINE_TASKBAR_HEIGHT, RECORDED_WINDOW_CHROME, Screen, draw_screen, place_window, screen_floor, platform_to_os, from_fpgen, from_preset, generate_fingerprint, get_random_preset, _generate_random_font_subset, font_unit_families, draw_voice_config, fix_navigator_arch, fix_hardware_concurrency, set_cpu_default, identity_salt, drop_audio_seed, identity_seed, follow_baseline_protection, clamp_screen_to_display, clamp_window_dimensions, clamp_window_position, fit_window_to_caller_screen, raise_screen_to_modern_floor, set_media_devices_defaults, set_host_ipv6_default, set_output_latency_default, set_windows_alias_load_default, set_location_setting_default, WINDOWS_11_MARKER_FONTS, OS_KEYS, OS_NAMES
+from .fingerprints import BASELINE_TASKBAR_HEIGHT, RECORDED_WINDOW_CHROME, Screen, draw_screen, place_window, screen_floor, platform_to_os, from_fpgen, from_preset, generate_fingerprint, get_random_preset, _generate_random_font_subset, font_unit_families, draw_voice_config, fix_navigator_arch, fix_hardware_concurrency, set_cpu_default, identity_salt, drop_audio_seed, identity_seed, follow_baseline_protection, clamp_screen_to_display, clamp_window_dimensions, clamp_window_position, raise_screen_to_modern_floor, set_media_devices_defaults, set_host_ipv6_default, set_output_latency_default, set_windows_alias_load_default, set_location_setting_default, WINDOWS_11_MARKER_FONTS, OS_KEYS, OS_NAMES
 from . import coherence
 from .humanize import HumanizeSetting, normalize as normalize_humanize
 from .ip import proxy_auth_env, proxy_auth_init_script, public_ipv6, socks5_auth
@@ -2058,9 +2058,6 @@ def launch_options(
     _user_set_arch = is_domain_set(config, 'navigator.platform', 'navigator.oscpu')
     _user_set_screen_window = is_domain_set(config, 'screen.', 'window.')
     _user_window_position = {k for k in ('window.screenX', 'window.screenY') if k in config}
-    _user_set_window_size = is_domain_set(
-        config, 'window.outerWidth', 'window.outerHeight', 'window.innerWidth', 'window.innerHeight'
-    )
     _user_set_media_devices = is_domain_set(config, 'mediaDevices:')
     _user_set_fonts = bool(fonts) or is_domain_set(config, 'fonts')
     _user_set_voices = is_domain_set(config, 'voices', 'voices:speechd')
@@ -2232,18 +2229,17 @@ def launch_options(
             fit = _physical_scale(config)
             clamp_screen_to_display(config, screen_cons.max_width and int(screen_cons.max_width / fit),
                                     screen_cons.max_height and int(screen_cons.max_height / fit))
-        follow_baseline_protection(config, target_os)
-        clamp_window_dimensions(config)
-        clamp_window_position(config)
-    else:
-        # A caller's screen without a caller's window: the drawn window is fitted to it, as a real
-        # window fits its monitor.
-        if not _user_set_window_size:
-            fit_window_to_caller_screen(config, target_os, {'window.screenX', 'window.screenY'} - _user_window_position)
-        # The caller drove the screen or the window, not always where the window sits: a position
-        # drawn against the generated screen is moved onto the caller's (window 1280 wide at
-        # x=206 on a 1382 screen), or every new context drew another screen to hold it.
-        clamp_window_position(config, {'window.screenX', 'window.screenY'} - _user_window_position)
+
+    # Every launch, a caller's screen and window included: the config claims the
+    # avail rect the browser reports (baseline protection takes the taskbar out of
+    # the screen whatever availHeight says), and the window is fitted inside it,
+    # since the browser grows the screen to hold a window that does not fit
+    # (2560x1408 against a caller's 1920x1080 read back as 7680x2160). Only a
+    # position the caller did not set is moved: one drawn against the generated
+    # screen is moved onto the caller's, or every new context drew another screen.
+    follow_baseline_protection(config, target_os)
+    clamp_window_dimensions(config)
+    clamp_window_position(config, {'window.screenX', 'window.screenY'} - _user_window_position)
 
     # Deliberately NOT setting window.history.length. It used to be pinned to a
     # random 1-5 because browser.sessionhistory.max_entries=0 left the real
