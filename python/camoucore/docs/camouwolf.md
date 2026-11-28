@@ -22,10 +22,11 @@ camouwolf fetch
 ```
 
 `camouwolf` is the [CamouBrowser/camouwolf](https://github.com/CamouBrowser/camouwolf) repository's
-package: it installs this driver, `camoucore-camouwolf`, at the exact release that
-browser was tested with, and pins that browser build (`camouwolf_pin`). The driver
-on its own fetches the browser camoucore's CI tested it with. The import is
-`camouwolf` either way.
+package: a wrapper around this launcher, `camoucore.camouwolf` in the
+`camoucore` package, at the exact camoucore release that browser was tested
+with, and the pin of that browser build (`camouwolf_pin`). `import camouwolf`
+and `camoucore.camouwolf` are the same modules. camoucore on its own fetches
+the browser camoucore's CI tested it with.
 
 `camouwolf fetch` installs the browser from the
 [CamouBrowser/camouwolf](https://github.com/CamouBrowser/camouwolf) releases, the
@@ -94,7 +95,7 @@ instance you own, and `launch_options(...)` returns the options for
 The identity is JSON in the environment variables `CAMOU_CONFIG_1..N`, never on
 the command line: argv is readable in `/proc/<pid>/cmdline` and Chromium copies
 much of it to its renderers. The keys and their types are in
-[`src/camouwolf/data/properties.json`](https://github.com/CamouBrowser/camoucore/blob/main/python/camouwolf/src/camouwolf/data/properties.json).
+[`src/camouwolf/data/properties.json`](https://github.com/CamouBrowser/camoucore/blob/main/python/camoucore/src/camoucore/camouwolf/data/properties.json).
 Keys marked `"carriedBy": "launcher"` are not read by the browser: the launcher
 turns them into `--window-size` / `--window-position` and the context's
 geolocation.
@@ -132,7 +133,7 @@ place and languages.
 ### Defaults file
 
 Every option that is not passed to the launch call takes its value from
-[`camouwolf.defaults.json`](https://github.com/CamouBrowser/camoucore/blob/main/python/camouwolf/src/camouwolf/camouwolf.defaults.json), which also says what
+[`camouwolf.defaults.json`](https://github.com/CamouBrowser/camoucore/blob/main/python/camoucore/src/camoucore/camouwolf/camouwolf.defaults.json), which also says what
 each option does. To change a default for yourself, run `camouwolf defaults`:
 it copies that file to your user config directory, prints the path, and your
 copy's `"default"` values then win over the packaged ones. It may also be just
@@ -206,11 +207,17 @@ pass `no_viewport=True` to `new_context()` there.
 
 ## Tests
 
+From the root of [camoucore](https://github.com/CamouBrowser/camoucore), with
+`python/camoucore` installed editable (its README):
+
 ```bash
-python -m pytest python/tests -q
+cd python/camoucore && xvfb-run -a python -m pytest tests/camouwolf -q
 ```
+
+Without the wrapper installed, `python -m camoucore.camouwolf <command>` is the
+CLI.
 
 ## License
 
 MIT. Derived from the Camoufox Python launcher by daijro and the Camoufox
-contributors; see [LICENSE](https://github.com/CamouBrowser/camoucore/blob/main/python/camouwolf/LICENSE).
+contributors; see [LICENSE](https://github.com/CamouBrowser/camoucore/blob/main/python/camoucore/LICENSE).

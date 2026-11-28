@@ -13,7 +13,7 @@ hands it to the browser, which spoofs it in C++. With a proxy and `geoip=True`
 it also matches timezone, locale, geolocation and the WebRTC IP to the proxy's
 exit IP.
 
-The TypeScript package ([`typescript/`](https://github.com/daijro/camoufox/tree/main/typescript)) is a port of this one
+The TypeScript launcher ([its reference](https://github.com/CamouBrowser/camoucore/blob/main/typescript/camoucore/docs/camoufox.md)) is a port of this one
 with the same options. Notes for AI coding agents are in
 [`AGENTS.md`](https://github.com/daijro/camoufox/blob/main/AGENTS.md#using-camoufox).
 
@@ -25,10 +25,11 @@ camoufox fetch
 ```
 
 `camoufox` is the [daijro/camoufox](https://github.com/daijro/camoufox) repository's
-package: it installs this driver, `camoucore-camoufox`, at the exact release that
-browser was tested with, and pins that browser build (`camoufox_pin`). The driver
-on its own fetches the browser camoucore's CI tested it with. The import is
-`camoufox` either way.
+package: a wrapper around this launcher, `camoucore.camoufox` in the
+`camoucore` package, at the exact camoucore release that browser was tested
+with, and the pin of that browser build (`camoufox_pin`). `import camoufox`
+and `camoucore.camoufox` are the same modules. camoucore on its own fetches the
+browser camoucore's CI tested it with.
 
 | Requirement | Value |
 |---|---|
@@ -464,14 +465,15 @@ From the root of [camoucore](https://github.com/CamouBrowser/camoucore):
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r python/requirements-dev.txt -e 'python/camoucore[geoip]' -e 'python/camoufox[geoip]'
+.venv/bin/pip install -r python/requirements-dev.txt -e 'python/camoucore[geoip]'
 .venv/bin/python python/camoucore/scripts/pin-fpgen-model.py
-cd python/camoufox && ../../.venv/bin/python -m pytest tests
+cd python/camoucore && ../../.venv/bin/python -m pytest tests/camoufox
 ```
 
-That is the suite CI's `python` job runs. Which suite covers which change is in
+That is the suite CI's `python camoufox` job runs. Without the wrapper
+installed, `python -m camoucore.camoufox <command>` is the CLI. Which suite covers which change is in
 [`AGENTS.md`](https://github.com/CamouBrowser/camoucore/blob/main/AGENTS.md).
 
 ## Licence
 
-MIT ([`LICENSE`](https://github.com/CamouBrowser/camoucore/blob/main/python/camoufox/LICENSE)). The browser itself is MPL-2.0.
+MIT ([`LICENSE`](https://github.com/CamouBrowser/camoucore/blob/main/python/camoucore/LICENSE)). The browser itself is MPL-2.0.

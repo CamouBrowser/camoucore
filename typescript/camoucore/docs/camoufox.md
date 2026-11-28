@@ -28,11 +28,11 @@ npx camoufox fetch
 ```
 
 `camoufox` is the [daijro/camoufox](https://github.com/daijro/camoufox)
-repository's package: it pins this driver, `camoucore-camoufox`, at the exact
-release that browser was tested with, and that browser build
-(`camoufox/camoufox_pin`), and re-exports the driver, so you import from
-`camoufox`. Installed on its own, `camoucore-camoufox` fetches the browser
-camoucore's CI tested it with.
+repository's package: a wrapper that re-exports this launcher,
+`camoucore/camoufox` in the `camoucore` package, at the exact camoucore release
+that browser was tested with, and pins that browser build
+(`camoufox/camoufox_pin`), so you import from `camoufox`. camoucore on its own
+fetches the browser camoucore's CI tested it with.
 
 | Requirement | Value |
 |---|---|
@@ -212,7 +212,7 @@ npx camoufox gpu-setup 0000:01:00.0 | sudo sh
 
 The launch checks that the browser renders on the card, and the identity claims
 that card. The Python README explains the selectors, the checks and the
-errors: [The GPU display](https://github.com/CamouBrowser/camoucore/blob/main/python/camoufox/README.md#the-gpu-display).
+errors: [The GPU display](https://github.com/CamouBrowser/camoucore/blob/main/python/camoucore/docs/camoufox.md#the-gpu-display).
 
 ### Remote server
 
@@ -388,7 +388,8 @@ and `from_options` (an object from `launchOptions()` to use as is).
 
 ## CLI
 
-`npx camoufox <command>`. The commands match the Python package's.
+`npx camoufox <command>`. The commands match the Python package's, and
+`npx camoufox mcp` runs the MCP server ([docs/mcp.md](mcp.md)).
 
 | Command | Options | What it does |
 |---|---|---|
@@ -408,55 +409,55 @@ and `from_options` (an object from `launchOptions()` to use as is).
 Each release is paired with the one browser build it was built and tested with,
 the same build as the Python release of the same version, and every launch uses
 it until `camoufox set` chooses another. The Python README explains the rules:
-[Which browser build is used](https://github.com/CamouBrowser/camoucore/blob/main/python/camoufox/README.md#which-browser-build-is-used).
+[Which browser build is used](https://github.com/CamouBrowser/camoucore/blob/main/python/camoucore/docs/camoufox.md#which-browser-build-is-used).
 
 ## Development
 
-The tests compare this package's output with the Python package's, so they need
-a Python with `python/camoufox` installed: the repository's `.venv`, or
+The tests compare this launcher's output with its Python twin's, so they need
+a Python with `python/camoucore` installed: the repository's `.venv`, or
 `CAMOUFOX_PYTHON`. From the root of [camoucore](https://github.com/CamouBrowser/camoucore):
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r python/requirements-dev.txt -e 'python/camoucore[geoip]' -e 'python/camoufox[geoip]'
+.venv/bin/pip install -r python/requirements-dev.txt -e 'python/camoucore[geoip]'
 .venv/bin/python python/camoucore/scripts/pin-fpgen-model.py
 pnpm install
-cd typescript/camoufox
-pnpm build       # tsc -> dist/, then copy the Python package's data files into dist/data-files
-pnpm test        # records the golden fixtures from python/camoufox, then runs vitest
+cd typescript/camoucore
+pnpm build            # tsc -> dist/, then copy the Python package's data files into dist/
+pnpm test:camoufox    # records the golden fixtures from the Python twin, then runs vitest
 pnpm check       # biome lint and format
 pnpm typecheck   # tsc --noEmit
 ```
 
 The data files (presets, fonts, voices, ...) have one copy, in
-`python/camoufox/src/camoufox/`. `DATA_FILES` in `src/paths.ts` lists them, and the
+`python/camoucore/src/camoucore/camoufox/`. `DATA_FILES` in `src/camoufox/paths.ts` lists them, and the
 build copies them into the package.
 
-**Parity.** Before the suite runs, `tests/golden-setup.ts` runs the scripts in
-`scripts/golden/`, which record the Python package's output over fixed inputs
-into `tests/fixtures/` (git-ignored). The TypeScript tests must reproduce it
+**Parity.** Before the suite runs, `tests/camoufox/golden-setup.ts` runs the scripts in
+`scripts/camoufox/golden/`, which record the Python twin's output over fixed
+inputs into `tests/camoufox/fixtures/` (git-ignored). The TypeScript tests must reproduce it
 exactly, `launch_options()` byte for byte including the `CAMOU_CONFIG` blob. A
-Python change that is not mirrored here fails `pnpm test`. Use Python 3.14:
+Python change that is not mirrored here fails `pnpm test:camoufox`. Use Python 3.14:
 `pySum()` follows its `sum()`, and that test skips on 3.12 and 3.13.
 
 The end-to-end suite launches a real browser through both launchers and
 compares what a page sees:
 
 ```bash
-CAMOUFOX_E2E=1 CAMOUFOX_EXECUTABLE=/path/to/camoufox-bin pnpm test tests/e2e.test.ts
+CAMOUFOX_E2E=1 CAMOUFOX_EXECUTABLE=/path/to/camoufox-bin pnpm exec vitest run --project camoufox tests/camoufox/e2e.test.ts
 ```
 
 **Releases.** The npm and PyPI packages are released together by
-[`release.yml`](https://github.com/daijro/camoufox/blob/main/.github/workflows/release.yml), at the same version
-([`ci/README.md`](https://github.com/daijro/camoufox/blob/main/ci/README.md#releases)). `scripts/check-pack.mjs` checks
-that the tarball carries every data file and installs into an empty project.
+[`release.yml`](https://github.com/CamouBrowser/camoucore/blob/main/.github/workflows/release.yml), at the same version
+([`RELEASING.md`](https://github.com/CamouBrowser/camoucore/blob/main/RELEASING.md)). `scripts/check-pack.mjs` checks
+that the tarball carries every data file, installs into an empty project, and
+works behind a wrapper built as RELEASING.md describes.
 npm uploads use trusted publishing; no token is stored.
 
 ## Licence
 
-MIT ([`LICENSE`](https://github.com/CamouBrowser/camoucore/blob/main/typescript/camoufox/LICENSE)).
-The browser itself is MPL-2.0. It depends on
-[`camoucore`](https://github.com/CamouBrowser/camoucore) (MIT; it carries a port
-of NumPy's pairwise summation, with its notice), [`fpgen-js`](https://www.npmjs.com/package/fpgen-js) (Apache-2.0) and
+MIT ([`LICENSE`](https://github.com/CamouBrowser/camoucore/blob/main/typescript/camoucore/LICENSE)).
+The browser itself is MPL-2.0. camoucore carries a port of NumPy's pairwise
+summation, with its notice, and depends on [`fpgen-js`](https://www.npmjs.com/package/fpgen-js) (Apache-2.0) and
 [`python-random`](https://www.npmjs.com/package/python-random), a bit-exact port
 of CPython's `random`, so seeded draws match the Python launcher.

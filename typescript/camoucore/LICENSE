@@ -1,11 +1,12 @@
 MIT License
 
 Copyright (c) 2026 JWriter20 and the CamouCore contributors
+Copyright (c) 2026 JWriter20 and the Camouwolf contributors
 Copyright (c) 2024-2026 daijro and the Camoufox contributors
 
-CamouCore is derived from the Camoufox Python launcher
-(https://github.com/daijro/camoufox, python/), which is distributed under this
-same license, by way of the Camouwolf launcher.
+CamouCore, and the Camoufox and Camouwolf launchers it holds, are derived
+from the Camoufox Python launcher (https://github.com/daijro/camoufox,
+python/), which is distributed under this same license.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

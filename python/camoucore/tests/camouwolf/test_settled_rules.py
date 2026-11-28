@@ -1,5 +1,5 @@
 """Settled decisions the camouwolf driver holds, from the browser repositories'
-ci/tribal-rules.yml. The twin is typescript/camouwolf/tests/settled-rules.test.ts.
+ci/tribal-rules.yml. The twin is typescript/camoucore/tests/camouwolf/settled-rules.test.ts.
 """
 
 from camoucore.virtdisplay import COMPOSITE_KEY, SCREEN_KEY

@@ -5,7 +5,7 @@ Run with:
     cd python && python -m pytest tests/test_fingerprint_fixes.py -v
 
 These guard the headless / impossible-geometry tells a generated fingerprint
-can carry. typescript/camoufox/tests/fingerprints.test.ts mirrors them.
+can carry. typescript/camoucore/tests/camoufox/fingerprints.test.ts mirrors them.
 """
 
 

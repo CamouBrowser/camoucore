@@ -1,4 +1,4 @@
-# camoucore-mcp
+# The MCP server (`camoucore/mcp`)
 
 An [MCP](https://modelcontextprotocol.io) server that lets an agent drive a
 Camoufox or Camouwolf browser. The agent reads each page as an accessibility
@@ -10,19 +10,23 @@ itself, such as a payment.
 
 ## Running it
 
-The server takes the launcher package to drive. That package must export
-`PRODUCT` and `NewBrowser`, as `camoucore-camoufox` and `camoucore-camouwolf` do, and its browser must
-be installed:
+Each launcher's CLI runs the server for its own browser as `<launcher> mcp`,
+so the browser repository's npm package is all it takes, with the browser
+installed:
 
 ```bash
-npx -y -p camoucore-camouwolf camouwolf fetch
-npx -y -p camoucore-mcp -p camoucore-camouwolf camoucore-mcp camoucore-camouwolf
+npx -y camouwolf fetch
+npx -y camouwolf mcp
 ```
+
+`npx camoufox mcp` drives Camoufox the same way. A launcher of your own is
+served with `serve()` from `camoucore/mcp`, given a module that exports
+`PRODUCT` and `NewBrowser`.
 
 In Claude Code:
 
 ```bash
-claude mcp add camouwolf -- npx -y -p camoucore-mcp -p camoucore-camouwolf camoucore-mcp camoucore-camouwolf
+claude mcp add camouwolf -- npx -y camouwolf mcp
 ```
 
 Any other MCP client takes the same command:
@@ -32,7 +36,7 @@ Any other MCP client takes the same command:
   "mcpServers": {
     "camouwolf": {
       "command": "npx",
-      "args": ["-y", "-p", "camoucore-mcp", "-p", "camoucore-camouwolf", "camoucore-mcp", "camoucore-camouwolf"]
+      "args": ["-y", "camouwolf", "mcp"]
     }
   }
 }
@@ -82,7 +86,7 @@ to the sites they belong to, after browser-use's `sensitive_data`:
 
 ```bash
 chmod 600 ~/.config/camoucore-mcp/secrets.json
-claude mcp add camouwolf -- npx -y -p camoucore-mcp -p camoucore-camouwolf camoucore-mcp camoucore-camouwolf \
+claude mcp add camouwolf -- npx -y camouwolf mcp \
   --secrets ~/.config/camoucore-mcp/secrets.json
 ```
 
@@ -120,7 +124,7 @@ under `~/.mozilla/firefox/`, or `~/snap/firefox/common/.mozilla/firefox/` for
 the snap; `about:profiles` shows it):
 
 ```bash
-camoucore-mcp camoufox --profile ~/.mozilla/firefox/abcd1234.default-release
+npx camoufox mcp --profile ~/.mozilla/firefox/abcd1234.default-release
 ```
 
 - **Each session runs on a private copy,** made when it opens and deleted when
@@ -144,7 +148,7 @@ absolute path or a link, is refused, and refused before it is looked at, so the
 agent never learns what exists elsewhere.
 
 ```bash
-camoucore-mcp camoufox --uploads ~/agent-uploads
+npx camoufox mcp --uploads ~/agent-uploads
 ```
 
 ## Allowed domains
@@ -153,7 +157,7 @@ camoucore-mcp camoufox --uploads ~/agent-uploads
 patterns as secrets:
 
 ```bash
-camoucore-mcp camouwolf --allowed-domains "*.example.com,accounts.example.org"
+npx camouwolf mcp --allowed-domains "*.example.com,accounts.example.org"
 ```
 
 `navigate` refuses any other URL, and a tab whose page goes elsewhere (a link,
