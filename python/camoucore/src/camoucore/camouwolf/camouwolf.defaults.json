@@ -81,9 +81,9 @@
     "examples": [true]
   },
   "canvas_noise": {
-    "default": false,
-    "about": "Perturb canvas readback with a per-identity seed. Stock Chrome does not, so it warns.",
-    "examples": [true]
+    "default": null,
+    "about": "Brave's per-site canvas farbling. null farbles (with a warning) when the identity's canvas is not this host's: another OS, or a GPU this host does not render on. true or false forces it.",
+    "examples": [true, false]
   },
   "pin_cpu_cores": {
     "default": false,
