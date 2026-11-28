@@ -340,9 +340,9 @@ Camoufox website. Every 10 minutes and when the browser closes, it sends:
   Imperva, AWS WAF, hCaptcha, reCAPTCHA, Arkose Labs, Queue-it, F5 Shape,
   ThreatMetrix, Google BotGuard), the number of encounters that ended in
   success, a challenge, a block, or an outcome the browser cannot see;
-- the launcher (`camoufox`), its version, the browser version, whether the build
-  is Pro, whether the identity claims another OS than this machine's, whether
-  the launch is a passthrough one, and the proxy provider's domain only
+- the launcher (`camoufox`), its version, the browser version, whether the identity
+  claims another OS than this machine's, whether the launch is a passthrough
+  one, and the proxy provider's domain only
   (`example.com`, or `none`).
 
 It never sends URLs, sites, page content, cookies, IP addresses, the proxy's

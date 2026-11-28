@@ -8,7 +8,7 @@ import { parseArgs } from "node:util";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { Secrets } from "./secrets.js";
-import { createServer, loadLauncher, type Solver } from "./server.js";
+import { createServer, loadLauncher } from "./server.js";
 
 // stdout is the protocol, and launchers print to it, so everything but the
 // transport goes to stderr. This comes before the launcher is imported, since
@@ -78,26 +78,8 @@ const allowedDomains = parsed.values["allowed-domains"]
 	.map((pattern) => pattern.trim())
 	.filter(Boolean);
 
-/**
- * The optional captchakraken package's solver. Not installed, the server
- * offers no solve_captcha; installed, any failure to load it is loud, so a
- * broken install never passes for a missing one.
- */
-async function loadSolver(): Promise<Solver | undefined> {
-	const solverPackage = "captchakraken";
-	let resolved: string;
-	try {
-		resolved = import.meta.resolve(solverPackage);
-	} catch {
-		return undefined;
-	}
-	const { CaptchaKrakenSolver } = await import(resolved);
-	return new CaptchaKrakenSolver();
-}
-
 const { launcher, browserType } = await loadLauncher(specifier);
 const { server, closeAll } = createServer(launcher, browserType, {
-	solver: await loadSolver(),
 	secrets,
 	allowedDomains,
 	profile,

@@ -4,20 +4,8 @@ import { VirtualDisplayNotSupported } from "../src/exceptions.js";
 import { CHROMIUM, FIREFOX, Product } from "../src/product.js";
 import { SCREEN_KEY, VirtualDisplay } from "../src/virtdisplay.js";
 
-const FOX = new Product(
-	"camoufox",
-	"Camoufox",
-	FIREFOX,
-	"https://accounts.example",
-	"https://captcha.example/v1",
-);
-const WOLF = new Product(
-	"camouwolf",
-	"Camouwolf",
-	CHROMIUM,
-	"https://accounts.example",
-	"https://captcha.example/v1",
-);
+const FOX = new Product("camoufox", "Camoufox", FIREFOX);
+const WOLF = new Product("camouwolf", "Camouwolf", CHROMIUM);
 
 afterEach(() => {
 	for (const product of [FOX, WOLF])

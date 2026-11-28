@@ -33,13 +33,7 @@
     "zod": "3.25.76"
   },
   "peerDependencies": {
-    "captchakraken": "*",
     "playwright-core": "<1.63"
-  },
-  "peerDependenciesMeta": {
-    "captchakraken": {
-      "optional": true
-    }
   },
   "devEngines": {
     "packageManager": {

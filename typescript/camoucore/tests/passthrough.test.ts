@@ -9,13 +9,7 @@ import {
 import { FIREFOX, Product } from "../src/product.js";
 import { recordWarnings } from "../src/warnings.js";
 
-const FOX = new Product(
-	"camoufox",
-	"Camoufox",
-	FIREFOX,
-	"https://accounts.example",
-	"https://captcha.example/v1",
-);
+const FOX = new Product("camoufox", "Camoufox", FIREFOX);
 
 it("lets unset and behaviour options through", () => {
 	const options: Record<string, unknown> = Object.fromEntries(

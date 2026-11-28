@@ -16,7 +16,6 @@ from . import _humanize_playwright, driver_defaults
 from .utils import (
     async_attach_vd,
     attach_context_defaults,
-    captcha_solver,
     launch_defaults,
     launch_options,
     launch_os,
@@ -118,9 +117,6 @@ async def AsyncNewBrowser(
     # humanize runs in this process: checked before the launch,
     # attached to the browser after it (also with from_options).
     _humanize_playwright.check(kwargs.get('humanize'), is_async=True)
-    # The captcha solver is made before the launch, so an unusable option
-    # fails before a browser starts, and is the browser's `.captcha` after it.
-    captcha = captcha_solver(kwargs.get('captcha'), asynchronous=True)
     virtual_display, headless = await asyncio.get_running_loop().run_in_executor(
         None, start_virtual_display, headless, debug, kwargs
     )
@@ -135,7 +131,6 @@ async def AsyncNewBrowser(
         browser = _humanize_playwright.attach(
             browser, kwargs.get('humanize'), os, i_know_what_im_doing=kwargs.get('i_know_what_im_doing')
         )
-        browser.captcha = captcha
         return browser
     except BaseException:
         if virtual_display:

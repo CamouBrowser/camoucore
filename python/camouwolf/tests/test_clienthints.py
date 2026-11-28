@@ -37,8 +37,8 @@ def test_a_recorded_user_agent_is_moved_to_the_running_milestone():
 
 
 def test_the_launch_leaves_the_brand_list_to_chromium():
-    # The public build claims Chromium: Chromium builds its own brand list, and
-    # "Google Chrome" in it is a Pro feature.
+    # Camouwolf claims Chromium, and Chromium builds its own brand list, which
+    # never names "Google Chrome".
     config = {}
     ch.fill_client_hints(config, 'win', '158.0.8127.36')
     assert not any(k in config for k in ('userAgentData.brands', 'userAgentData.fullVersionList'))

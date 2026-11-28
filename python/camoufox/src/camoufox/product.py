@@ -9,6 +9,4 @@ PRODUCT = Product(
     'Camoufox',
     FIREFOX,
     package=Path(__file__).parent,
-    site='https://camoufox.com',
-    captcha_endpoint='https://captcha.camoufox.com/v1',
 )

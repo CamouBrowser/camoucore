@@ -39,7 +39,6 @@ export {
 	type NewBrowserOptions,
 	NewContext,
 	type NewContextOptions,
-	type WithCaptcha,
 } from "./sync_api.js";
 export {
 	type LaunchOptions,

@@ -11,13 +11,7 @@ import {
 	writeUserDefaults,
 } from "../src/settings.js";
 
-const FOX = new Product(
-	"camoufox",
-	"Camoufox",
-	FIREFOX,
-	"https://accounts.example",
-	"https://captcha.example/v1",
-);
+const FOX = new Product("camoufox", "Camoufox", FIREFOX);
 const PACKAGED = {
 	$schema: "ignored",
 	_readme: "ignored",

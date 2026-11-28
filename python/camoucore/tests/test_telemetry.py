@@ -19,7 +19,7 @@ from camoucore.telemetry import (
     telemetry_enabled,
 )
 
-PRODUCT = Product('camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'), site='https://accounts.example', captcha_endpoint='https://captcha.example/v1')
+PRODUCT = Product('camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'))
 RULES = Rules()
 UUID = '0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b'
 
@@ -282,7 +282,7 @@ def test_registrable_domain():
 
 def reporter(sent: List[tuple], proxy=None) -> Telemetry:
     return Telemetry(
-        PRODUCT, version='1.2.3', browser_version='146.0', pro=False, cross_os=True, passthrough=False,
+        PRODUCT, version='1.2.3', browser_version='146.0', cross_os=True, passthrough=False,
         proxy=proxy, send=lambda url, payload: sent.append((url, payload)), interval=0,
     )
 
@@ -296,6 +296,7 @@ def test_a_report_holds_counts_and_launch_dimensions_only():
     assert url == 'https://api.camoufox.com/v1/telemetry/antibot'
     assert payload == {
         'schema': 1, 'product': 'camoufox', 'version': '1.2.3', 'browser_version': '146.0',
+        # fp-process's ingest refuses a report without a boolean `pro`.
         'pro': False, 'cross_os': True, 'passthrough': False, 'proxy_provider': 'smartproxy.com',
         'counts': {'datadome': {'success': 0, 'challenge': 0, 'block': 1, 'unknown': 0}},
     }

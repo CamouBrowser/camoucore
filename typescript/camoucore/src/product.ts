@@ -29,13 +29,6 @@ export class Product {
 		/** The name in messages: "Camoufox", "Camouwolf". */
 		readonly title: string,
 		readonly engine: Engine,
-		/**
-		 * Where accounts are made, with no trailing slash. One account, and one
-		 * key, serves every service the launcher reaches.
-		 */
-		readonly site: string,
-		/** The captcha solve endpoint that takes an account's key. */
-		readonly captchaEndpoint: string,
 	) {}
 
 	get cacheDir(): string {

@@ -27,12 +27,9 @@ language-tags = "*"
 numpy = "*"
 fpgen = "^1.3.0"
 maxminddb = {version = "*", optional = true}
-# The captcha option's solver; captcha=... without it fails at launch.
-captchakraken = {version = ">=5.2.1,<6", optional = true}
 
 [tool.poetry.extras]
 geoip = ["maxminddb"]
-captcha = ["captchakraken"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

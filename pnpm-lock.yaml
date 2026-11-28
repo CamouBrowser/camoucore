@@ -11,9 +11,6 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
         version: 1.30.0(zod@3.25.76)
-      captchakraken:
-        specifier: '*'
-        version: 5.2.1(playwright-core@1.62.0)
       zod:
         specifier: 3.25.76
         version: 3.25.76
@@ -85,9 +82,6 @@ importers:
       '@types/xml2js':
         specifier: ^0.4.14
         version: 0.4.14
-      captchakraken:
-        specifier: 5.2.1
-        version: 5.2.1(playwright-core@1.62.0)
       fpgen-js:
         specifier: 1.3.0
         version: 1.3.0
@@ -189,9 +183,6 @@ importers:
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.2
-      captchakraken:
-        specifier: 5.2.1
-        version: 5.2.1(playwright-core@1.62.0)
       playwright-core:
         specifier: 1.62.0
         version: 1.62.0
@@ -523,11 +514,6 @@ packages:
   call-bound@1.0.4:
     resolution: {integrity: sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg==}
     engines: {node: '>= 0.4'}
-
-  captchakraken@5.2.1:
-    resolution: {integrity: sha512-GqEuXu8Bnl9TrSA+2/ReFlly2kpXy63zfcepJsY/Opc1BX6SBg2gJTtbDLEfQyERIQAFLQk+u+TdCh85wUyFEg==}
-    engines: {node: '>=20.19'}
-    hasBin: true
 
   chai@6.3.0:
     resolution: {integrity: sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg==}
@@ -1573,12 +1559,6 @@ snapshots:
     dependencies:
       call-bind-apply-helpers: 1.0.2
       get-intrinsic: 1.3.0
-
-  captchakraken@5.2.1(playwright-core@1.62.0):
-    dependencies:
-      '@jwriter20/myuri': 5.1.0(playwright-core@1.62.0)
-    transitivePeerDependencies:
-      - playwright-core
 
   chai@6.3.0: {}
 

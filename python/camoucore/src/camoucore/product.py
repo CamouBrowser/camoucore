@@ -40,11 +40,6 @@ class Product:
     # The launcher's package directory. Warnings raised from inside it point at
     # the user's call instead.
     package: Path
-    # Where accounts are made, with no trailing slash: 'https://example.com'.
-    # One account, and one key, serves every service the launcher reaches.
-    site: str
-    # The captcha solve endpoint that takes an account's key.
-    captcha_endpoint: str
 
     def __post_init__(self) -> None:
         register_internal(self.package)

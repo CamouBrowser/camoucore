@@ -6,9 +6,10 @@ What is collected, and nothing else:
   - per anti-bot provider (Cloudflare, DataDome, hCaptcha, ...): how many
     encounters ended in success, challenge, block, or an outcome the browser
     cannot see (unknown);
-  - the launch's dimensions: launcher, launcher version, browser version, Pro or
-    not, a spoofed OS other than the host's (cross-OS) or not, passthrough or
-    not, and the proxy provider's registrable domain ("none" without a proxy).
+  - the launch's dimensions: launcher, launcher version, browser version, a
+    spoofed OS other than the host's (cross-OS) or not, passthrough or not, and
+    the proxy provider's registrable domain ("none" without a proxy); and
+    `pro`, always false until Pro ships, which the ingest requires.
 Never collected: a URL, a site, a page's content, a cookie, a header value, an
 IP address, a proxy's username, password, host or port, or any identifier of
 the user or the machine. Reports carry no ID and no timestamp of their own.
@@ -346,7 +347,6 @@ class Telemetry:
         *,
         version: str,
         browser_version: str,
-        pro: bool,
         cross_os: bool,
         passthrough: bool,
         proxy: Union[None, str, Mapping[str, Any]],
@@ -359,7 +359,8 @@ class Telemetry:
             'product': product.name,
             'version': version,
             'browser_version': browser_version,
-            'pro': bool(pro),
+            # The ingest keys every report on it and refuses one without it.
+            'pro': False,
             'cross_os': bool(cross_os),
             'passthrough': bool(passthrough),
             # The domain is all that is kept of the proxy.

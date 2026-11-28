@@ -57,22 +57,14 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
     "@types/node": "^24.0.0",
-    "captchakraken": "5.2.1",
     "playwright-core": "1.62.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.8.3",
     "vitest": "^4.0.0"
   },
   "peerDependencies": {
-    "captchakraken": ">=5.2.1 <6",
     "playwright-core": "<1.63"
   },
-  "peerDependenciesMeta": {
-    "captchakraken": {
-      "optional": true
-    }
-  },
-  "//captchakraken": "The captcha option's solver, optional: a launch with captcha set and none installed throws CaptchaKrakenMissing. The dev pin lets the tests build a solver.",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",

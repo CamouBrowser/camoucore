@@ -36,12 +36,8 @@ classifiers = [
 # in October 2026.
 python = "^3.11"
 # The launcher core, at exactly this release's version
-# (scripts/set-version.py). The captcha extra takes camoucore's, which brings
-# the CaptchaKraken client.
-camoucore = [
-    {version = "==0.6.0"},
-    {version = "==0.6.0", extras = ["captcha"], markers = "extra == 'captcha'"},
-]
+# (scripts/set-version.py).
+camoucore = "==0.6.0"
 rich-click = "*"
 rich = "*"
 requests = "*"
@@ -65,7 +61,6 @@ maxminddb = {version = "*", optional = true}
 
 [tool.poetry.extras]
 geoip = ["maxminddb"]
-captcha = []
 
 [tool.poetry.scripts]
 camouwolf = "camouwolf.__main__:cli"

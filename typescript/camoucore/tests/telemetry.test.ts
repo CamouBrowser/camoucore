@@ -14,13 +14,7 @@ import {
 	telemetryEnabled,
 } from "../src/telemetry.js";
 
-const PRODUCT = new Product(
-	"camoufox",
-	"Camoufox",
-	FIREFOX,
-	"https://accounts.example",
-	"https://captcha.example/v1",
-);
+const PRODUCT = new Product("camoufox", "Camoufox", FIREFOX);
 const RULES = new Rules();
 const UUID = "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b";
 
@@ -396,7 +390,6 @@ describe("reports", () => {
 		return new Telemetry(PRODUCT, {
 			version: "1.2.3",
 			browserVersion: "146.0",
-			pro: false,
 			crossOs: true,
 			passthrough: false,
 			proxy,
@@ -424,6 +417,7 @@ describe("reports", () => {
 					product: "camoufox",
 					version: "1.2.3",
 					browser_version: "146.0",
+					// fp-process's ingest refuses a report without a boolean `pro`.
 					pro: false,
 					cross_os: true,
 					passthrough: false,
@@ -552,7 +546,6 @@ describe("browser glue", () => {
 		const t = new Telemetry(PRODUCT, {
 			version: "1",
 			browserVersion: "1",
-			pro: false,
 			crossOs: false,
 			passthrough: false,
 			proxy: null,
