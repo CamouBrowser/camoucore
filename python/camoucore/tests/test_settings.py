@@ -8,7 +8,7 @@ import pytest
 from camoucore import FIREFOX, Product
 from camoucore.settings import apply_defaults, load_defaults, user_defaults_path, write_user_defaults
 
-FOX = Product('camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'), site='https://accounts.example', captcha_endpoint='https://captcha.example/v1')
+FOX = Product('camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'), site='https://accounts.example')
 
 PACKAGED = {
     '$schema': 'ignored',

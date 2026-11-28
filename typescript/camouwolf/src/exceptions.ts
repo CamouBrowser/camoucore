@@ -11,8 +11,6 @@
 export {
 	CannotExecuteXvfb,
 	CannotFindXvfb,
-	CaptchaKeyMissing,
-	CaptchaKrakenMissing,
 	CorruptedDownload,
 	InvalidIP,
 	InvalidLocale,

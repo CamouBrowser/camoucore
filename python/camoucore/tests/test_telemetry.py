@@ -19,7 +19,7 @@ from camoucore.telemetry import (
     telemetry_enabled,
 )
 
-PRODUCT = Product('camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'), site='https://accounts.example', captcha_endpoint='https://captcha.example/v1')
+PRODUCT = Product('camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'), site='https://accounts.example')
 RULES = Rules()
 UUID = '0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b'
 

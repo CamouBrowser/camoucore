@@ -1,6 +1,6 @@
 # What the test suites need beyond the packages themselves:
 #   pip install -r python/requirements-dev.txt \
-#     -e 'python/camoucore[geoip,captcha]' -e 'python/camouwolf[geoip,captcha]' \
+#     -e 'python/camoucore[geoip]' -e 'python/camouwolf[geoip]' \
 #     -e 'python/camoufox[geoip]'
 pytest>=8.0
 pytest-timeout>=2.3

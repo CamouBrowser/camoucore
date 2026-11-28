@@ -59,7 +59,6 @@ the server at a build of your own. Node.js 22.15 or newer.
 | `screenshot { session_id }` | A PNG of the viewport, refused while the page holds a secret. |
 | `upload_file { session_id, ref, files }` | Attaches files [from the uploads directory](#uploads), by name, to a file input or to the button that opens a file picker. Only with `--uploads`. |
 | `hand_off { session_id, reason }` | Brings a visible session's window to the front. The agent stops and waits for the person. |
-| `solve_captcha { session_id }` | Only when the [captchakraken](https://www.npmjs.com/package/captchakraken) package is installed beside the server; it uses the key that package is configured with. |
 | `session_close { session_id }` | Closes the browser. |
 
 One session is one browser and one identity: sessions never share cookies or a

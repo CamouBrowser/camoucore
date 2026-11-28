@@ -14,7 +14,6 @@ from camoucore.virtdisplay import VirtualDisplay
 from . import _humanize_playwright, driver_defaults
 from .utils import (
     attach_context_defaults,
-    captcha_solver,
     launch_defaults,
     launch_options,
     launch_os,
@@ -121,9 +120,6 @@ def NewBrowser(
     # humanize runs in this process: checked before the launch,
     # attached to the browser after it (also with from_options).
     _humanize_playwright.check(kwargs.get('humanize'), is_async=False)
-    # The captcha solver is made before the launch, so an unusable option
-    # fails before a browser starts, and is the browser's `.captcha` after it.
-    captcha = captcha_solver(kwargs.get('captcha'), asynchronous=False)
     virtual_display, headless = start_virtual_display(headless, debug, kwargs)
     # Everything after the display exists can fail (bad proxy, missing binary,
     # unsatisfiable constraints) before sync/async_attach_vd wires kill() into
@@ -134,7 +130,6 @@ def NewBrowser(
         browser = _humanize_playwright.attach(
             browser, kwargs.get('humanize'), os, i_know_what_im_doing=kwargs.get('i_know_what_im_doing')
         )
-        browser.captcha = captcha
         return browser
     except BaseException:
         if virtual_display:

@@ -6,5 +6,4 @@ export const PRODUCT = new Product(
 	"Camouwolf",
 	CHROMIUM,
 	"https://camoufox.com",
-	"https://captcha.camoufox.com/v1",
 );

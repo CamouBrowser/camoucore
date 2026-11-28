@@ -6,7 +6,7 @@ TypeScript (npm), plus an MCP server.
 
 | Path | Package | What it is |
 |---|---|---|
-| [`python/camoucore`](python/camoucore), [`typescript/camoucore`](typescript/camoucore) | `camoucore` | The core: product and engine, locales, GeoIP, proxies, the fpgen model pin, virtual displays, passthrough, the defaults file, captcha, telemetry. [Its README](python/camoucore/README.md) lists the modules. |
+| [`python/camoucore`](python/camoucore), [`typescript/camoucore`](typescript/camoucore) | `camoucore` | The core: product and engine, locales, GeoIP, proxies, the fpgen model pin, virtual displays, passthrough, the defaults file, telemetry. [Its README](python/camoucore/README.md) lists the modules. |
 | [`python/camoufox`](python/camoufox), [`typescript/camoufox`](typescript/camoufox) | `camoucore-camoufox` | The launcher for Camoufox, an anti-detect Firefox. [Its README](python/camoufox/README.md) lists every launch option. |
 | [`python/camouwolf`](python/camouwolf), [`typescript/camouwolf`](typescript/camouwolf) | `camoucore-camouwolf` | The launcher for Camouwolf, an anti-detect Chromium. [Its README](python/camouwolf/README.md) is the reference for every launch option. |
 | [`mcp`](mcp) | `camoucore-mcp` | An MCP server that lets an agent drive a launcher's browser. [Its README](mcp/README.md) shows how to run it. |
@@ -34,7 +34,7 @@ Python 3.11 or newer, Node 22.15 or newer, pnpm 10 (`corepack enable`).
 # Python: every package, editable, in one venv
 python3 -m venv .venv
 .venv/bin/pip install -r python/requirements-dev.txt \
-  -e 'python/camoucore[geoip,captcha]' -e 'python/camouwolf[geoip,captcha]' \
+  -e 'python/camoucore[geoip]' -e 'python/camouwolf[geoip]' \
   -e 'python/camoufox[geoip]'
 (cd python/camouwolf && xvfb-run -a ../../.venv/bin/python -m pytest tests -q)
 (cd python/camoufox && xvfb-run -a ../../.venv/bin/python -m pytest tests -q)

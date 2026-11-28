@@ -91,7 +91,7 @@ describe("camoucore-mcp tools", () => {
 		await client?.close();
 	});
 
-	it("offers solve_captcha only with a solver", async () => {
+	it("offers type_secret only with secrets", async () => {
 		const base = [
 			"click",
 			"go_back",
@@ -111,15 +111,12 @@ describe("camoucore-mcp tools", () => {
 		];
 		expect(await (await connect()).toolNames()).toEqual(base);
 		await client?.close();
-		const withExtras = await connect(
+		const withSecrets = await connect(
 			{},
-			{
-				solver: { solve: async () => undefined },
-				secrets: new Secrets({ "example.com": { password: "hunter22" } }),
-			},
+			{ secrets: new Secrets({ "example.com": { password: "hunter22" } }) },
 		);
-		expect(await withExtras.toolNames()).toEqual(
-			[...base, "solve_captcha", "type_secret"].sort(),
+		expect(await withSecrets.toolNames()).toEqual(
+			[...base, "type_secret"].sort(),
 		);
 	});
 
@@ -593,20 +590,5 @@ describe("camoucore-mcp tools", () => {
 					!before.has(name) && name.startsWith("camoucore-mcp-profile-"),
 			);
 		expect(left).toEqual([]);
-	});
-
-	it("reports whether the solver found and solved a captcha", async () => {
-		let result: { isSolved?: boolean } | undefined;
-		const mcp = await connect({}, { solver: { solve: async () => result } });
-		const session_id = await open(mcp);
-		expect((await mcp.tool("solve_captcha", { session_id })).json).toEqual({
-			found: false,
-			solved: false,
-		});
-		result = { isSolved: true };
-		expect((await mcp.tool("solve_captcha", { session_id })).json).toEqual({
-			found: true,
-			solved: true,
-		});
 	});
 });

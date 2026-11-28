@@ -9,14 +9,12 @@ const FOX = new Product(
 	"Camoufox",
 	FIREFOX,
 	"https://accounts.example",
-	"https://captcha.example/v1",
 );
 const WOLF = new Product(
 	"camouwolf",
 	"Camouwolf",
 	CHROMIUM,
 	"https://accounts.example",
-	"https://captcha.example/v1",
 );
 
 afterEach(() => {

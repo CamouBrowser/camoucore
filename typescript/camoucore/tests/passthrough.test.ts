@@ -14,7 +14,6 @@ const FOX = new Product(
 	"Camoufox",
 	FIREFOX,
 	"https://accounts.example",
-	"https://captcha.example/v1",
 );
 
 it("lets unset and behaviour options through", () => {

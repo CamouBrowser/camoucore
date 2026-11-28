@@ -50,11 +50,6 @@ export interface Launcher {
 	): Promise<Browser | BrowserContext>;
 }
 
-/** The `captchakraken` solver, which finds the captcha on a page itself. */
-export interface Solver {
-	solve(page: Page): Promise<{ isSolved?: boolean } | undefined>;
-}
-
 /**
  * Imports a launcher by package name or path, and the Playwright browser type
  * it launches, from the Playwright the launcher itself resolves.
@@ -198,7 +193,6 @@ async function treeOf(
 }
 
 export interface ServerOptions {
-	solver?: Solver;
 	/**
 	 * The person's own browser profile, which a session opened with
 	 * `profile: true` runs on a copy of; without one, that is refused.
@@ -223,7 +217,6 @@ export function createServer(
 	launcher: Launcher,
 	browserType: BrowserType,
 	{
-		solver,
 		secrets = new Secrets({}),
 		allowedDomains = [],
 		profile,
@@ -925,29 +918,6 @@ export function createServer(
 			return answer({ handed_off: true, reason: args.reason });
 		}),
 	);
-
-	if (solver) {
-		server.registerTool(
-			"solve_captcha",
-			{
-				title: "Solve captcha",
-				description:
-					"Find and solve the captcha on the page with CaptchaKraken, on the key its " +
-					"package is configured with.",
-				inputSchema: { session_id: sessionId },
-				annotations: { title: "Solve captcha", openWorldHint: true },
-			},
-			onSession(async (session) => {
-				// The solver returns nothing when it finds no captcha on the page.
-				const result = await solver.solve(session.page);
-				return answer(
-					result
-						? { found: true, solved: Boolean(result.isSolved) }
-						: { found: false, solved: false },
-				);
-			}),
-		);
-	}
 
 	server.registerTool(
 		"session_close",

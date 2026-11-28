@@ -15,7 +15,7 @@
 #                    is created when there is none). "-" or "" skips the npm
 #                    half; so does a machine without node, with a warning,
 #                    since a Python-only job has nothing to run it with.
-#   python-extras    optional, e.g. "geoip,captcha": extras for both packages.
+#   python-extras    optional, e.g. "geoip": extras for both packages.
 #
 # Needs python3 and, for the npm half, node >= 22.15 with pnpm or corepack.
 set -euo pipefail
@@ -64,7 +64,7 @@ trap 'rm -rf "$pack"' EXIT
 (
 	cd "$repo"
 	# The workspace's own install; lifecycle scripts build every package.
-	CAPTCHA_KRAKEN_SKIP_PYTHON_SETUP=1 "${pnpm[@]}" install --frozen-lockfile --reporter=silent
+	"${pnpm[@]}" install --frozen-lockfile --reporter=silent
 	for pkg in camoucore "$launcher"; do
 		(cd "typescript/$pkg" && "${pnpm[@]}" run --silent build >/dev/null &&
 			"${pnpm[@]}" pack --pack-destination "$pack" >/dev/null)

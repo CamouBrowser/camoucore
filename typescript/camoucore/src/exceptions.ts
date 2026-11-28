@@ -129,25 +129,3 @@ export class ProNotLaunched extends Error {
 		this.name = "ProNotLaunched";
 	}
 }
-
-/**
- * Captcha solving was asked for and no key or server was given. The message
- * lists the ways to get one, a free account first.
- */
-export class CaptchaKeyMissing extends Error {
-	constructor(
-		message: string,
-		readonly url: string,
-	) {
-		super(message);
-		this.name = "CaptchaKeyMissing";
-	}
-}
-
-/** Captcha solving was asked for and the captchakraken client is not installed. */
-export class CaptchaKrakenMissing extends Error {
-	constructor(message: string, options?: ErrorOptions) {
-		super(message, options);
-		this.name = "CaptchaKrakenMissing";
-	}
-}

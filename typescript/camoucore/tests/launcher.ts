@@ -6,5 +6,4 @@ export const PRODUCT = new Product(
 	"Camoutest",
 	CHROMIUM,
 	"https://accounts.example",
-	"https://captcha.example/v1",
 );

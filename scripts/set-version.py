@@ -40,12 +40,8 @@ def places():
     for pkg in PYTHON:
         pyproject = pkg / 'pyproject.toml'
         yield pyproject, re.compile(r'^version = "([^"]+)"$', re.M), pep440
-        if pkg.name != CORE and re.search(r'^camoucore = \[$', pyproject.read_text(), re.M):
-            # Both entries of `camoucore = [{version = ...}, {version = ..., extras = [...]}]`.
-            yield pyproject, re.compile(r'^\s*\{version = "==([^"]+)"\},$', re.M), pep440
-            yield pyproject, re.compile(r'^\s*\{version = "==([^"]+)", extras', re.M), pep440
-        elif pkg.name != CORE:
-            # A launcher without extras of camoucore: `camoucore = "==..."`.
+        if pkg.name != CORE:
+            # A launcher pins exactly its release's camoucore: `camoucore = "==..."`.
             yield pyproject, re.compile(r'^camoucore = "==([^"]+)"$', re.M), pep440
     for pkg in NPM:
         yield pkg / 'package.json', re.compile(r'^  "version": "([^"]+)",$', re.M), str

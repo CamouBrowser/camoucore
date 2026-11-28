@@ -9,7 +9,6 @@ import { createHash, randomInt } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { inspect } from "node:util";
-import { type CaptchaOption, resolveCaptcha } from "camoucore/captcha.js";
 import * as cpuAffinity from "camoucore/cpu_affinity.js";
 import { hasDisplay, largestDisplay } from "camoucore/display.js";
 import { geoipAllowed, getGeolocation } from "camoucore/geolocation.js";
@@ -2048,17 +2047,6 @@ export interface LaunchOptions {
 	 * DO_NOT_TRACK=1 turns it off too. */
 	telemetry?: boolean;
 	/**
-	 * Solve captchas with CaptchaKraken (the optional `captchakraken` peer
-	 * dependency). A Camoufox account key ("cfp_live_..."), a CaptchaKraken key
-	 * ("ck_live_..."), the URL of a CaptchaKraken server you host,
-	 * {endpoint, key}, or true to read CAMOUWOLF_PRO_KEY,
-	 * CAPTCHA_KRAKEN_API_KEY or CAMOUWOLF_CAPTCHA_URL. The browser (or
-	 * persistent context) then has a `.captcha` solver. true with none of them
-	 * set throws CaptchaKeyMissing. Applied by Camouwolf()/NewBrowser(); only
-	 * validated here.
-	 */
-	captcha?: CaptchaOption;
-	/**
 	 * Camouwolf Pro options: a Pro key, a stored profile, its warm plan, a
 	 * managed proxy, and remote GPU rendering. Pro has not launched yet, so a
 	 * value that asks for one throws ProNotLaunched with the page where an
@@ -2469,7 +2457,6 @@ async function buildLaunchOptions({
 	allow_os_mismatch,
 	passthrough,
 	telemetry: _telemetry,
-	captcha,
 	pro_key,
 	profile,
 	warm_plan,
@@ -2479,7 +2466,6 @@ async function buildLaunchOptions({
 }: LaunchOptions): Promise<Record<string, any>> {
 	// Before anything is written or downloaded.
 	checkProOptions(PRODUCT, { pro_key, profile, warm_plan, managed, farm_gpu });
-	resolveCaptcha(PRODUCT, captcha);
 	if (passthrough) {
 		checkPassthrough(PRODUCT, {
 			config,

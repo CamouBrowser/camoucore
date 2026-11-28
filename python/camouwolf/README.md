@@ -27,9 +27,6 @@ browser was tested with, and pins that browser build (`camouwolf_pin`). The driv
 on its own fetches the browser camoucore's CI tested it with. The import is
 `camouwolf` either way.
 
-Add the `captcha` extra (`"camoucore-camouwolf[geoip,captcha]"`) to use the `captcha`
-option.
-
 `camouwolf fetch` installs the browser from the
 [CamouBrowser/camouwolf](https://github.com/CamouBrowser/camouwolf) releases, the
 fpgen model, the GeoIP database, and the default addon (uBlock Origin Lite,
@@ -153,34 +150,6 @@ hiding still apply. An option that sets the identity (`os`, `locale`, `geoip`,
 alongside it, and a proxy warns, since the host's timezone and languages then
 disagree with the exit. Contexts keep the host's identity; `NewContext()`
 raises.
-
-### Captcha
-
-`captcha=` gives the launched browser, or persistent context, a solver at
-`.captcha`; without it `.captcha` is `None`. It needs the `captcha` extra
-(the [captchakraken](https://pypi.org/project/captchakraken/) client). A key or
-server comes from one of:
-
-1. A Camoufox account key (`cfp_live_...`), the one key every Camoufox service
-   takes: make a free account at <https://camoufox.com/early-access/>.
-2. A CaptchaKraken server you host: `pip install "captchakraken[serve]"`,
-   `captchakraken server start`, then `captcha="http://localhost:8000/v1"`.
-
-A CaptchaKraken key (`ck_live_...`) works too, solving at CaptchaKraken's API.
-
-`captcha=True` reads the key from `CAMOUWOLF_PRO_KEY`, `CAPTCHA_KRAKEN_API_KEY`
-or `CAMOUWOLF_CAPTCHA_URL`. When none is set it raises `CaptchaKeyMissing`,
-which lists the account first and hosting the solver yourself second. The option is checked before anything is downloaded and never
-reaches Playwright.
-
-```python
-with Camouwolf(captcha="cfp_live_...") as browser:
-    page = browser.new_page()
-    page.goto("https://example.com")
-    browser.captcha.solve(page)
-```
-
-The async API's `.captcha` is the async solver.
 
 ### Pro options
 

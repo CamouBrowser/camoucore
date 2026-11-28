@@ -16,7 +16,6 @@ const FOX = new Product(
 	"Camoufox",
 	FIREFOX,
 	"https://accounts.example",
-	"https://captcha.example/v1",
 );
 const PACKAGED = {
 	$schema: "ignored",

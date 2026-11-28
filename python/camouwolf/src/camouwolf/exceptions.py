@@ -15,8 +15,6 @@ from camoucore.exceptions import (  # noqa: F401 -- part of this package's API
     VirtualDisplayNotSupported,
     FpgenModelError,
     ProNotLaunched,
-    CaptchaKeyMissing,
-    CaptchaKrakenMissing,
 )
 
 

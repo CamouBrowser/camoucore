@@ -20,7 +20,4 @@ runs:
         node-version: ${{ inputs.node-version }}
         cache: pnpm
     - shell: bash
-      env:
-        # captchakraken's postinstall would set up a Python of its own.
-        CAPTCHA_KRAKEN_SKIP_PYTHON_SETUP: "1"
       run: pnpm install --frozen-lockfile

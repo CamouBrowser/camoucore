@@ -143,22 +143,3 @@ class ProNotLaunched(ValueError):
             f'it opens; {title} itself stays free.'
         )
 
-
-class CaptchaKeyMissing(ValueError):
-    """
-    Raised when captcha solving is asked for and no key or server was given.
-    The message lists the ways to get one, a free account first.
-    """
-
-    def __init__(self, message: str, account_url: str) -> None:
-        self.url = account_url
-        super().__init__(message)
-
-
-class CaptchaKrakenMissing(ImportError):
-    """
-    Raised when captcha solving is asked for and the captchakraken client is
-    not installed.
-    """
-
-    ...

@@ -9,7 +9,7 @@ from camoucore import FIREFOX, Product
 from camoucore._warnings import LeakWarning
 from camoucore.passthrough import IDENTITY_OPTIONS, check_passthrough, passthrough_conflicts, warn_passthrough
 
-FOX = Product('camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'), site='https://accounts.example', captcha_endpoint='https://captcha.example/v1')
+FOX = Product('camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'), site='https://accounts.example')
 
 
 def test_unset_and_behaviour_options_do_not_conflict():

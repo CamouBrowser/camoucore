@@ -34,8 +34,6 @@ export class Product {
 		 * key, serves every service the launcher reaches.
 		 */
 		readonly site: string,
-		/** The captcha solve endpoint that takes an account's key. */
-		readonly captchaEndpoint: string,
 	) {}
 
 	get cacheDir(): string {

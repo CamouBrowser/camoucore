@@ -11,11 +11,11 @@ from camoucore.pro import PRO_OPTIONS, check_pro_options, early_access_url
 
 FOX = Product(
     'camoufox', 'Camoufox', FIREFOX, package=Path('/nonexistent/camoufox'),
-    site='https://accounts.example', captcha_endpoint='https://captcha.example/v1',
+    site='https://accounts.example',
 )
 WOLF = Product(
     'camouwolf', 'Camouwolf', CHROMIUM, package=Path('/nonexistent/camouwolf'),
-    site='https://accounts.example', captcha_endpoint='https://captcha.example/v1',
+    site='https://accounts.example',
 )
 ASKS = {
     'pro_key': 'cfp_live_x',
